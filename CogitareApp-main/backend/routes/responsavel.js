@@ -29,12 +29,12 @@ router.post('/endereco', async (req, res) => {
         idEndereco: result.insertId
       }
     });
-
   } catch (error) {
     console.error('Erro ao cadastrar endereço:', error);
     res.status(500).json({
       success: false,
-      message: 'Erro interno do servidor'
+      message: 'Erro interno do servidor',
+      error: error.message
     });
   }
 });
@@ -42,15 +42,15 @@ router.post('/endereco', async (req, res) => {
 // Cadastrar responsável
 router.post('/', async (req, res) => {
   try {
-    const { 
-      idEndereco, 
-      cpf, 
-      nome, 
-      email, 
-      telefone, 
-      dataNascimento, 
-      senha, 
-      fotoUrl 
+    const {
+      idEndereco,
+      cpf,
+      nome,
+      email,
+      telefone,
+      dataNascimento,
+      senha,
+      fotoUrl
     } = req.body;
 
     if (!idEndereco || !cpf || !nome || !email || !telefone || !dataNascimento || !senha) {
@@ -60,7 +60,6 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Verificar se CPF já existe
     const existingCpf = await db.query(
       'SELECT IdResponsavel FROM responsavel WHERE Cpf = ?',
       [cpf]
@@ -73,7 +72,6 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Verificar se email já existe
     const existingEmail = await db.query(
       'SELECT IdResponsavel FROM responsavel WHERE Email = ?',
       [email]
@@ -86,7 +84,6 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Criptografar senha
     const hashedPassword = await bcrypt.hash(senha, 10);
 
     const result = await db.query(
@@ -101,35 +98,35 @@ router.post('/', async (req, res) => {
         idResponsavel: result.insertId
       }
     });
-
   } catch (error) {
     console.error('Erro ao cadastrar responsável:', error);
     res.status(500).json({
       success: false,
-      message: 'Erro interno do servidor'
+      message: 'Erro interno do servidor',
+      error: error.message
     });
   }
 });
 
 // Cadastro completo (endereço + responsável)
 router.post('/completo', async (req, res) => {
+  let connection;
+
   try {
-    const { 
-      // Dados do endereço
-      cidade, 
-      bairro, 
-      rua, 
-      numero, 
-      complemento, 
+    const {
+      cidade,
+      bairro,
+      rua,
+      numero,
+      complemento,
       cep,
-      // Dados do responsável
-      cpf, 
-      nome, 
-      email, 
-      telefone, 
-      dataNascimento, 
-      senha, 
-      fotoUrl 
+      cpf,
+      nome,
+      email,
+      telefone,
+      dataNascimento,
+      senha,
+      fotoUrl
     } = req.body;
 
     if (!cidade || !bairro || !rua || !numero || !cep || !cpf || !nome || !email || !telefone || !dataNascimento || !senha) {
@@ -139,7 +136,6 @@ router.post('/completo', async (req, res) => {
       });
     }
 
-    // Verificar se CPF já existe
     const existingCpf = await db.query(
       'SELECT IdResponsavel FROM responsavel WHERE Cpf = ?',
       [cpf]
@@ -152,7 +148,6 @@ router.post('/completo', async (req, res) => {
       });
     }
 
-    // Verificar se email já existe
     const existingEmail = await db.query(
       'SELECT IdResponsavel FROM responsavel WHERE Email = ?',
       [email]
@@ -165,51 +160,50 @@ router.post('/completo', async (req, res) => {
       });
     }
 
-    // Iniciar transação
-    await db.query('START TRANSACTION');
+    connection = await db.getConnection();
+    await connection.beginTransaction();
 
-    try {
-      // Cadastrar endereço
-      const addressResult = await db.query(
-        'INSERT INTO endereco (Cidade, Bairro, Rua, Numero, Complemento, Cep) VALUES (?, ?, ?, ?, ?, ?)',
-        [cidade, bairro, rua, numero, complemento || null, cep]
-      );
+    const [addressResult] = await connection.execute(
+      'INSERT INTO endereco (Cidade, Bairro, Rua, Numero, Complemento, Cep) VALUES (?, ?, ?, ?, ?, ?)',
+      [cidade, bairro, rua, numero, complemento || null, cep]
+    );
 
-      const idEndereco = addressResult.insertId;
+    const idEndereco = addressResult.insertId;
+    const hashedPassword = await bcrypt.hash(senha, 10);
 
-      // Criptografar senha
-      const hashedPassword = await bcrypt.hash(senha, 10);
+    const [guardianResult] = await connection.execute(
+      'INSERT INTO responsavel (IdEndereco, Cpf, Nome, Email, Telefone, DataNascimento, Senha, FotoUrl) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [idEndereco, cpf, nome, email, telefone, dataNascimento, hashedPassword, fotoUrl || null]
+    );
 
-      // Cadastrar responsável
-      const guardianResult = await db.query(
-        'INSERT INTO responsavel (IdEndereco, Cpf, Nome, Email, Telefone, DataNascimento, Senha, FotoUrl) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [idEndereco, cpf, nome, email, telefone, dataNascimento, hashedPassword, fotoUrl || null]
-      );
+    await connection.commit();
 
-      // Confirmar transação
-      await db.query('COMMIT');
-
-      res.status(201).json({
-        success: true,
-        message: 'Responsável cadastrado com sucesso',
-        data: {
-          idResponsavel: guardianResult.insertId,
-          idEndereco: idEndereco
-        }
-      });
-
-    } catch (error) {
-      // Reverter transação em caso de erro
-      await db.query('ROLLBACK');
-      throw error;
+    res.status(201).json({
+      success: true,
+      message: 'Responsável cadastrado com sucesso',
+      data: {
+        idResponsavel: guardianResult.insertId,
+        idEndereco: idEndereco
+      }
+    });
+  } catch (error) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch (_) {}
     }
 
-  } catch (error) {
     console.error('Erro no cadastro completo:', error);
+
     res.status(500).json({
       success: false,
-      message: 'Erro interno do servidor'
+      message: 'Erro interno do servidor',
+      error: error.message
     });
+  } finally {
+    if (connection) {
+      connection.release();
+    }
   }
 });
 
@@ -227,12 +221,12 @@ router.get('/', authenticateToken, async (req, res) => {
       message: 'Responsáveis listados com sucesso',
       data: responsaveis
     });
-
   } catch (error) {
     console.error('Erro ao listar responsáveis:', error);
     res.status(500).json({
       success: false,
-      message: 'Erro interno do servidor'
+      message: 'Erro interno do servidor',
+      error: error.message
     });
   }
 });
@@ -261,12 +255,12 @@ router.get('/:id', authenticateToken, async (req, res) => {
       message: 'Responsável encontrado',
       data: responsaveis[0]
     });
-
   } catch (error) {
     console.error('Erro ao buscar responsável:', error);
     res.status(500).json({
       success: false,
-      message: 'Erro interno do servidor'
+      message: 'Erro interno do servidor',
+      error: error.message
     });
   }
 });
