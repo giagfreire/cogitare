@@ -41,10 +41,15 @@ PARA FUNCIONAR PRECISA INTELIGAR O BANCO DE DADOS COM O BACKEND!!! como fazer:
 
 cria um terminal (sempre tem que deixar aberto!)
 e escreve 
+
 cd CogitareApp-main
+
 dir
+
 cd backend
+
 npm start
+
 
 pronto! depois so abrir outro terminal e rodar pelo google.
 
