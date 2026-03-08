@@ -1,0 +1,13 @@
+# Example local.properties file
+# Copy this file to local.properties and update the paths for your machine
+
+# Android SDK location (required for Android development)
+sdk.dir=C:\\Users\\YOUR_USERNAME\\AppData\\Local\\Android\\Sdk
+
+# Flutter SDK location (usually auto-detected, but can be set manually)
+flutter.sdk=C:\\path\\to\\flutter
+
+# Flutter build configuration
+flutter.buildMode=debug
+flutter.versionName=1.0.0
+flutter.versionCode=1
