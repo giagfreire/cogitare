@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/servico_autenticacao.dart';
 import '../screens/onboarding.dart';
-import '../screens/tela_dashboard_cuidador.dart';
+import '../screens/dashboard_cuidador.dart';
 import '../screens/tela_dashboard_responsavel.dart';
 
 class VerificadorInicial extends StatelessWidget {
@@ -27,23 +27,21 @@ class VerificadorInicial extends StatelessWidget {
 
   Future<Widget> _determinarTelaInicial() async {
     try {
-      // Verificar se está logado
       final isLoggedIn = await ServicoAutenticacao.isLoggedIn();
 
       if (isLoggedIn) {
-        // Se está logado, vai para dashboard baseado no tipo
         final userType = await ServicoAutenticacao.getUserType();
+
         if (userType == 'cuidador') {
-          return const TelaDashboardCuidador();
+          return const DashboardCuidador();
         } else if (userType == 'responsavel') {
           return const TelaDashboardResponsavel();
         }
       }
 
-      // Se não está logado, sempre vai para tela de onboarding
       return const OnboardingScreen();
     } catch (e) {
-      print('Erro ao verificar estado inicial: $e');
+      debugPrint('Erro ao verificar estado inicial: $e');
       return const OnboardingScreen();
     }
   }

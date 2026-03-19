@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/servico_autenticacao.dart';
-import '../screens/tela_dashboard_cuidador.dart';
+import '../screens/dashboard_cuidador.dart';
 import '../screens/tela_dashboard_responsavel.dart';
 
 /// Controller responsável pela lógica de negócio do Login
@@ -33,12 +33,17 @@ class LoginController {
     try {
       final result = await ServicoApi.login(email, senha, userType);
 
-      if (result['success']) {
+      if (result['success'] == true) {
+        final userData = result['data']?['user'] ?? {};
+        final token = result['data']?['token'];
+        final tipoUsuario = userData['tipo'] ?? userType;
+        final nomeUsuario = userData['nome'] ?? '';
+
         // Salvar dados de login
         await ServicoAutenticacao.saveLoginData(
-          userType: result['data']['user']['tipo'],
-          userData: result['data']['user'],
-          token: result['data']['token'],
+          userType: tipoUsuario,
+          userData: userData,
+          token: token,
         );
 
         // Limpar flag de processo de cadastro ao fazer login
@@ -46,8 +51,8 @@ class LoginController {
 
         return {
           'success': true,
-          'userType': result['data']['user']['tipo'],
-          'userName': result['data']['user']['nome'],
+          'userType': tipoUsuario,
+          'userName': nomeUsuario,
           'message': 'Login realizado com sucesso',
         };
       } else {
@@ -69,7 +74,7 @@ class LoginController {
     if (userType == 'cuidador') {
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const TelaDashboardCuidador()),
+        MaterialPageRoute(builder: (_) => const DashboardCuidador()),
         (route) => false,
       );
     } else if (userType == 'responsavel') {

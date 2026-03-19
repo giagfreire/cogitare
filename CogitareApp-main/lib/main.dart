@@ -1,19 +1,32 @@
-import 'package:cogitare_app/screens/tela_historico-servicos.dart';
-import 'package:cogitare_app/screens/tela_propostas_recebidas.dart';
 import 'package:flutter/material.dart';
+
+// WIDGETS
 import 'widgets/verificador_inicial.dart';
+
+// TELAS
+import 'screens/onboarding.dart';
 import 'screens/selecao_papel.dart';
 import 'screens/tela_login_unificada.dart';
 import 'screens/tela_cadastro_cuidador.dart';
 import 'screens/tela_cadastro_responsavel.dart';
 import 'screens/tela_cadastro_idoso.dart';
 import 'screens/tela_sucesso.dart';
+import 'screens/tela_editar_perfil_cuidador.dart';
+import 'screens/tela_termos_condicoes.dart';
+
+// DASHBOARDS
 import 'screens/tela_dashboard_responsavel.dart';
-import 'screens/tela_dashboard_cuidador.dart';
+import 'screens/dashboard_cuidador.dart';
+
+// NOVAS TELAS 🔥
+import 'screens/tela_configuracoes_cuidador.dart';
+import 'screens/tela_planos.dart';
+
+// OUTRAS TELAS
 import 'screens/tela_cuidadores_proximos.dart';
 import 'screens/tela_propostas_detalhadas.dart';
-import 'screens/onboarding.dart';
-
+import 'screens/tela_historico-servicos.dart';
+import 'screens/tela_propostas_recebidas.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,12 +67,15 @@ class CogitareApp extends StatelessWidget {
           backgroundColor: brandNavy,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 14),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       ),
       checkboxTheme: CheckboxThemeData(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(4),
+        ),
       ),
       chipTheme: const ChipThemeData(
         color: WidgetStatePropertyAll(Color(0xFF7FAE3E)),
@@ -68,24 +84,50 @@ class CogitareApp extends StatelessWidget {
     );
 
     return MaterialApp(
-      home: const VerificadorInicial(),
       debugShowCheckedModeBanner: false,
       title: 'COGITARE',
       theme: theme,
+
+      /// 🔥 TELA INICIAL
+      home: const VerificadorInicial(),
+
+      /// 🔥 ROTAS
       routes: {
         '/onboarding': (_) => const OnboardingScreen(),
         '/selecao-papel': (_) => const SelecaoPapel(),
+        TelaEditarPerfilCuidador.route: (_) => const TelaEditarPerfilCuidador(),
+        TelaTermosCondicoes.route: (_) => const TelaTermosCondicoes(),
+
+        // LOGIN
         TelaLoginUnificada.route: (_) => const TelaLoginUnificada(),
+
+        // CADASTROS
         TelaCadastroCuidador.route: (_) => const TelaCadastroCuidador(),
         TelaCadastroResponsavel.route: (_) => const TelaCadastroResponsavel(),
         TelaCadastroIdoso.route: (_) => const TelaCadastroIdoso(),
+
+        // SUCESSO
         TelaSucesso.route: (_) => const TelaSucesso(),
-        TelaDashboardResponsavel.route: (_) => const TelaDashboardResponsavel(),
-        TelaDashboardCuidador.route: (_) => const TelaDashboardCuidador(),
-        TelaCuidadoresProximos.route: (_) => const TelaCuidadoresProximos(),
-        TelaHistoricoServicos.route: (_) => const TelaHistoricoServicos(),
-        TelaPropostasRecebidas.route: (_) => const TelaPropostasRecebidas(),
-        TelaPropostasDetalhadas.route: (_) => const TelaPropostasDetalhadas(),
+
+        // DASHBOARDS
+        TelaDashboardResponsavel.route: (_) =>
+            const TelaDashboardResponsavel(),
+        DashboardCuidador.route: (_) => const DashboardCuidador(),
+
+        // NOVAS TELAS 🔥
+        TelaConfiguracoesCuidador.route: (_) =>
+            const TelaConfiguracoesCuidador(),
+        TelaPlanos.route: (_) => const TelaPlanos(),
+
+        // OUTRAS TELAS
+        TelaCuidadoresProximos.route: (_) =>
+            const TelaCuidadoresProximos(),
+        TelaHistoricoServicos.route: (_) =>
+            const TelaHistoricoServicos(),
+        TelaPropostasRecebidas.route: (_) =>
+            const TelaPropostasRecebidas(),
+        TelaPropostasDetalhadas.route: (_) =>
+            const TelaPropostasDetalhadas(),
       },
     );
   }

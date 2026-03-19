@@ -5,8 +5,8 @@ const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Cadastrar cuidador
-router.post('/', async (req, res) => {
+// CADASTRO DO CUIDADOR
+router.post('/cadastro', async (req, res) => {
   try {
     const {
       nome,
@@ -15,7 +15,12 @@ router.post('/', async (req, res) => {
       telefone,
       cpf,
       dataNascimento,
-      idEndereco,
+      cidade,
+      bairro,
+      rua,
+      numero,
+      complemento,
+      cep,
       fumante,
       temFilhos,
       possuiCnh,
@@ -25,14 +30,25 @@ router.post('/', async (req, res) => {
       fotoUrl
     } = req.body;
 
-    if (!nome || !email || !senha || !telefone || !cpf || !dataNascimento || !idEndereco) {
+    console.log('BODY RECEBIDO NO CADASTRO:', req.body);
+
+    // validação dos campos obrigatórios do cuidador
+    if (!nome || !email || !senha || !telefone || !cpf || !dataNascimento) {
       return res.status(400).json({
         success: false,
-        message: 'Todos os campos obrigatórios devem ser preenchidos'
+        message: 'Preencha nome, email, senha, telefone, cpf e dataNascimento.'
       });
     }
 
-    // Verificar se email já existe
+    // validação dos campos obrigatórios do endereço
+    if (!cidade || !bairro || !rua || !numero || !cep) {
+      return res.status(400).json({
+        success: false,
+        message: 'Preencha os campos obrigatórios do endereço.'
+      });
+    }
+
+    // verifica email já cadastrado
     const existingEmail = await db.query(
       'SELECT IdCuidador FROM cuidador WHERE Email = ?',
       [email]
@@ -45,9 +61,9 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Verificar se CPF já existe
+    // verifica cpf já cadastrado
     const existingCpf = await db.query(
-      'SELECT IdCuidador FROM cuidador WHERE Cpf = ?',
+      'SELECT IdCuidador FROM cuidador WHERE CPF = ?',
       [cpf]
     );
 
@@ -58,11 +74,22 @@ router.post('/', async (req, res) => {
       });
     }
 
+    // criptografa senha
     const hashedPassword = await bcrypt.hash(senha, 10);
 
+    // cria endereço
+    const enderecoResult = await db.query(
+      `INSERT INTO endereco (Cidade, Bairro, Rua, Numero, Complemento, Cep)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [cidade, bairro, rua, numero, complemento || null, cep]
+    );
+
+    const idEndereco = enderecoResult.insertId;
+
+    // cria cuidador
     const result = await db.query(
-      `INSERT INTO cuidador 
-      (Nome, Email, Senha, Telefone, Cpf, DataNascimento, IdEndereco, Fumante, TemFilhos, PossuiCNH, TemCarro, Biografia, ValorHora, FotoUrl)
+      `INSERT INTO cuidador
+      (Nome, Email, Senha, Telefone, CPF, DataNascimento, IdEndereco, Fumante, TemFilhos, PossuiCNH, TemCarro, Biografia, ValorHora, FotoUrl)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         nome,
@@ -82,17 +109,18 @@ router.post('/', async (req, res) => {
       ]
     );
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: 'Cuidador cadastrado com sucesso',
       data: {
-        idCuidador: result.insertId
+        idCuidador: result.insertId,
+        idEndereco
       }
     });
-
   } catch (error) {
     console.error('Erro ao cadastrar cuidador:', error);
-    res.status(500).json({
+
+    return res.status(500).json({
       success: false,
       message: 'Erro interno do servidor',
       error: error.message
@@ -100,7 +128,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Buscar cuidador por ID
+// BUSCAR CUIDADOR POR ID
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -111,7 +139,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
         c.Nome,
         c.Email,
         c.Telefone,
-        c.Cpf,
+        c.CPF,
         c.DataNascimento,
         c.FotoUrl,
         c.Biografia,
@@ -140,316 +168,14 @@ router.get('/:id', authenticateToken, async (req, res) => {
       });
     }
 
-    const cuidador = cuidadores[0];
-    delete cuidador.Senha;
-
-    res.json({
+    return res.json({
       success: true,
-      data: cuidador
+      data: cuidadores[0]
     });
-
   } catch (error) {
     console.error('Erro ao buscar cuidador:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno do servidor',
-      error: error.message
-    });
-  }
-});
 
-// Atualizar cuidador
-router.put('/:id', authenticateToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const {
-      nome,
-      telefone,
-      cpf,
-      dataNascimento,
-      idEndereco,
-      fumante,
-      temFilhos,
-      possuiCnh,
-      temCarro,
-      biografia,
-      valorHora,
-      fotoUrl
-    } = req.body;
-
-    const existingCuidador = await db.query(
-      'SELECT IdCuidador FROM cuidador WHERE IdCuidador = ?',
-      [id]
-    );
-
-    if (existingCuidador.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Cuidador não encontrado'
-      });
-    }
-
-    await db.query(
-      `UPDATE cuidador SET
-        Nome = ?,
-        Telefone = ?,
-        Cpf = ?,
-        DataNascimento = ?,
-        IdEndereco = ?,
-        Fumante = ?,
-        TemFilhos = ?,
-        PossuiCNH = ?,
-        TemCarro = ?,
-        Biografia = ?,
-        ValorHora = ?,
-        FotoUrl = ?
-      WHERE IdCuidador = ?`,
-      [
-        nome,
-        telefone,
-        cpf,
-        dataNascimento,
-        idEndereco,
-        fumante || 'Não',
-        temFilhos || 'Não',
-        possuiCnh || 'Não',
-        temCarro || 'Não',
-        biografia || null,
-        valorHora || null,
-        fotoUrl || null,
-        id
-      ]
-    );
-
-    res.json({
-      success: true,
-      message: 'Cuidador atualizado com sucesso'
-    });
-
-  } catch (error) {
-    console.error('Erro ao atualizar cuidador:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno do servidor',
-      error: error.message
-    });
-  }
-});
-
-// Listar cuidadores
-router.get('/', authenticateToken, async (req, res) => {
-  try {
-    const cuidadores = await db.query(
-      `SELECT 
-        c.IdCuidador as id,
-        c.Nome as nome,
-        c.Email as email,
-        c.Telefone as telefone,
-        c.Cpf as cpf,
-        c.DataNascimento as dataNascimento,
-        c.FotoUrl as fotoUrl,
-        c.Biografia as biografia,
-        c.Fumante as fumante,
-        c.TemFilhos as temFilhos,
-        c.PossuiCNH as possuiCnh,
-        c.TemCarro as temCarro,
-        c.ValorHora as valorHora,
-        e.IdEndereco as idEndereco,
-        e.Cidade as cidade,
-        e.Bairro as bairro,
-        e.Rua as rua,
-        e.Numero as numero,
-        e.Complemento as complemento,
-        e.Cep as cep
-      FROM cuidador c
-      LEFT JOIN endereco e ON c.IdEndereco = e.IdEndereco`
-    );
-
-    res.json({
-      success: true,
-      data: cuidadores
-    });
-
-  } catch (error) {
-    console.error('Erro ao listar cuidadores:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno do servidor',
-      error: error.message
-    });
-  }
-});
-
-// Adicionar especialidade ao cuidador
-router.post('/especialidade', async (req, res) => {
-  try {
-    const { idCuidador, especialidade } = req.body;
-
-    const especialidadeResult = await db.query(
-      'SELECT IdEspecialidade FROM especialidade WHERE Nome = ?',
-      [especialidade]
-    );
-
-    if (especialidadeResult.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Especialidade não encontrada'
-      });
-    }
-
-    const idEspecialidade = especialidadeResult[0].IdEspecialidade;
-
-    await db.query(
-      'INSERT INTO cuidadorespecialidade (IdCuidador, IdEspecialidade) VALUES (?, ?)',
-      [idCuidador, idEspecialidade]
-    );
-
-    res.json({
-      success: true,
-      message: 'Especialidade adicionada com sucesso'
-    });
-
-  } catch (error) {
-    console.error('Erro ao adicionar especialidade:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno do servidor',
-      error: error.message
-    });
-  }
-});
-
-// Adicionar serviço ao cuidador
-router.post('/servico', async (req, res) => {
-  try {
-    const { idCuidador, servico } = req.body;
-
-    const servicoResult = await db.query(
-      'SELECT IdServico FROM servico WHERE Nome = ?',
-      [servico]
-    );
-
-    if (servicoResult.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Serviço não encontrado'
-      });
-    }
-
-    const idServico = servicoResult[0].IdServico;
-
-    await db.query(
-      'INSERT INTO cuidadorservico (IdCuidador, IdServico) VALUES (?, ?)',
-      [idCuidador, idServico]
-    );
-
-    res.json({
-      success: true,
-      message: 'Serviço adicionado com sucesso'
-    });
-
-  } catch (error) {
-    console.error('Erro ao adicionar serviço:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno do servidor',
-      error: error.message
-    });
-  }
-});
-
-// Buscar especialidades
-router.get('/especialidades/lista', async (req, res) => {
-  try {
-    const especialidades = await db.query(
-      'SELECT IdEspecialidade, Nome FROM especialidade ORDER BY Nome'
-    );
-
-    res.json({
-      success: true,
-      data: especialidades
-    });
-
-  } catch (error) {
-    console.error('Erro ao buscar especialidades:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno do servidor',
-      error: error.message
-    });
-  }
-});
-
-// Buscar serviços
-router.get('/servicos/lista', async (req, res) => {
-  try {
-    const servicos = await db.query(
-      'SELECT IdServico, Nome FROM servico ORDER BY Nome'
-    );
-
-    res.json({
-      success: true,
-      data: servicos
-    });
-
-  } catch (error) {
-    console.error('Erro ao buscar serviços:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno do servidor',
-      error: error.message
-    });
-  }
-});
-
-// Buscar disponibilidades de um cuidador
-router.get('/disponibilidade/:cuidadorId', async (req, res) => {
-  try {
-    const { cuidadorId } = req.params;
-
-    const disponibilidades = await db.query(
-      'SELECT * FROM disponibilidade WHERE IdCuidador = ?',
-      [cuidadorId]
-    );
-
-    res.json({
-      success: true,
-      data: disponibilidades
-    });
-
-  } catch (error) {
-    console.error('Erro ao buscar disponibilidades:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno do servidor',
-      error: error.message
-    });
-  }
-});
-
-// Salvar disponibilidades do cuidador
-router.post('/disponibilidade', async (req, res) => {
-  try {
-    const { idCuidador, disponibilidades } = req.body;
-
-    for (const disp of disponibilidades) {
-      const { diaSemana, dataInicio, dataFim, observacoes, recorrente } = disp;
-
-      await db.query(
-        `INSERT INTO disponibilidade (IdCuidador, DiaSemana, DataInicio, DataFim, Observacoes, Recorrente)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [idCuidador, diaSemana, dataInicio, dataFim, observacoes || null, recorrente ?? 1]
-      );
-    }
-
-    res.json({
-      success: true,
-      message: 'Disponibilidades salvas com sucesso'
-    });
-
-  } catch (error) {
-    console.error('Erro ao salvar disponibilidades:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Erro interno do servidor',
       error: error.message
@@ -458,3 +184,75 @@ router.post('/disponibilidade', async (req, res) => {
 });
 
 module.exports = router;
+
+// ATUALIZAR CUIDADOR
+router.put('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const {
+      nome,
+      telefone,
+      cpf,
+      dataNascimento,
+      cidade,
+      biografia,
+      valorHora
+    } = req.body;
+
+    // verifica se o cuidador existe
+    const cuidadorExistente = await db.query(
+      'SELECT * FROM cuidador WHERE IdCuidador = ?',
+      [id]
+    );
+
+    if (cuidadorExistente.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Cuidador não encontrado'
+      });
+    }
+
+    const cuidador = cuidadorExistente[0];
+    const idEndereco = cuidador.IdEndereco;
+
+    // atualiza cuidador
+    await db.query(
+      `UPDATE cuidador
+       SET Nome = ?, Telefone = ?, CPF = ?, DataNascimento = ?, Biografia = ?, ValorHora = ?
+       WHERE IdCuidador = ?`,
+      [
+        nome || cuidador.Nome,
+        telefone || cuidador.Telefone,
+        cpf || cuidador.CPF,
+        dataNascimento || cuidador.DataNascimento,
+        biografia || cuidador.Biografia,
+        valorHora || cuidador.ValorHora,
+        id
+      ]
+    );
+
+    // atualiza cidade no endereço, se existir endereço vinculado
+    if (idEndereco) {
+      await db.query(
+        `UPDATE endereco
+         SET Cidade = ?
+         WHERE IdEndereco = ?`,
+        [cidade || null, idEndereco]
+      );
+    }
+
+    return res.json({
+      success: true,
+      message: 'Perfil atualizado com sucesso'
+    });
+  } catch (error) {
+    console.error('Erro ao atualizar cuidador:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor',
+      error: error.message
+    });
+  }
+});
