@@ -30,9 +30,6 @@ router.post('/cadastro', async (req, res) => {
       fotoUrl
     } = req.body;
 
-    console.log('BODY RECEBIDO NO CADASTRO:', req.body);
-
-    // validação dos campos obrigatórios do cuidador
     if (!nome || !email || !senha || !telefone || !cpf || !dataNascimento) {
       return res.status(400).json({
         success: false,
@@ -40,7 +37,6 @@ router.post('/cadastro', async (req, res) => {
       });
     }
 
-    // validação dos campos obrigatórios do endereço
     if (!cidade || !bairro || !rua || !numero || !cep) {
       return res.status(400).json({
         success: false,
@@ -48,7 +44,6 @@ router.post('/cadastro', async (req, res) => {
       });
     }
 
-    // verifica email já cadastrado
     const existingEmail = await db.query(
       'SELECT IdCuidador FROM cuidador WHERE Email = ?',
       [email]
@@ -61,7 +56,6 @@ router.post('/cadastro', async (req, res) => {
       });
     }
 
-    // verifica cpf já cadastrado
     const existingCpf = await db.query(
       'SELECT IdCuidador FROM cuidador WHERE CPF = ?',
       [cpf]
@@ -74,10 +68,8 @@ router.post('/cadastro', async (req, res) => {
       });
     }
 
-    // criptografa senha
     const hashedPassword = await bcrypt.hash(senha, 10);
 
-    // cria endereço
     const enderecoResult = await db.query(
       `INSERT INTO endereco (Cidade, Bairro, Rua, Numero, Complemento, Cep)
        VALUES (?, ?, ?, ?, ?, ?)`,
@@ -86,7 +78,6 @@ router.post('/cadastro', async (req, res) => {
 
     const idEndereco = enderecoResult.insertId;
 
-    // cria cuidador
     const result = await db.query(
       `INSERT INTO cuidador
       (Nome, Email, Senha, Telefone, CPF, DataNascimento, IdEndereco, Fumante, TemFilhos, PossuiCNH, TemCarro, Biografia, ValorHora, FotoUrl)
@@ -183,7 +174,79 @@ router.get('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-module.exports = router;
+// SALVAR DISPONIBILIDADE
+router.post('/:id/disponibilidade', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { disponibilidade } = req.body;
+
+    if (!Array.isArray(disponibilidade)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Disponibilidade inválida'
+      });
+    }
+
+    await db.query(
+      'DELETE FROM disponibilidade WHERE IdCuidador = ?',
+      [id]
+    );
+
+    for (const item of disponibilidade) {
+      await db.query(
+        `INSERT INTO disponibilidade 
+        (IdCuidador, DiaSemana, DataInicio, DataFim, Observacoes, Recorrente)
+        VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          id,
+          item.dia,
+          item.ativo ? item.inicio : null,
+          item.ativo ? item.fim : null,
+          null,
+          1
+        ]
+      );
+    }
+
+    return res.json({
+      success: true,
+      message: 'Disponibilidade salva com sucesso'
+    });
+  } catch (error) {
+    console.error('Erro ao salvar disponibilidade:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Erro ao salvar disponibilidade',
+      error: error.message
+    });
+  }
+});
+
+// BUSCAR DISPONIBILIDADE
+router.get('/:id/disponibilidade', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const rows = await db.query(
+      'SELECT * FROM disponibilidade WHERE IdCuidador = ?',
+      [id]
+    );
+
+    return res.json({
+      success: true,
+      data: rows
+    });
+  } catch (error) {
+    console.error('Erro ao buscar disponibilidade:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Erro ao buscar disponibilidade',
+      error: error.message
+    });
+  }
+});
 
 // ATUALIZAR CUIDADOR
 router.put('/:id', async (req, res) => {
@@ -200,7 +263,6 @@ router.put('/:id', async (req, res) => {
       valorHora
     } = req.body;
 
-    // verifica se o cuidador existe
     const cuidadorExistente = await db.query(
       'SELECT * FROM cuidador WHERE IdCuidador = ?',
       [id]
@@ -216,7 +278,6 @@ router.put('/:id', async (req, res) => {
     const cuidador = cuidadorExistente[0];
     const idEndereco = cuidador.IdEndereco;
 
-    // atualiza cuidador
     await db.query(
       `UPDATE cuidador
        SET Nome = ?, Telefone = ?, CPF = ?, DataNascimento = ?, Biografia = ?, ValorHora = ?
@@ -232,12 +293,9 @@ router.put('/:id', async (req, res) => {
       ]
     );
 
-    // atualiza cidade no endereço, se existir endereço vinculado
     if (idEndereco) {
       await db.query(
-        `UPDATE endereco
-         SET Cidade = ?
-         WHERE IdEndereco = ?`,
+        `UPDATE endereco SET Cidade = ? WHERE IdEndereco = ?`,
         [cidade || null, idEndereco]
       );
     }
@@ -256,3 +314,69 @@ router.put('/:id', async (req, res) => {
     });
   }
 });
+// SALVAR PLANO DO CUIDADOR
+router.put('/:id/plano', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { plano } = req.body;
+
+    if (!plano) {
+      return res.status(400).json({
+        success: false,
+        message: 'Plano não informado'
+      });
+    }
+
+    await db.query(
+      'UPDATE cuidador SET PlanoAtual = ? WHERE IdCuidador = ?',
+      [plano, id]
+    );
+
+    return res.json({
+      success: true,
+      message: 'Plano atualizado com sucesso'
+    });
+  } catch (error) {
+    console.error('Erro ao salvar plano:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Erro ao salvar plano',
+      error: error.message
+    });
+  }
+});
+
+// BUSCAR PLANO DO CUIDADOR
+router.get('/:id/plano', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const rows = await db.query(
+      'SELECT PlanoAtual FROM cuidador WHERE IdCuidador = ?',
+      [id]
+    );
+
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Cuidador não encontrado'
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: rows[0]
+    });
+  } catch (error) {
+    console.error('Erro ao buscar plano:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Erro ao buscar plano',
+      error: error.message
+    });
+  }
+});
+
+module.exports = router;

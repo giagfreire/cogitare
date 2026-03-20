@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/session_service.dart';
+import 'agenda_cuidador_page.dart';
+import 'planos_cuidador_page.dart';
+import 'vagas_cuidador_page.dart';
 
 class DashboardCuidador extends StatefulWidget {
   static const route = '/dashboard-cuidador';
@@ -17,11 +20,13 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
   String? _errorMessage;
 
   Map<String, dynamic>? _cuidador;
+  String _planoAtual = 'Basico';
 
   @override
   void initState() {
     super.initState();
     _loadCuidador();
+    _loadPlano();
   }
 
   Future<void> _loadCuidador() async {
@@ -33,7 +38,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
     try {
       final cuidadorId = await SessionService.getCuidadorId();
 
-        print('ID DO CUIDADOR: $cuidadorId');
+      print('ID DO CUIDADOR: $cuidadorId');
 
       if (cuidadorId == null) {
         setState(() {
@@ -65,14 +70,40 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
     }
   }
 
+  Future<void> _loadPlano() async {
+    try {
+      final cuidadorId = await SessionService.getCuidadorId();
+
+      if (cuidadorId == null) return;
+
+      final response = await ServicoApi.get('/api/cuidador/$cuidadorId/plano');
+
+      if (response['success'] == true && response['data'] != null) {
+        setState(() {
+          _planoAtual = response['data']['PlanoAtual'] ?? 'Basico';
+        });
+      }
+    } catch (e) {
+      print('Erro ao carregar plano: $e');
+    }
+  }
+
+  Future<void> _refreshDashboard() async {
+    await _loadCuidador();
+    await _loadPlano();
+  }
+
   void _onItemTapped(int index) {
     if (index == 0) {
       setState(() {
         _selectedIndex = 0;
       });
     } else if (index == 1) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tela de agenda em construção')),
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const AgendaCuidadorPage(),
+        ),
       );
     } else if (index == 2) {
       Navigator.pushNamed(context, '/configuracoes-cuidador');
@@ -96,7 +127,8 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
     final email = _textoSeguro(_cuidador?['Email']);
     final telefone = _textoSeguro(_cuidador?['Telefone']);
     final cidade = _textoSeguro(_cuidador?['Cidade']);
-    final valorHora = _textoSeguro(_cuidador?['ValorHora'], fallback: 'A definir');
+    final valorHora =
+        _textoSeguro(_cuidador?['ValorHora'], fallback: 'A definir');
     final biografia = _textoSeguro(
       _cuidador?['Biografia'],
       fallback: 'Você ainda não cadastrou uma biografia.',
@@ -128,7 +160,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                         ),
                         const SizedBox(height: 16),
                         ElevatedButton(
-                          onPressed: _loadCuidador,
+                          onPressed: _refreshDashboard,
                           child: const Text('Tentar novamente'),
                         ),
                       ],
@@ -136,7 +168,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                   ),
                 )
               : RefreshIndicator(
-                  onRefresh: _loadCuidador,
+                  onRefresh: _refreshDashboard,
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.all(16),
@@ -150,6 +182,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const CircleAvatar(
                                 radius: 30,
@@ -160,12 +193,50 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      'Olá, $nome 👋',
-                                      style: const TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            'Olá, $nome 👋',
+                                            style: const TextStyle(
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 6,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: _planoAtual == 'Premium'
+                                                ? const Color(0xFF35064E)
+                                                : Colors.white,
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                            border: Border.all(
+                                              color: _planoAtual == 'Premium'
+                                                  ? const Color(0xFF35064E)
+                                                  : Colors.grey.shade400,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            _planoAtual == 'Premium'
+                                                ? 'Plano Premium'
+                                                : 'Plano Básico',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: _planoAtual == 'Premium'
+                                                  ? Colors.white
+                                                  : Colors.black87,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                     const SizedBox(height: 4),
                                     const Text(
@@ -181,6 +252,67 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                             ],
                           ),
                         ),
+                        const SizedBox(height: 20),
+
+                        const Text(
+                          'Vagas',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        Card(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.work_outline,
+                                  size: 32,
+                                  color: Color(0xFF35064E),
+                                ),
+                                const SizedBox(width: 12),
+                                const Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Vagas disponíveis',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      SizedBox(height: 4),
+                                      Text(
+                                        'Veja oportunidades de atendimento perto de você.',
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const VagasCuidadorPage(),
+                                      ),
+                                    );
+                                  },
+                                  child: const Text('Abrir'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
                         const SizedBox(height: 20),
 
                         const Text(
@@ -202,7 +334,11 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                               children: [
                                 _infoRow(Icons.email_outlined, 'E-mail', email),
                                 const SizedBox(height: 12),
-                                _infoRow(Icons.phone_outlined, 'Telefone', telefone),
+                                _infoRow(
+                                  Icons.phone_outlined,
+                                  'Telefone',
+                                  telefone,
+                                ),
                                 const SizedBox(height: 12),
                                 _infoRow(
                                   Icons.location_on_outlined,
@@ -271,27 +407,36 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                               children: [
                                 const Icon(Icons.workspace_premium, size: 32),
                                 const SizedBox(width: 12),
-                                const Expanded(
+                                Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Plano atual: Básico',
-                                        style: TextStyle(
+                                        'Seu plano atual é $_planoAtual',
+                                        style: const TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
-                                      SizedBox(height: 4),
-                                      Text(
+                                      const SizedBox(height: 4),
+                                      const Text(
                                         'Veja opções para destacar seu perfil no app.',
                                       ),
                                     ],
                                   ),
                                 ),
                                 ElevatedButton(
-                                  onPressed: () {
-                                    Navigator.pushNamed(context, '/planos');
+                                  onPressed: () async {
+                                    await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const PlanosCuidadorPage(),
+                                      ),
+                                    );
+
+                                    _loadPlano();
                                   },
                                   child: const Text('Ver'),
                                 ),

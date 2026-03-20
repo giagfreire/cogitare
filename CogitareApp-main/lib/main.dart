@@ -13,6 +13,7 @@ import 'screens/tela_cadastro_idoso.dart';
 import 'screens/tela_sucesso.dart';
 import 'screens/tela_editar_perfil_cuidador.dart';
 import 'screens/tela_termos_condicoes.dart';
+import 'screens/planos_cuidador_page.dart';
 
 // DASHBOARDS
 import 'screens/tela_dashboard_responsavel.dart';
@@ -97,6 +98,7 @@ class CogitareApp extends StatelessWidget {
         '/selecao-papel': (_) => const SelecaoPapel(),
         TelaEditarPerfilCuidador.route: (_) => const TelaEditarPerfilCuidador(),
         TelaTermosCondicoes.route: (_) => const TelaTermosCondicoes(),
+        '/planos': (context) => const PlanosCuidadorPage(),
 
         // LOGIN
         TelaLoginUnificada.route: (_) => const TelaLoginUnificada(),
