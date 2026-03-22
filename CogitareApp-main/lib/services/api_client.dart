@@ -1,10 +1,15 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 /// Cliente base para requisições HTTP
 class ApiClient {
-  // Para Flutter Web / Chrome no mesmo PC
-  static const String baseUrl = 'http://127.0.0.1:3000';
+  static String get baseUrl {
+    if (kIsWeb) {
+      return 'http://127.0.0.1:3000';
+    }
+    return 'http://10.0.2.2:3000';
+  }
 
   static String? _token;
 
@@ -21,6 +26,25 @@ class ApiClient {
         if (_token != null) 'Authorization': 'Bearer $_token',
       };
 
+  static Future<Map<String, dynamic>> get(String endpoint) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl$endpoint'),
+        headers: _headers,
+      );
+
+      final responseData = jsonDecode(response.body);
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return responseData;
+      } else {
+        throw Exception(responseData['message'] ?? 'Erro na requisição GET');
+      }
+    } catch (e) {
+      throw Exception('Erro de conexão GET: $e');
+    }
+  }
+
   static Future<Map<String, dynamic>> post(
     String endpoint,
     Map<String, dynamic> data,
@@ -32,50 +56,15 @@ class ApiClient {
         body: jsonEncode(data),
       );
 
-      final Map<String, dynamic> responseData =
-          response.body.isNotEmpty ? jsonDecode(response.body) : {};
+      final responseData = jsonDecode(response.body);
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
+      if (response.statusCode >= 200 && response.statusCode < 300) {
         return responseData;
       } else {
-        throw Exception(
-          responseData['message'] ??
-              responseData['error'] ??
-              'Erro na requisição: ${response.statusCode}',
-        );
+        throw Exception(responseData['message'] ?? 'Erro na requisição POST');
       }
     } catch (e) {
-      if (e is FormatException) {
-        throw Exception('Erro ao processar resposta do servidor');
-      }
-      throw Exception('Erro de conexão: $e');
-    }
-  }
-
-  static Future<Map<String, dynamic>> get(String endpoint) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl$endpoint'),
-        headers: _headers,
-      );
-
-      final Map<String, dynamic> responseData =
-          response.body.isNotEmpty ? jsonDecode(response.body) : {};
-
-      if (response.statusCode == 200) {
-        return responseData;
-      } else {
-        throw Exception(
-          responseData['message'] ??
-              responseData['error'] ??
-              'Erro na requisição: ${response.statusCode}',
-        );
-      }
-    } catch (e) {
-      if (e is FormatException) {
-        throw Exception('Erro ao processar resposta do servidor');
-      }
-      throw Exception('Erro de conexão: $e');
+      throw Exception('Erro de conexão POST: $e');
     }
   }
 
@@ -90,23 +79,15 @@ class ApiClient {
         body: jsonEncode(data),
       );
 
-      final Map<String, dynamic> responseData =
-          response.body.isNotEmpty ? jsonDecode(response.body) : {};
+      final responseData = jsonDecode(response.body);
 
-      if (response.statusCode == 200) {
+      if (response.statusCode >= 200 && response.statusCode < 300) {
         return responseData;
       } else {
-        throw Exception(
-          responseData['message'] ??
-              responseData['error'] ??
-              'Erro na requisição: ${response.statusCode}',
-        );
+        throw Exception(responseData['message'] ?? 'Erro na requisição PUT');
       }
     } catch (e) {
-      if (e is FormatException) {
-        throw Exception('Erro ao processar resposta do servidor');
-      }
-      throw Exception('Erro de conexão: $e');
+      throw Exception('Erro de conexão PUT: $e');
     }
   }
 
@@ -117,23 +98,15 @@ class ApiClient {
         headers: _headers,
       );
 
-      final Map<String, dynamic> responseData =
-          response.body.isNotEmpty ? jsonDecode(response.body) : {};
+      final responseData = jsonDecode(response.body);
 
-      if (response.statusCode == 200 || response.statusCode == 204) {
+      if (response.statusCode >= 200 && response.statusCode < 300) {
         return responseData;
       } else {
-        throw Exception(
-          responseData['message'] ??
-              responseData['error'] ??
-              'Erro na requisição: ${response.statusCode}',
-        );
+        throw Exception(responseData['message'] ?? 'Erro na requisição DELETE');
       }
     } catch (e) {
-      if (e is FormatException) {
-        throw Exception('Erro ao processar resposta do servidor');
-      }
-      throw Exception('Erro de conexão: $e');
+      throw Exception('Erro de conexão DELETE: $e');
     }
   }
 }

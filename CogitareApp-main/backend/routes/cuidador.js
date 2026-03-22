@@ -5,6 +5,13 @@ const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
+function normalizeRows(result) {
+  if (Array.isArray(result) && Array.isArray(result[0])) {
+    return result[0];
+  }
+  return result;
+}
+
 // CADASTRO DO CUIDADOR
 router.post('/cadastro', async (req, res) => {
   try {
@@ -44,10 +51,11 @@ router.post('/cadastro', async (req, res) => {
       });
     }
 
-    const existingEmail = await db.query(
+    const existingEmailResult = await db.query(
       'SELECT IdCuidador FROM cuidador WHERE Email = ?',
       [email]
     );
+    const existingEmail = normalizeRows(existingEmailResult);
 
     if (existingEmail.length > 0) {
       return res.status(400).json({
@@ -56,10 +64,11 @@ router.post('/cadastro', async (req, res) => {
       });
     }
 
-    const existingCpf = await db.query(
+    const existingCpfResult = await db.query(
       'SELECT IdCuidador FROM cuidador WHERE CPF = ?',
       [cpf]
     );
+    const existingCpf = normalizeRows(existingCpfResult);
 
     if (existingCpf.length > 0) {
       return res.status(400).json({
@@ -118,13 +127,203 @@ router.post('/cadastro', async (req, res) => {
     });
   }
 });
+// BUSCAR STATUS DE USO DO PLANO
+router.get('/:id/status-plano', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await db.query(
+      'SELECT PlanoAtual, UsosPlano FROM cuidador WHERE IdCuidador = ?',
+      [id]
+    );
+    const rows = normalizeRows(result);
+
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Cuidador não encontrado'
+      });
+    }
+
+    const cuidador = rows[0];
+    const planoAtual = cuidador.PlanoAtual || 'Basico';
+    const usosPlano = Number(cuidador.UsosPlano || 0);
+    const limitePlano = planoAtual === 'Premium' ? 20 : 5;
+    const restante = limitePlano - usosPlano;
+
+    return res.json({
+      success: true,
+      data: {
+        planoAtual,
+        usosPlano,
+        limitePlano,
+        restante: restante < 0 ? 0 : restante
+      }
+    });
+  } catch (error) {
+    console.error('Erro ao buscar status do plano:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Erro ao buscar status do plano',
+      error: error.message
+    });
+  }
+});
+
+// BUSCAR VAGAS ABERTAS
+// IMPORTANTE: esta rota precisa vir antes de "/:id"
+router.get('/vagas-abertas', async (req, res) => {
+  try {
+    const vagasResult = await db.query(`
+      SELECT 
+        v.IdVaga,
+        v.IdResponsavel,
+        v.Titulo,
+        v.Descricao,
+        v.Cidade,
+        v.DataServico,
+        v.HoraInicio,
+        v.HoraFim,
+        v.Valor,
+        v.Status,
+        v.DataCriacao,
+        r.Nome AS NomeResponsavel,
+        r.Telefone AS TelefoneResponsavel
+      FROM vaga v
+      INNER JOIN responsavel r 
+        ON v.IdResponsavel = r.IdResponsavel
+      WHERE v.Status = 'Aberta'
+      ORDER BY v.DataServico ASC, v.HoraInicio ASC
+    `);
+
+    const vagas = normalizeRows(vagasResult);
+
+    return res.json({
+      success: true,
+      data: vagas
+    });
+  } catch (error) {
+    console.error('Erro ao buscar vagas abertas:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Erro ao buscar vagas abertas',
+      error: error.message
+    });
+  }
+});
+
+// ACEITAR VAGA
+router.post('/aceitar-vaga', async (req, res) => {
+  try {
+    const { idVaga, idCuidador } = req.body;
+
+    if (!idVaga || !idCuidador) {
+      return res.status(400).json({
+        success: false,
+        message: 'Id da vaga e Id do cuidador são obrigatórios'
+      });
+    }
+
+    // Verifica se a vaga existe
+    const vagaResult = await db.query(
+      'SELECT * FROM vaga WHERE IdVaga = ?',
+      [idVaga]
+    );
+    const vagaRows = normalizeRows(vagaResult);
+
+    if (vagaRows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vaga não encontrada'
+      });
+    }
+
+    // Verifica se a vaga está aberta
+    if (vagaRows[0].Status !== 'Aberta') {
+      return res.status(400).json({
+        success: false,
+        message: 'Essa vaga não está mais disponível'
+      });
+    }
+
+    // Verifica cuidador
+    const cuidadorResult = await db.query(
+      'SELECT PlanoAtual, UsosPlano FROM cuidador WHERE IdCuidador = ?',
+      [idCuidador]
+    );
+    const cuidadorRows = normalizeRows(cuidadorResult);
+
+    if (cuidadorRows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Cuidador não encontrado'
+      });
+    }
+
+    const cuidador = cuidadorRows[0];
+    const planoAtual = cuidador.PlanoAtual || 'Basico';
+    const usosPlano = Number(cuidador.UsosPlano || 0);
+
+    const limitePlano = planoAtual === 'Premium' ? 20 : 5;
+
+    // Verifica limite do plano
+    if (usosPlano >= limitePlano) {
+      return res.status(403).json({
+        success: false,
+        message: `Seu plano ${planoAtual} atingiu o limite de ${limitePlano} vagas aceitas. Faça upgrade para continuar.`
+      });
+    }
+
+    // Verifica se já aceitou essa vaga
+    const aceiteResult = await db.query(
+      'SELECT * FROM vagacuidador WHERE IdVaga = ? AND IdCuidador = ?',
+      [idVaga, idCuidador]
+    );
+    const aceiteRows = normalizeRows(aceiteResult);
+
+    if (aceiteRows.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Você já aceitou essa vaga'
+      });
+    }
+
+    // Salva o aceite
+    await db.query(
+      `INSERT INTO vagacuidador (IdVaga, IdCuidador, Status)
+       VALUES (?, ?, 'Aceita')`,
+      [idVaga, idCuidador]
+    );
+
+    // Incrementa uso do plano
+    await db.query(
+      'UPDATE cuidador SET UsosPlano = COALESCE(UsosPlano, 0) + 1 WHERE IdCuidador = ?',
+      [idCuidador]
+    );
+
+    return res.json({
+      success: true,
+      message: 'Vaga aceita com sucesso'
+    });
+  } catch (error) {
+    console.error('Erro ao aceitar vaga:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Erro ao aceitar vaga',
+      error: error.message
+    });
+  }
+});
 
 // BUSCAR CUIDADOR POR ID
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const cuidadores = await db.query(
+    const cuidadoresResult = await db.query(
       `SELECT 
         c.IdCuidador,
         c.Nome,
@@ -151,6 +350,8 @@ router.get('/:id', authenticateToken, async (req, res) => {
       WHERE c.IdCuidador = ?`,
       [id]
     );
+
+    const cuidadores = normalizeRows(cuidadoresResult);
 
     if (cuidadores.length === 0) {
       return res.status(404).json({
@@ -228,10 +429,11 @@ router.get('/:id/disponibilidade', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const rows = await db.query(
+    const rowsResult = await db.query(
       'SELECT * FROM disponibilidade WHERE IdCuidador = ?',
       [id]
     );
+    const rows = normalizeRows(rowsResult);
 
     return res.json({
       success: true,
@@ -263,10 +465,11 @@ router.put('/:id', async (req, res) => {
       valorHora
     } = req.body;
 
-    const cuidadorExistente = await db.query(
+    const cuidadorExistenteResult = await db.query(
       'SELECT * FROM cuidador WHERE IdCuidador = ?',
       [id]
     );
+    const cuidadorExistente = normalizeRows(cuidadorExistenteResult);
 
     if (cuidadorExistente.length === 0) {
       return res.status(404).json({
@@ -314,6 +517,7 @@ router.put('/:id', async (req, res) => {
     });
   }
 });
+
 // SALVAR PLANO DO CUIDADOR
 router.put('/:id/plano', async (req, res) => {
   try {
@@ -352,10 +556,11 @@ router.get('/:id/plano', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const rows = await db.query(
+    const rowsResult = await db.query(
       'SELECT PlanoAtual FROM cuidador WHERE IdCuidador = ?',
       [id]
     );
+    const rows = normalizeRows(rowsResult);
 
     if (!rows || rows.length === 0) {
       return res.status(404).json({

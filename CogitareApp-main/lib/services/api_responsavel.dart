@@ -100,5 +100,55 @@ class ApiResponsavel {
       return null;
     }
   }
+  static Future<Map<String, dynamic>> criarVaga({
+  required int idResponsavel,
+  required String titulo,
+  required String descricao,
+  required String cidade,
+  required String dataServico,
+  required String horaInicio,
+  required String horaFim,
+  required double valor,
+}) async {
+  try {
+    final response = await ApiClient.post('/api/responsavel/criar-vaga', {
+      'idResponsavel': idResponsavel,
+      'titulo': titulo,
+      'descricao': descricao,
+      'cidade': cidade,
+      'dataServico': dataServico,
+      'horaInicio': horaInicio,
+      'horaFim': horaFim,
+      'valor': valor,
+    });
+
+    return {
+      'success': response['success'] == true,
+      'message': response['message'] ?? 'Resposta recebida',
+      'data': response['data'],
+    };
+  } catch (e) {
+    return {
+      'success': false,
+      'message': 'Erro ao criar vaga: $e',
+    };
+  }
+}
+
+static Future<List<Map<String, dynamic>>> getVagasDoResponsavel(
+  int idResponsavel,
+) async {
+  try {
+    final response = await ApiClient.get('/api/responsavel/$idResponsavel/vagas');
+
+    if (response['success'] == true && response['data'] != null) {
+      return List<Map<String, dynamic>>.from(response['data']);
+    }
+
+    return [];
+  } catch (e) {
+    return [];
+  }
+}
 }
 

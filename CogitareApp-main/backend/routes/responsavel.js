@@ -355,5 +355,123 @@ router.get('/vagas/abertas', authenticateToken, async (req, res) => {
     });
   }
 });
+// CRIAR VAGA
+router.post('/criar-vaga', async (req, res) => {
+  try {
+    const {
+      idResponsavel,
+      titulo,
+      descricao,
+      cidade,
+      dataServico,
+      horaInicio,
+      horaFim,
+      valor
+    } = req.body;
+
+    if (
+      !idResponsavel ||
+      !titulo ||
+      !descricao ||
+      !cidade ||
+      !dataServico ||
+      !horaInicio ||
+      !horaFim ||
+      valor == null
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Preencha todos os campos obrigatórios da vaga'
+      });
+    }
+
+    const responsavelResult = await db.query(
+      'SELECT IdResponsavel FROM responsavel WHERE IdResponsavel = ?',
+      [idResponsavel]
+    );
+    const responsavelRows = Array.isArray(responsavelResult[0])
+      ? responsavelResult[0]
+      : responsavelResult;
+
+    if (!responsavelRows || responsavelRows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Responsável não encontrado'
+      });
+    }
+
+    const result = await db.query(
+      `INSERT INTO vaga
+      (IdResponsavel, Titulo, Descricao, Cidade, DataServico, HoraInicio, HoraFim, Valor, Status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Aberta')`,
+      [
+        idResponsavel,
+        titulo,
+        descricao,
+        cidade,
+        dataServico,
+        horaInicio,
+        horaFim,
+        valor
+      ]
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: 'Vaga criada com sucesso',
+      data: {
+        idVaga: result.insertId
+      }
+    });
+  } catch (error) {
+    console.error('Erro ao criar vaga:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Erro ao criar vaga',
+      error: error.message
+    });
+  }
+});
+// LISTAR VAGAS DO RESPONSÁVEL
+router.get('/:id/vagas', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await db.query(
+      `SELECT 
+        IdVaga,
+        IdResponsavel,
+        Titulo,
+        Descricao,
+        Cidade,
+        DataServico,
+        HoraInicio,
+        HoraFim,
+        Valor,
+        Status,
+        DataCriacao
+      FROM vaga
+      WHERE IdResponsavel = ?
+      ORDER BY DataCriacao DESC`,
+      [id]
+    );
+
+    const rows = Array.isArray(result[0]) ? result[0] : result;
+
+    return res.json({
+      success: true,
+      data: rows
+    });
+  } catch (error) {
+    console.error('Erro ao listar vagas do responsável:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Erro ao listar vagas do responsável',
+      error: error.message
+    });
+  }
+});s
 
 module.exports = router;

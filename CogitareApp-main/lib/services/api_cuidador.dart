@@ -101,4 +101,64 @@ class ApiCuidador {
       };
     }
   }
+
+  /// Buscar vagas abertas
+  static Future<List<Map<String, dynamic>>> getVagasAbertas() async {
+    try {
+      final response = await ApiClient.get('/api/cuidador/vagas-abertas');
+
+      if (response['success'] == true && response['data'] != null) {
+        return List<Map<String, dynamic>>.from(response['data']);
+      }
+
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /// Aceitar vaga
+  static Future<Map<String, dynamic>> aceitarVaga({
+    required int idVaga,
+    required int idCuidador,
+  }) async {
+    try {
+      final response = await ApiClient.post('/api/cuidador/aceitar-vaga', {
+        'idVaga': idVaga,
+        'idCuidador': idCuidador,
+      });
+
+      return {
+        'success': response['success'] == true,
+        'message': response['message'] ?? 'Resposta recebida',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Erro ao aceitar vaga: $e',
+      };
+    }
+  }
+  static Future<Map<String, dynamic>> getStatusPlano(int idCuidador) async {
+  try {
+    final response = await ApiClient.get('/api/cuidador/$idCuidador/status-plano');
+
+    if (response['success'] == true && response['data'] != null) {
+      return {
+        'success': true,
+        'data': Map<String, dynamic>.from(response['data']),
+      };
+    }
+
+    return {
+      'success': false,
+      'message': response['message'] ?? 'Erro ao buscar status do plano',
+    };
+  } catch (e) {
+    return {
+      'success': false,
+      'message': 'Erro de conexão: $e',
+    };
+  }
+}
 }
