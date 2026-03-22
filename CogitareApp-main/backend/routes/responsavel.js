@@ -231,32 +231,123 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
-// Buscar responsável por ID
-router.get('/:id', authenticateToken, async (req, res) => {
+// =========================
+// =========================
+// ROTAS DE VAGAS
+// =========================
+
+// Criar vaga
+router.post('/vagas', authenticateToken, async (req, res) => {
   try {
-    const { id } = req.params;
-
-    const responsaveis = await db.query(`
-      SELECT r.*, e.Cidade, e.Bairro, e.Rua, e.Numero, e.Complemento, e.Cep
-      FROM responsavel r
-      LEFT JOIN endereco e ON r.IdEndereco = e.IdEndereco
-      WHERE r.IdResponsavel = ?
-    `, [id]);
-
-    if (responsaveis.length === 0) {
-      return res.status(404).json({
+    if (req.user.tipo !== 'responsavel') {
+      return res.status(403).json({
         success: false,
-        message: 'Responsável não encontrado'
+        message: 'Apenas responsáveis podem criar vagas'
       });
     }
 
-    res.json({
+    const {
+      titulo,
+      descricao,
+      cidade,
+      dataServico,
+      horaInicio,
+      horaFim,
+      valor
+    } = req.body;
+
+    if (!titulo || !descricao || !cidade || !dataServico || !horaInicio || !horaFim || !valor) {
+      return res.status(400).json({
+        success: false,
+        message: 'Todos os campos obrigatórios devem ser preenchidos'
+      });
+    }
+
+    const result = await db.query(
+      `INSERT INTO vaga 
+      (IdResponsavel, Titulo, Descricao, Cidade, DataServico, HoraInicio, HoraFim, Valor, Status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        req.user.id,
+        titulo,
+        descricao,
+        cidade,
+        dataServico,
+        horaInicio,
+        horaFim,
+        valor,
+        'Aberta'
+      ]
+    );
+
+    res.status(201).json({
       success: true,
-      message: 'Responsável encontrado',
-      data: responsaveis[0]
+      message: 'Vaga criada com sucesso',
+      data: {
+        idVaga: result.insertId
+      }
     });
   } catch (error) {
-    console.error('Erro ao buscar responsável:', error);
+    console.error('Erro ao criar vaga:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor',
+      error: error.message
+    });
+  }
+});
+
+// Listar vagas do responsável logado
+router.get('/vagas/minhas', authenticateToken, async (req, res) => {
+  try {
+    const vagas = await db.query(
+      `SELECT 
+        v.*,
+        r.Nome AS NomeResponsavel,
+        r.Telefone AS TelefoneResponsavel
+      FROM vaga v
+      INNER JOIN responsavel r ON v.IdResponsavel = r.IdResponsavel
+      WHERE v.IdResponsavel = ?
+      ORDER BY v.IdVaga DESC`,
+      [req.user.id]
+    );
+
+    res.json({
+      success: true,
+      message: 'Vagas listadas com sucesso',
+      data: vagas
+    });
+  } catch (error) {
+    console.error('Erro ao listar vagas:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor',
+      error: error.message
+    });
+  }
+});
+
+// Listar vagas abertas (para o cuidador)
+router.get('/vagas/abertas', authenticateToken, async (req, res) => {
+  try {
+    const vagas = await db.query(
+      `SELECT
+        v.*,
+        r.Nome AS NomeResponsavel,
+        r.Telefone AS TelefoneResponsavel
+      FROM vaga v
+      INNER JOIN responsavel r ON v.IdResponsavel = r.IdResponsavel
+      WHERE v.Status = 'Aberta'
+      ORDER BY v.IdVaga DESC`
+    );
+
+    res.json({
+      success: true,
+      message: 'Vagas abertas listadas com sucesso',
+      data: vagas
+    });
+  } catch (error) {
+    console.error('Erro ao listar vagas abertas:', error);
     res.status(500).json({
       success: false,
       message: 'Erro interno do servidor',

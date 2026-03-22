@@ -313,9 +313,9 @@ class _TelaCadastroResponsavelState extends State<TelaCadastroResponsavel> {
               InkWell(
                 onTap: _selectDate,
                 child: InputDecorator(
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: "Data de Nascimento",
-                    suffixIcon: const Icon(Icons.calendar_today),
+                    suffixIcon: Icon(Icons.calendar_today),
                   ),
                   child: Text(
                     birthDate != null
@@ -325,7 +325,7 @@ class _TelaCadastroResponsavelState extends State<TelaCadastroResponsavel> {
                 ),
               ),
               const SizedBox(height: 16),
-              StepDots(total: 1, index: 0),
+              const StepDots(total: 1, index: 0),
               const SizedBox(height: 16),
               SizedBox(
                   width: double.infinity,

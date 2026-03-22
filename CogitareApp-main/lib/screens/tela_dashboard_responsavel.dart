@@ -14,7 +14,7 @@ class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
   int _currentIndex = 0;
 
   // Dados temporários para deixar a tela funcionando já
-  String _userName = 'Responsável';
+  final String _userName = 'Responsável';
   bool _possuiNecessidade = false;
   String _statusAnuncio = 'Ativo';
 

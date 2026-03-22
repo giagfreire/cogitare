@@ -66,9 +66,9 @@ class TelaHistoricoServicos extends StatelessWidget {
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: 3, // depois você troca pelo tamanho real da lista
                 itemBuilder: (context, index) {
-                  return Padding(
+                  return const Padding(
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                     child: _HistoricoCard(
                       nome: 'João Maria',
                       servico: 'Cuidado diário',

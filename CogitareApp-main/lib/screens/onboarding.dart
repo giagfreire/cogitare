@@ -68,7 +68,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     return Scaffold(
       body: SafeArea(
         child: ScrollConfiguration(
-          behavior: MaterialScrollBehavior().copyWith(
+          behavior: const MaterialScrollBehavior().copyWith(
             dragDevices: const <PointerDeviceKind>{
               PointerDeviceKind.touch,
               PointerDeviceKind.mouse,

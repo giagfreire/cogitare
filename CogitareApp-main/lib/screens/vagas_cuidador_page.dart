@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/api_cuidador.dart';
 import '../services/api_service.dart';
 import '../services/session_service.dart';
 import 'planos_cuidador_page.dart';
@@ -11,40 +12,17 @@ class VagasCuidadorPage extends StatefulWidget {
 }
 
 class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
-  final List<Map<String, String>> vagas = [
-    {
-      'nome': 'Dona Maria',
-      'cidade': 'Santo André',
-      'data': '25/03/2026',
-      'horario': '08:00 às 17:00',
-      'valor': 'R\$ 180,00',
-      'descricao': 'Cuidados diurnos, apoio com medicação e companhia.'
-    },
-    {
-      'nome': 'Seu José',
-      'cidade': 'São Caetano do Sul',
-      'data': '26/03/2026',
-      'horario': '19:00 às 07:00',
-      'valor': 'R\$ 220,00',
-      'descricao': 'Plantão noturno com acompanhamento e auxílio para locomoção.'
-    },
-    {
-      'nome': 'Dona Helena',
-      'cidade': 'São Bernardo do Campo',
-      'data': '28/03/2026',
-      'horario': '09:00 às 15:00',
-      'valor': 'R\$ 150,00',
-      'descricao': 'Acompanhamento durante o dia e auxílio com alimentação.'
-    },
-  ];
+  List<Map<String, dynamic>> vagas = [];
 
   String _planoAtual = 'Basico';
   bool _isLoadingPlano = true;
+  bool _isLoadingVagas = true;
 
   @override
   void initState() {
     super.initState();
     _loadPlano();
+    _loadVagas();
   }
 
   Future<void> _loadPlano() async {
@@ -52,29 +30,44 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
       final cuidadorId = await SessionService.getCuidadorId();
 
       if (cuidadorId == null) {
-        if (mounted) {
-          setState(() {
-            _isLoadingPlano = false;
-          });
-        }
+        if (!mounted) return;
+        setState(() {
+          _isLoadingPlano = false;
+        });
         return;
       }
 
-      final response = await ServicoApi.get('/api/cuidador/$cuidadorId/plano');
+   final response = await ApiService.get('/api/cuidador/$cuidadorId/plano');
 
-      if (response['success'] == true && response['data'] != null) {
-        setState(() {
+      if (!mounted) return;
+
+      setState(() {
+        if (response['success'] == true && response['data'] != null) {
           _planoAtual = response['data']['PlanoAtual'] ?? 'Basico';
-          _isLoadingPlano = false;
-        });
-      } else {
-        setState(() {
-          _isLoadingPlano = false;
-        });
-      }
+        }
+        _isLoadingPlano = false;
+      });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _isLoadingPlano = false;
+      });
+    }
+  }
+
+  Future<void> _loadVagas() async {
+    try {
+      final response = await ApiCuidador.getVagasAbertas();
+
+      if (!mounted) return;
+      setState(() {
+        vagas = response;
+        _isLoadingVagas = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingVagas = false;
       });
     }
   }
@@ -82,7 +75,7 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
   void _mostrarUpgrade() {
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Recurso Premium'),
           content: const Text(
@@ -90,12 +83,12 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Agora não'),
             ),
             ElevatedButton(
               onPressed: () async {
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
 
                 await Navigator.push(
                   context,
@@ -114,13 +107,13 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
     );
   }
 
-  void _aceitarVaga() {
+  void _aceitarVaga(BuildContext sheetContext) {
     if (_planoAtual != 'Premium') {
       _mostrarUpgrade();
       return;
     }
 
-    Navigator.pop(context);
+    Navigator.pop(sheetContext);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Vaga aceita com sucesso!'),
@@ -128,7 +121,39 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
     );
   }
 
-  void _verDetalhes(Map<String, String> vaga) {
+  String _formatarData(dynamic data) {
+    if (data == null) return '-';
+
+    final texto = data.toString();
+    if (texto.length >= 10) {
+      final partes = texto.substring(0, 10).split('-');
+      if (partes.length == 3) {
+        return '${partes[2]}/${partes[1]}/${partes[0]}';
+      }
+    }
+
+    return texto;
+  }
+
+  String _formatarHorario(Map<String, dynamic> vaga) {
+    final inicio = vaga['HoraInicio']?.toString() ?? '';
+    final fim = vaga['HoraFim']?.toString() ?? '';
+
+    if (inicio.isEmpty && fim.isEmpty) return '-';
+    if (fim.isEmpty) return inicio;
+    if (inicio.isEmpty) return fim;
+
+    return '$inicio às $fim';
+  }
+
+  String _formatarValor(dynamic valor) {
+    if (valor == null) return 'R\$ 0,00';
+
+    final texto = valor.toString().replaceAll('.', ',');
+    return 'R\$ $texto';
+  }
+
+  void _verDetalhes(Map<String, dynamic> vaga) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
@@ -136,7 +161,7 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) {
+      builder: (sheetContext) {
         return Padding(
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
           child: Wrap(
@@ -156,7 +181,7 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
                 children: [
                   Expanded(
                     child: Text(
-                      vaga['nome'] ?? '',
+                      vaga['NomeResponsavel']?.toString() ?? '',
                       style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
@@ -196,13 +221,41 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
                 ],
               ),
               const SizedBox(height: 16),
-              _infoLinha(Icons.location_on_outlined, 'Cidade', vaga['cidade']!),
+              _infoLinha(
+                Icons.work_outline,
+                'Título',
+                vaga['Titulo']?.toString() ?? '-',
+              ),
               const SizedBox(height: 12),
-              _infoLinha(Icons.calendar_today_outlined, 'Data', vaga['data']!),
+              _infoLinha(
+                Icons.location_on_outlined,
+                'Cidade',
+                vaga['Cidade']?.toString() ?? '-',
+              ),
               const SizedBox(height: 12),
-              _infoLinha(Icons.access_time_outlined, 'Horário', vaga['horario']!),
+              _infoLinha(
+                Icons.calendar_today_outlined,
+                'Data',
+                _formatarData(vaga['DataServico']),
+              ),
               const SizedBox(height: 12),
-              _infoLinha(Icons.attach_money, 'Valor', vaga['valor']!),
+              _infoLinha(
+                Icons.access_time_outlined,
+                'Horário',
+                _formatarHorario(vaga),
+              ),
+              const SizedBox(height: 12),
+              _infoLinha(
+                Icons.attach_money,
+                'Valor',
+                _formatarValor(vaga['Valor']),
+              ),
+              const SizedBox(height: 12),
+              _infoLinha(
+                Icons.phone_outlined,
+                'Contato',
+                vaga['TelefoneResponsavel']?.toString() ?? '-',
+              ),
               const SizedBox(height: 20),
               const Text(
                 'Descrição',
@@ -213,7 +266,7 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
               ),
               const SizedBox(height: 8),
               Text(
-                vaga['descricao'] ?? '',
+                vaga['Descricao']?.toString() ?? '',
                 style: const TextStyle(
                   fontSize: 15,
                   color: Colors.black87,
@@ -243,7 +296,7 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: _aceitarVaga,
+                  onPressed: () => _aceitarVaga(sheetContext),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF35064E),
                     shape: RoundedRectangleBorder(
@@ -271,6 +324,7 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
 
   Widget _infoLinha(IconData icon, String label, String valor) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(icon, size: 20, color: const Color(0xFF35064E)),
         const SizedBox(width: 10),
@@ -284,7 +338,7 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
     );
   }
 
-  Widget _vagaCard(Map<String, String> vaga) {
+  Widget _vagaCard(Map<String, dynamic> vaga) {
     return Card(
       elevation: 2,
       margin: const EdgeInsets.only(bottom: 14),
@@ -297,21 +351,46 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              vaga['nome'] ?? '',
+              vaga['Titulo']?.toString() ?? '',
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF35064E),
               ),
             ),
+            const SizedBox(height: 6),
+            Text(
+              vaga['NomeResponsavel']?.toString() ?? '',
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.black54,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
             const SizedBox(height: 10),
-            _infoLinha(Icons.location_on_outlined, 'Cidade', vaga['cidade']!),
+            _infoLinha(
+              Icons.location_on_outlined,
+              'Cidade',
+              vaga['Cidade']?.toString() ?? '-',
+            ),
             const SizedBox(height: 8),
-            _infoLinha(Icons.calendar_today_outlined, 'Data', vaga['data']!),
+            _infoLinha(
+              Icons.calendar_today_outlined,
+              'Data',
+              _formatarData(vaga['DataServico']),
+            ),
             const SizedBox(height: 8),
-            _infoLinha(Icons.access_time_outlined, 'Horário', vaga['horario']!),
+            _infoLinha(
+              Icons.access_time_outlined,
+              'Horário',
+              _formatarHorario(vaga),
+            ),
             const SizedBox(height: 8),
-            _infoLinha(Icons.attach_money, 'Valor', vaga['valor']!),
+            _infoLinha(
+              Icons.attach_money,
+              'Valor',
+              _formatarValor(vaga['Valor']),
+            ),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
@@ -338,8 +417,35 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
     );
   }
 
+  Widget _buildEmptyState() {
+    return RefreshIndicator(
+      onRefresh: _loadVagas,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [
+          SizedBox(height: 140),
+          Padding(
+            padding: EdgeInsets.all(24),
+            child: Center(
+              child: Text(
+                'Nenhuma vaga disponível no momento.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.black54,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isLoading = _isLoadingPlano || _isLoadingVagas;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F7FB),
       appBar: AppBar(
@@ -348,7 +454,7 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: _isLoadingPlano
+      body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
@@ -388,9 +494,7 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
                           ),
                         ),
                         child: Text(
-                          _planoAtual == 'Premium'
-                              ? 'Premium'
-                              : 'Básico',
+                          _planoAtual == 'Premium' ? 'Premium' : 'Básico',
                           style: TextStyle(
                             color: _planoAtual == 'Premium'
                                 ? const Color(0xFF35064E)
@@ -404,11 +508,18 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
                   ),
                 ),
                 Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: vagas.length,
-                    itemBuilder: (context, index) => _vagaCard(vagas[index]),
-                  ),
+                  child: vagas.isEmpty
+                      ? _buildEmptyState()
+                      : RefreshIndicator(
+                          onRefresh: _loadVagas,
+                          child: ListView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.all(16),
+                            itemCount: vagas.length,
+                            itemBuilder: (context, index) =>
+                                _vagaCard(vagas[index]),
+                          ),
+                        ),
                 ),
               ],
             ),

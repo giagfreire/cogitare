@@ -8,9 +8,9 @@ const authRoutes = require('./routes/auth');
 const cuidadorRoutes = require('./routes/cuidador');
 const idosoRoutes = require('./routes/idoso');
 const enderecoRoutes = require('./routes/endereco');
-const responsavelRoutes = require('./routes/responsavel');
 const nearbyCaregiversRoutes = require('./routes/nearby_caregivers');
 const planosRoutes = require('./routes/planos');
+const responsavelRoutes = require('./routes/responsavel');
 
 const app = express();
 const PORT = process.env.PORT || 3000;

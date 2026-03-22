@@ -158,7 +158,7 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
     // Debug: Verificar se temos guardianId
     print('DEBUG: guardianId atual: $guardianId');
 
-    final finalGuardianId;
+    final int finalGuardianId;
     if (guardianId == null) {
       // Usar ID válido conhecido para teste (ID 22 que existe no banco)
       print('DEBUG: guardianId é null, usando ID 22 para teste');
@@ -221,10 +221,11 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
         leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () {
-              if (index == 0)
+              if (index == 0) {
                 Navigator.pop(context);
-              else
+              } else {
                 _prev();
+              }
             }),
         title: const Text("Dados do Idoso"),
       ),
@@ -254,9 +255,9 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
                   InkWell(
                     onTap: _selectDate,
                     child: InputDecorator(
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         labelText: "Data de Nascimento *",
-                        suffixIcon: const Icon(Icons.calendar_today),
+                        suffixIcon: Icon(Icons.calendar_today),
                       ),
                       child: Text(
                         birthDate != null
@@ -267,7 +268,7 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
                   ),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
-                    value: gender,
+                    initialValue: gender,
                     decoration: const InputDecoration(
                       labelText: "Sexo *",
                     ),
@@ -285,7 +286,7 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
                   ),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<int>(
-                    value: mobilityId,
+                    initialValue: mobilityId,
                     decoration: const InputDecoration(
                       labelText: "Nível de Mobilidade",
                     ),
@@ -305,7 +306,7 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
                   ),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<int>(
-                    value: autonomyLevelId,
+                    initialValue: autonomyLevelId,
                     decoration: const InputDecoration(
                       labelText: "Nível de Autonomia",
                     ),
@@ -434,8 +435,8 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
                             : Icons.info_outline,
                         color: _termsAccepted ? Colors.green : Colors.grey,
                       ),
-                      children: [
-                        const Padding(
+                      children: const [
+                        Padding(
                           padding: EdgeInsets.all(16.0),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,

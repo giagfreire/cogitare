@@ -7,11 +7,11 @@ class WidgetSugestaoContrato extends StatelessWidget {
   final Function(CuidadorProximo)? onCaregiverTap;
 
   const WidgetSugestaoContrato({
-    Key? key,
+    super.key,
     required this.suggestedCaregivers,
     this.onViewAllTap,
     this.onCaregiverTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

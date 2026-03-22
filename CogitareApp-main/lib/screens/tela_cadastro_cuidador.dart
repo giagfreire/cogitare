@@ -734,7 +734,7 @@ class _TelaCadastroCuidadorState extends State<TelaCadastroCuidador> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: registrationStatus,
+                  initialValue: registrationStatus,
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
                     hintText: 'Selecione o status',
@@ -763,8 +763,8 @@ class _TelaCadastroCuidadorState extends State<TelaCadastroCuidador> {
             total: 6,
             child: Column(
               children: [
-                Row(
-                  children: const [
+                const Row(
+                  children: [
                     CircleAvatar(radius: 28, child: Icon(Icons.person)),
                     SizedBox(width: 12),
                     Text('Adicionar Foto'),

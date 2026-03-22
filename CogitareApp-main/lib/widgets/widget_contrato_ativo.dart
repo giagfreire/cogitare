@@ -7,11 +7,11 @@ class WidgetContratoAtivo extends StatelessWidget {
   final VoidCallback? onViewDetailsTap;
 
   const WidgetContratoAtivo({
-    Key? key,
+    super.key,
     required this.contract,
     this.onChatTap,
     this.onViewDetailsTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

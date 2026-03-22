@@ -193,7 +193,7 @@ class ApiCuidadoresProximos {
         name: name,
         email: '${name.toLowerCase().replaceAll(' ', '.')}@email.com',
         phone: '(11) 99999-${1000 + i}',
-        cpf: '123.456.789-0${i}',
+        cpf: '123.456.789-0$i',
         birthDate: DateTime(1980 + random.nextInt(20), random.nextInt(12) + 1,
             random.nextInt(28) + 1),
         photoUrl: null,
