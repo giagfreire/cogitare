@@ -472,6 +472,6 @@ router.get('/:id/vagas', async (req, res) => {
       error: error.message
     });
   }
-});s
+});
 
 module.exports = router;
