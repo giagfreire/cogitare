@@ -26,14 +26,13 @@ class ApiCuidador {
         'numero': address.number,
         'complemento': address.complement,
         'cep': address.zipCode,
-
-        // extras do cuidador
-        'fumante': caregiver.smokingStatus,
-        'temFilhos': caregiver.hasChildren,
-     'possuiCnh': caregiver.possuiCnh,
-        'temCarro': caregiver.hasCar,
-        'biografia': caregiver.biography,
-        'valorHora': caregiver.hourlyRate,
+// extras do cuidador
+'fumante': caregiver.smokingStatus,
+'temFilhos': caregiver.hasChildren,
+'possuiCnh': caregiver.hasLicense,
+'temCarro': caregiver.hasCar,
+'biografia': caregiver.biography,
+'valorHora': caregiver.hourlyRate,
       });
 
       return response;
