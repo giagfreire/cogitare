@@ -164,7 +164,9 @@ class _MinhasVagasResponsavelPageState
               ? const SizedBox(
                   height: 180,
                   child: Center(
-                    child: Text('Nenhum cuidador se interessou por esta vaga ainda.'),
+                    child: Text(
+                      'Nenhum cuidador se interessou por esta vaga ainda.',
+                    ),
                   ),
                 )
               : SizedBox(
@@ -196,10 +198,22 @@ class _MinhasVagasResponsavelPageState
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     const SizedBox(height: 6),
-                                    Text('Telefone: ${_textoCampo(item['Telefone'])}'),
-                                    Text('Email: ${_textoCampo(item['Email'])}'),
-                                    Text('Biografia: ${_textoCampo(item['Biografia'])}'),
-                                    Text('Valor/Hora: R\$ ${_textoCampo(item['ValorHora'])}'),
+                                    Text(
+                                      'Telefone: ${_textoCampo(item['Telefone'])}',
+                                    ),
+                                    Text(
+                                      'Email: ${_textoCampo(item['Email'])}',
+                                    ),
+                                    Text(
+                                      'Biografia: ${_textoCampo(item['Biografia'])}',
+                                    ),
+                                    Text(
+                                      'Valor/Hora: R\$ ${_textoCampo(item['ValorHora'])}',
+                                    ),
+                                    if (item['DataAceite'] != null)
+                                      Text(
+                                        'Data do aceite: ${_formatarData(item['DataAceite'])}',
+                                      ),
                                   ],
                                 ),
                               ),
@@ -222,8 +236,11 @@ class _MinhasVagasResponsavelPageState
         TextEditingController(text: _textoCampo(vaga['Descricao']));
     final cidadeController =
         TextEditingController(text: _textoCampo(vaga['Cidade']));
-    final dataController =
-        TextEditingController(text: _textoCampo(vaga['DataServico']).split(' ').first);
+    final dataController = TextEditingController(
+      text: vaga['DataServico'] != null
+          ? vaga['DataServico'].toString().split('T').first
+          : '',
+    );
     final horaInicioController =
         TextEditingController(text: _textoCampo(vaga['HoraInicio']));
     final horaFimController =
@@ -237,6 +254,50 @@ class _MinhasVagasResponsavelPageState
       context: context,
       isScrollControlled: true,
       builder: (_) {
+        Future<void> selecionarData() async {
+          final data = await showDatePicker(
+            context: context,
+            initialDate: DateTime.now(),
+            firstDate: DateTime(2024),
+            lastDate: DateTime(2035),
+          );
+
+          if (data != null) {
+            dataController.text =
+                '${data.year.toString().padLeft(4, '0')}-'
+                '${data.month.toString().padLeft(2, '0')}-'
+                '${data.day.toString().padLeft(2, '0')}';
+          }
+        }
+
+        Future<void> selecionarHora(TextEditingController controller) async {
+          final hora = await showTimePicker(
+            context: context,
+            initialTime: TimeOfDay.now(),
+          );
+
+          if (hora != null) {
+            controller.text =
+                '${hora.hour.toString().padLeft(2, '0')}:'
+                '${hora.minute.toString().padLeft(2, '0')}:00';
+          }
+        }
+
+        InputDecoration decoracao({
+          required String label,
+          String? hint,
+          Widget? suffixIcon,
+        }) {
+          return InputDecoration(
+            labelText: label,
+            hintText: hint,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            suffixIcon: suffixIcon,
+          );
+        }
+
         return Padding(
           padding: EdgeInsets.only(
             left: 16,
@@ -257,14 +318,14 @@ class _MinhasVagasResponsavelPageState
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: tituloController,
-                    decoration: const InputDecoration(labelText: 'Título'),
+                    decoration: decoracao(label: 'Título'),
                     validator: (v) =>
                         v == null || v.trim().isEmpty ? 'Informe o título' : null,
                   ),
                   const SizedBox(height: 10),
                   TextFormField(
                     controller: descricaoController,
-                    decoration: const InputDecoration(labelText: 'Descrição'),
+                    decoration: decoracao(label: 'Descrição'),
                     maxLines: 3,
                     validator: (v) => v == null || v.trim().isEmpty
                         ? 'Informe a descrição'
@@ -273,48 +334,78 @@ class _MinhasVagasResponsavelPageState
                   const SizedBox(height: 10),
                   TextFormField(
                     controller: cidadeController,
-                    decoration: const InputDecoration(labelText: 'Cidade'),
+                    decoration: decoracao(label: 'Cidade'),
                     validator: (v) =>
                         v == null || v.trim().isEmpty ? 'Informe a cidade' : null,
                   ),
                   const SizedBox(height: 10),
                   TextFormField(
                     controller: dataController,
-                    decoration: const InputDecoration(
-                      labelText: 'Data do serviço',
-                      hintText: '2026-04-04',
+                    readOnly: true,
+                    decoration: decoracao(
+                      label: 'Data do serviço',
+                      hint: 'AAAA-MM-DD',
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.calendar_today),
+                        onPressed: selecionarData,
+                      ),
                     ),
                     validator: (v) =>
                         v == null || v.trim().isEmpty ? 'Informe a data' : null,
+                    onTap: selecionarData,
                   ),
                   const SizedBox(height: 10),
                   TextFormField(
                     controller: horaInicioController,
-                    decoration: const InputDecoration(
-                      labelText: 'Hora início',
-                      hintText: '08:00:00',
+                    readOnly: true,
+                    decoration: decoracao(
+                      label: 'Hora início',
+                      hint: 'HH:MM:SS',
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.access_time),
+                        onPressed: () => selecionarHora(horaInicioController),
+                      ),
                     ),
                     validator: (v) => v == null || v.trim().isEmpty
                         ? 'Informe a hora inicial'
                         : null,
+                    onTap: () => selecionarHora(horaInicioController),
                   ),
                   const SizedBox(height: 10),
                   TextFormField(
                     controller: horaFimController,
-                    decoration: const InputDecoration(
-                      labelText: 'Hora fim',
-                      hintText: '17:00:00',
+                    readOnly: true,
+                    decoration: decoracao(
+                      label: 'Hora fim',
+                      hint: 'HH:MM:SS',
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.access_time),
+                        onPressed: () => selecionarHora(horaFimController),
+                      ),
                     ),
                     validator: (v) =>
                         v == null || v.trim().isEmpty ? 'Informe a hora final' : null,
+                    onTap: () => selecionarHora(horaFimController),
                   ),
                   const SizedBox(height: 10),
                   TextFormField(
                     controller: valorController,
-                    decoration: const InputDecoration(labelText: 'Valor'),
-                    keyboardType: TextInputType.number,
-                    validator: (v) =>
-                        v == null || v.trim().isEmpty ? 'Informe o valor' : null,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    decoration: decoracao(label: 'Valor'),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) {
+                        return 'Informe o valor';
+                      }
+
+                      final numero =
+                          double.tryParse(v.trim().replaceAll(',', '.'));
+                      if (numero == null || numero <= 0) {
+                        return 'Informe um valor válido';
+                      }
+
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 16),
                   SizedBox(
@@ -338,10 +429,8 @@ class _MinhasVagasResponsavelPageState
 
     if (salvar != true) return;
 
-    final valor = double.tryParse(
-          valorController.text.replaceAll(',', '.'),
-        ) ??
-        0.0;
+    final valor =
+        double.tryParse(valorController.text.trim().replaceAll(',', '.')) ?? 0.0;
 
     final response = await ApiResponsavel.editarVaga(
       idVaga: vaga['IdVaga'],
@@ -503,9 +592,7 @@ class _MinhasVagasResponsavelPageState
                               children: [
                                 Text('Cidade: ${_textoCampo(vaga['Cidade'])}'),
                                 const SizedBox(height: 4),
-                                Text(
-                                  'Data: ${_formatarData(vaga['DataServico'])}',
-                                ),
+                                Text('Data: ${_formatarData(vaga['DataServico'])}'),
                                 const SizedBox(height: 4),
                                 Text('Valor: R\$ ${_textoCampo(vaga['Valor'])}'),
                                 const SizedBox(height: 8),
