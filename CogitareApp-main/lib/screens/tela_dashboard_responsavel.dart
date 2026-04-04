@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../services/api_service.dart';
 import '../services/servico_autenticacao.dart';
 import 'criar_vaga_page.dart';
@@ -19,7 +18,6 @@ class TelaDashboardResponsavel extends StatefulWidget {
 class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
   bool _isLoading = true;
   String? _errorMessage;
-
   Map<String, dynamic>? _responsavel;
   List<Map<String, dynamic>> _vagas = [];
 
@@ -37,6 +35,7 @@ class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
 
     try {
       final token = await ServicoAutenticacao.getToken();
+
       if (token != null && token.isNotEmpty) {
         ServicoApi.setToken(token);
       }
@@ -56,11 +55,11 @@ class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
 
       final response = await ServicoApi.get('/api/responsavel/vagas/minhas');
 
-      if (response['success'] == true && response['data'] != null) {
-        final data = List<Map<String, dynamic>>.from(response['data']);
+      if (!mounted) return;
 
+      if (response['success'] == true && response['data'] != null) {
         setState(() {
-          _vagas = data;
+          _vagas = List<Map<String, dynamic>>.from(response['data']);
           _isLoading = false;
         });
       } else {
@@ -70,6 +69,8 @@ class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
         });
       }
     } catch (e) {
+      if (!mounted) return;
+
       setState(() {
         _errorMessage = 'Erro ao carregar dashboard: $e';
         _isLoading = false;
@@ -86,6 +87,17 @@ class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
     if (result == true) {
       await _carregarDashboard();
     }
+  }
+
+  Future<void> _abrirMinhasVagas() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const MinhasVagasResponsavelPage(),
+      ),
+    );
+
+    await _carregarDashboard();
   }
 
   Future<void> _logout() async {
@@ -108,6 +120,7 @@ class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
     if (valor == null) return fallback;
 
     final texto = valor.toString().trim();
+
     if (texto.isEmpty || texto.toLowerCase() == 'null') {
       return fallback;
     }
@@ -117,14 +130,31 @@ class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
 
   String _formatarValor(dynamic valor) {
     if (valor == null) return 'A combinar';
-
     return 'R\$ ${valor.toString()}';
+  }
+
+  String _formatarData(dynamic valor) {
+    if (valor == null) return 'Não informado';
+
+    final texto = valor.toString();
+
+    try {
+      final data = DateTime.parse(texto);
+      final dia = data.day.toString().padLeft(2, '0');
+      final mes = data.month.toString().padLeft(2, '0');
+      final ano = data.year.toString();
+      return '$dia/$mes/$ano';
+    } catch (_) {
+      return texto;
+    }
   }
 
   Color _corStatus(String status) {
     switch (status.toLowerCase()) {
       case 'aberta':
         return Colors.green;
+      case 'encerrada':
+        return Colors.red;
       case 'finalizada':
         return Colors.blueGrey;
       case 'cancelada':
@@ -134,14 +164,168 @@ class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
     }
   }
 
+  Widget _buildResumoCard({
+    required IconData icon,
+    required String titulo,
+    required String valor,
+  }) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 26),
+            const SizedBox(height: 8),
+            Text(
+              valor,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              titulo,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 13),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPreviewVaga(Map<String, dynamic> vaga) {
+    final titulo = _textoSeguro(vaga['Titulo']);
+    final cidade = _textoSeguro(vaga['Cidade']);
+    final dataServico = _formatarData(vaga['DataServico']);
+    final valor = _formatarValor(vaga['Valor']);
+    final status = _textoSeguro(vaga['Status'], fallback: 'Aberta');
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: _abrirMinhasVagas,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    titulo,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _corStatus(status).withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    status,
+                    style: TextStyle(
+                      color: _corStatus(status),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Icon(Icons.location_on_outlined, size: 18),
+                const SizedBox(width: 6),
+                Expanded(child: Text(cidade)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.calendar_today_outlined, size: 18),
+                const SizedBox(width: 6),
+                Expanded(child: Text(dataServico)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.attach_money, size: 18),
+                const SizedBox(width: 6),
+                Expanded(child: Text(valor)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Toque para gerenciar esta vaga',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final nome =
-        _textoSeguro(_responsavel?['Nome'] ?? _responsavel?['nome'],
-            fallback: 'Responsável');
+    final nome = _textoSeguro(
+      _responsavel?['Nome'] ?? _responsavel?['nome'],
+      fallback: 'Responsável',
+    );
     final email = _textoSeguro(_responsavel?['Email'] ?? _responsavel?['email']);
-    final telefone =
-        _textoSeguro(_responsavel?['Telefone'] ?? _responsavel?['telefone']);
+    final telefone = _textoSeguro(
+      _responsavel?['Telefone'] ?? _responsavel?['telefone'],
+    );
+
+    final vagasAbertas = _vagas
+        .where(
+          (vaga) =>
+              _textoSeguro(vaga['Status'], fallback: 'Aberta').toLowerCase() ==
+              'aberta',
+        )
+        .length;
+
+    final vagasEncerradas = _vagas
+        .where(
+          (vaga) =>
+              _textoSeguro(vaga['Status']).toLowerCase() == 'encerrada',
+        )
+        .length;
 
     return Scaffold(
       appBar: AppBar(
@@ -228,22 +412,84 @@ class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 18),
+                      Row(
+                        children: [
+                          _buildResumoCard(
+                            icon: Icons.work_outline,
+                            titulo: 'Total de vagas',
+                            valor: _vagas.length.toString(),
+                          ),
+                          const SizedBox(width: 12),
+                          _buildResumoCard(
+                            icon: Icons.check_circle_outline,
+                            titulo: 'Vagas abertas',
+                            valor: vagasAbertas.toString(),
+                          ),
+                          const SizedBox(width: 12),
+                          _buildResumoCard(
+                            icon: Icons.pause_circle_outline,
+                            titulo: 'Encerradas',
+                            valor: vagasEncerradas.toString(),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.04),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Gerenciar vagas',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  SizedBox(height: 6),
+                                  Text(
+                                    'Edite, encerre, reabra, exclua e veja interessados.',
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            ElevatedButton(
+                              onPressed: _abrirMinhasVagas,
+                              child: const Text('Abrir'),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text(
-                            'Minhas vagas',
+                            'Prévia das vagas',
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          Text(
-                            '${_vagas.length} vaga(s)',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                            ),
+                          TextButton(
+                            onPressed: _abrirMinhasVagas,
+                            child: const Text('Ver todas'),
                           ),
                         ],
                       ),
@@ -271,108 +517,7 @@ class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
                           ),
                         )
                       else
-                        ..._vagas.map((vaga) {
-                          final titulo = _textoSeguro(vaga['Titulo']);
-                          final descricao = _textoSeguro(vaga['Descricao']);
-                          final cidade = _textoSeguro(vaga['Cidade']);
-                          final dataServico = _textoSeguro(vaga['DataServico']);
-                          final horaInicio = _textoSeguro(vaga['HoraInicio']);
-                          final horaFim = _textoSeguro(vaga['HoraFim']);
-                          final valor = _formatarValor(vaga['Valor']);
-                          final status =
-                              _textoSeguro(vaga['Status'], fallback: 'Aberta');
-
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.04),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        titulo,
-                                        style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 6,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: _corStatus(status)
-                                            .withOpacity(0.12),
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      child: Text(
-                                        status,
-                                        style: TextStyle(
-                                          color: _corStatus(status),
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 10),
-                                Text(descricao),
-                                const SizedBox(height: 12),
-                                const Divider(),
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    const Icon(Icons.location_on_outlined,
-                                        size: 18),
-                                    const SizedBox(width: 6),
-                                    Expanded(child: Text(cidade)),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    const Icon(Icons.calendar_today_outlined,
-                                        size: 18),
-                                    const SizedBox(width: 6),
-                                    Expanded(child: Text(dataServico)),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    const Icon(Icons.access_time_outlined,
-                                        size: 18),
-                                    const SizedBox(width: 6),
-                                    Expanded(child: Text('$horaInicio às $horaFim')),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    const Icon(Icons.attach_money, size: 18),
-                                    const SizedBox(width: 6),
-                                    Expanded(child: Text(valor)),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          );
-                        }),
+                        ..._vagas.take(3).map(_buildPreviewVaga),
                     ],
                   ),
                 ),
