@@ -139,26 +139,29 @@ class ApiCuidador {
       };
     }
   }
-  static Future<Map<String, dynamic>> getStatusPlano(int idCuidador) async {
-  try {
-    final response = await ApiClient.get('/api/cuidador/$idCuidador/status-plano');
 
-    if (response['success'] == true && response['data'] != null) {
+  /// Buscar status do plano
+  static Future<Map<String, dynamic>> getPlanoStatus(int idCuidador) async {
+    try {
+      final response =
+          await ApiClient.get('/api/cuidador/$idCuidador/status-plano');
+
+      if (response['success'] == true && response['data'] != null) {
+        return {
+          'success': true,
+          'data': Map<String, dynamic>.from(response['data']),
+        };
+      }
+
       return {
-        'success': true,
-        'data': Map<String, dynamic>.from(response['data']),
+        'success': false,
+        'message': response['message'] ?? 'Erro ao buscar status do plano',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Erro de conexão: $e',
       };
     }
-
-    return {
-      'success': false,
-      'message': response['message'] ?? 'Erro ao buscar status do plano',
-    };
-  } catch (e) {
-    return {
-      'success': false,
-      'message': 'Erro de conexão: $e',
-    };
   }
-}
 }

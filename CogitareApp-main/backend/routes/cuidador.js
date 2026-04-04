@@ -172,7 +172,6 @@ router.get('/:id/status-plano', async (req, res) => {
 });
 
 // BUSCAR VAGAS ABERTAS
-// IMPORTANTE: esta rota precisa vir antes de "/:id"
 router.get('/vagas-abertas', async (req, res) => {
   try {
     const vagasResult = await db.query(`

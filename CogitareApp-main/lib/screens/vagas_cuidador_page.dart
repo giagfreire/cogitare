@@ -25,9 +25,43 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
   @override
   void initState() {
     super.initState();
-    _loadPlano();
-    _loadStatusPlano();
-    _loadVagas();
+    _inicializarTela();
+  }
+
+  Future<void> _inicializarTela() async {
+    await Future.wait([
+      _loadPlano(),
+      _loadStatusPlano(),
+      _loadVagas(),
+    ]);
+  }
+
+  int _toInt(dynamic value, {int defaultValue = 0}) {
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? defaultValue;
+  }
+
+  List<Map<String, dynamic>> _extrairLista(dynamic response) {
+    if (response is List) {
+      return response
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList();
+    }
+
+    if (response is Map<String, dynamic>) {
+      final data = response['data'];
+
+      if (data is List) {
+        return data
+            .whereType<Map>()
+            .map((item) => Map<String, dynamic>.from(item))
+            .toList();
+      }
+    }
+
+    return [];
   }
 
   Future<void> _loadPlano() async {
@@ -47,8 +81,13 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
       if (!mounted) return;
 
       setState(() {
-        if (response['success'] == true && response['data'] != null) {
-          _planoAtual = response['data']['PlanoAtual'] ?? 'Basico';
+        if (response is Map<String, dynamic> &&
+            response['success'] == true &&
+            response['data'] != null) {
+          final data = response['data'];
+          if (data is Map<String, dynamic>) {
+            _planoAtual = (data['PlanoAtual'] ?? 'Basico').toString();
+          }
         }
         _isLoadingPlano = false;
       });
@@ -64,9 +103,17 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
     try {
       final cuidadorId = await SessionService.getCuidadorId();
 
-      if (cuidadorId == null) return;
+      if (cuidadorId == null) {
+        if (!mounted) return;
+        setState(() {
+          _usosPlano = 0;
+          _limitePlano = 5;
+          _restantePlano = 5;
+        });
+        return;
+      }
 
-      final response = await ApiCuidador.getStatusPlano(cuidadorId);
+      final response = await ApiCuidador.getPlanoStatus(cuidadorId);
 
       if (!mounted) return;
 
@@ -74,14 +121,14 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
         final data = response['data'];
 
         setState(() {
-          _planoAtual = data['planoAtual'] ?? 'Basico';
-          _usosPlano = data['usosPlano'] ?? 0;
-          _limitePlano = data['limitePlano'] ?? 5;
-          _restantePlano = data['restante'] ?? 0;
+          _planoAtual = (data['planoAtual'] ?? 'Basico').toString();
+          _usosPlano = _toInt(data['usosPlano']);
+          _limitePlano = _toInt(data['limitePlano'], defaultValue: 5);
+          _restantePlano = _toInt(data['restante'], defaultValue: 0);
         });
       }
     } catch (e) {
-      // pode deixar vazio por enquanto
+      // deixa silencioso por enquanto
     }
   }
 
@@ -90,8 +137,9 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
       final response = await ApiCuidador.getVagasAbertas();
 
       if (!mounted) return;
+
       setState(() {
-        vagas = response;
+        vagas = _extrairLista(response);
         _isLoadingVagas = false;
       });
     } catch (e) {
@@ -127,8 +175,8 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
                   ),
                 );
 
-                _loadPlano();
-                _loadStatusPlano();
+                await _loadPlano();
+                await _loadStatusPlano();
               },
               child: const Text('Ver planos'),
             ),
@@ -155,8 +203,9 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
       return;
     }
 
-    final idVaga = vaga['IdVaga'];
-    if (idVaga == null) {
+    final idVaga = _toInt(vaga['IdVaga']);
+
+    if (idVaga == 0) {
       if (!mounted) return;
       Navigator.pop(sheetContext);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -168,7 +217,7 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
     }
 
     final resultado = await ApiCuidador.aceitarVaga(
-      idVaga: idVaga is int ? idVaga : int.tryParse(idVaga.toString()) ?? 0,
+      idVaga: idVaga,
       idCuidador: cuidadorId,
     );
 
@@ -178,7 +227,7 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(resultado['message'] ?? 'Resposta recebida'),
+        content: Text(resultado['message']?.toString() ?? 'Resposta recebida'),
       ),
     );
 
@@ -232,8 +281,13 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
   String _formatarValor(dynamic valor) {
     if (valor == null) return 'R\$ 0,00';
 
-    final texto = valor.toString().replaceAll('.', ',');
-    return 'R\$ $texto';
+    final numero = double.tryParse(valor.toString());
+    if (numero != null) {
+      final texto = numero.toStringAsFixed(2).replaceAll('.', ',');
+      return 'R\$ $texto';
+    }
+
+    return 'R\$ ${valor.toString()}';
   }
 
   void _verDetalhes(Map<String, dynamic> vaga) {

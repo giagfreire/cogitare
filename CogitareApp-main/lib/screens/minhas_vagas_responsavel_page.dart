@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'services/api_responsavel.dart';
-import 'services/session_service.dart';
+import '../services/api_responsavel.dart';
+import '../services/session_service.dart';
 
 class MinhasVagasResponsavelPage extends StatefulWidget {
   const MinhasVagasResponsavelPage({super.key});
@@ -12,7 +12,7 @@ class MinhasVagasResponsavelPage extends StatefulWidget {
 
 class _MinhasVagasResponsavelPageState
     extends State<MinhasVagasResponsavelPage> {
-  List vagas = [];
+  List<Map<String, dynamic>> vagas = [];
   bool loading = true;
 
   @override
@@ -22,89 +22,96 @@ class _MinhasVagasResponsavelPageState
   }
 
   Future<void> _carregarVagas() async {
-    final idResponsavel = await SessionService.getResponsavelId();
+    try {
+      final idSalvo = await SessionService.getCuidadorId();
 
-    if (idResponsavel == null) return;
+      if (idSalvo == null) {
+        setState(() {
+          vagas = [];
+          loading = false;
+        });
+        return;
+      }
 
-    final response =
-        await ApiResponsavel.getVagasDoResponsavel(idResponsavel);
+      final int idResponsavel = idSalvo;
 
-    if (response['success'] == true) {
+      final List<Map<String, dynamic>> lista =
+          await ApiResponsavel.getVagasDoResponsavel(idResponsavel);
+
+      if (!mounted) return;
+
       setState(() {
-        vagas = response['data'];
+        vagas = lista;
         loading = false;
       });
-    } else {
+    } catch (e) {
+      if (!mounted) return;
+
       setState(() {
+        vagas = [];
         loading = false;
       });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao carregar vagas: $e')),
+      );
     }
   }
 
-  Widget _buildCardVaga(Map vaga) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: ListTile(
-        title: Text(vaga['Titulo'] ?? ''),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(vaga['Cidade'] ?? ''),
-            Text('Valor: R\$ ${vaga['Valor']}'),
-            Text('Status: ${vaga['Status']}'),
-          ],
-        ),
-        trailing: const Icon(Icons.arrow_forward_ios),
-        onTap: () {
-          _mostrarDetalhes(vaga);
-        },
-      ),
-    );
-  }
-
-  void _mostrarDetalhes(Map vaga) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(vaga['Titulo']),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(vaga['Descricao']),
-            const SizedBox(height: 10),
-            Text('Cidade: ${vaga['Cidade']}'),
-            Text('Data: ${vaga['DataServico']}'),
-            Text('Hora: ${vaga['HoraInicio']} - ${vaga['HoraFim']}'),
-            Text('Valor: R\$ ${vaga['Valor']}'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fechar'),
-          ),
-        ],
-      ),
-    );
+  String _textoCampo(dynamic valor) {
+    if (valor == null) return 'Não informado';
+    final texto = valor.toString().trim();
+    if (texto.isEmpty) return 'Não informado';
+    return texto;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Minhas vagas'),
-        backgroundColor: const Color(0xFF35064E),
-        foregroundColor: Colors.white,
+        title: const Text('Minhas Vagas'),
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : vagas.isEmpty
-              ? const Center(child: Text('Nenhuma vaga criada ainda'))
+              ? const Center(
+                  child: Text('Nenhuma vaga cadastrada'),
+                )
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: vagas.length,
                   itemBuilder: (context, index) {
-                    return _buildCardVaga(vagas[index]);
+                    final vaga = vagas[index];
+
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _textoCampo(vaga['Titulo']),
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text('Descrição: ${_textoCampo(vaga['Descricao'])}'),
+                            Text('Cidade: ${_textoCampo(vaga['Cidade'])}'),
+                            Text(
+                              'Data do serviço: ${_textoCampo(vaga['DataServico'])}',
+                            ),
+                            Text(
+                              'Horário: ${_textoCampo(vaga['HoraInicio'])} às ${_textoCampo(vaga['HoraFim'])}',
+                            ),
+                            Text('Valor: R\$ ${_textoCampo(vaga['Valor'])}'),
+                            Text('Status: ${_textoCampo(vaga['Status'])}'),
+                          ],
+                        ),
+                      ),
+                    );
                   },
                 ),
     );

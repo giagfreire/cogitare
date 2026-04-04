@@ -4,7 +4,7 @@ import '../services/api_service.dart';
 import '../services/servico_autenticacao.dart';
 import 'criar_vaga_page.dart';
 import 'tela_login_unificada.dart';
-import '../minhas_vagas_responsavel_page.dart';
+import 'minhas_vagas_responsavel_page.dart';
 
 class TelaDashboardResponsavel extends StatefulWidget {
   static const route = '/responsavel-dashboard';
