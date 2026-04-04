@@ -473,5 +473,199 @@ router.get('/:id/vagas', async (req, res) => {
     });
   }
 });
+// Editar vaga
+router.put('/vagas/:idVaga', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.tipo !== 'responsavel') {
+      return res.status(403).json({
+        success: false,
+        message: 'Apenas responsáveis podem editar vagas'
+      });
+    }
 
+    const { idVaga } = req.params;
+    const { titulo, descricao, cidade, dataServico, horaInicio, horaFim, valor } = req.body;
+
+    const vagas = await db.query(
+      'SELECT * FROM vaga WHERE IdVaga = ? AND IdResponsavel = ?',
+      [idVaga, req.user.id]
+    );
+
+    if (vagas.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vaga não encontrada'
+      });
+    }
+
+    await db.query(
+      `UPDATE vaga
+       SET Titulo = ?, Descricao = ?, Cidade = ?, DataServico = ?, HoraInicio = ?, HoraFim = ?, Valor = ?
+       WHERE IdVaga = ? AND IdResponsavel = ?`,
+      [titulo, descricao, cidade, dataServico, horaInicio, horaFim, valor, idVaga, req.user.id]
+    );
+
+    res.json({
+      success: true,
+      message: 'Vaga atualizada com sucesso'
+    });
+  } catch (error) {
+    console.error('Erro ao editar vaga:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor',
+      error: error.message
+    });
+  }
+});
+
+// Alterar status da vaga
+router.put('/vagas/:idVaga/status', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.tipo !== 'responsavel') {
+      return res.status(403).json({
+        success: false,
+        message: 'Apenas responsáveis podem alterar status de vagas'
+      });
+    }
+
+    const { idVaga } = req.params;
+    const { status } = req.body;
+
+    if (!status || !['Aberta', 'Encerrada'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Status inválido'
+      });
+    }
+
+    const vagas = await db.query(
+      'SELECT * FROM vaga WHERE IdVaga = ? AND IdResponsavel = ?',
+      [idVaga, req.user.id]
+    );
+
+    if (vagas.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vaga não encontrada'
+      });
+    }
+
+    await db.query(
+      'UPDATE vaga SET Status = ? WHERE IdVaga = ? AND IdResponsavel = ?',
+      [status, idVaga, req.user.id]
+    );
+
+    res.json({
+      success: true,
+      message: 'Status da vaga atualizado com sucesso'
+    });
+  } catch (error) {
+    console.error('Erro ao atualizar status da vaga:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor',
+      error: error.message
+    });
+  }
+});
+
+// Excluir vaga
+router.delete('/vagas/:idVaga', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.tipo !== 'responsavel') {
+      return res.status(403).json({
+        success: false,
+        message: 'Apenas responsáveis podem excluir vagas'
+      });
+    }
+
+    const { idVaga } = req.params;
+
+    const vagas = await db.query(
+      'SELECT * FROM vaga WHERE IdVaga = ? AND IdResponsavel = ?',
+      [idVaga, req.user.id]
+    );
+
+    if (vagas.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vaga não encontrada'
+      });
+    }
+
+    await db.query(
+      'DELETE FROM vaga WHERE IdVaga = ? AND IdResponsavel = ?',
+      [idVaga, req.user.id]
+    );
+
+    res.json({
+      success: true,
+      message: 'Vaga excluída com sucesso'
+    });
+  } catch (error) {
+    console.error('Erro ao excluir vaga:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor',
+      error: error.message
+    });
+  }
+});
+
+// Ver interessados em uma vaga
+router.get('/vagas/:idVaga/interessados', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.tipo !== 'responsavel') {
+      return res.status(403).json({
+        success: false,
+        message: 'Apenas responsáveis podem ver interessados'
+      });
+    }
+
+    const { idVaga } = req.params;
+
+    const vagas = await db.query(
+      'SELECT * FROM vaga WHERE IdVaga = ? AND IdResponsavel = ?',
+      [idVaga, req.user.id]
+    );
+
+    if (vagas.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vaga não encontrada'
+      });
+    }
+
+    const interessados = await db.query(`
+      SELECT
+        vc.IdVagaCuidador,
+        vc.IdVaga,
+        vc.IdCuidador,
+        vc.DataAceite,
+        c.Nome,
+        c.Email,
+        c.Telefone,
+        c.Biografia,
+        c.ValorHora
+      FROM vagacuidador vc
+      INNER JOIN cuidador c ON c.IdCuidador = vc.IdCuidador
+      WHERE vc.IdVaga = ?
+      ORDER BY vc.IdVagaCuidador DESC
+    `, [idVaga]);
+
+    res.json({
+      success: true,
+      message: 'Interessados listados com sucesso',
+      data: interessados
+    });
+  } catch (error) {
+    console.error('Erro ao listar interessados:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor',
+      error: error.message
+    });
+  }
+});
 module.exports = router;
