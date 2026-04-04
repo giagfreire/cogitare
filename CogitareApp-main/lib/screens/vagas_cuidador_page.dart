@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import '../services/api_cuidador.dart';
-import '../services/api_service.dart';
-import '../services/session_service.dart';
 import 'planos_cuidador_page.dart';
 
 class VagasCuidadorPage extends StatefulWidget {
@@ -13,81 +11,32 @@ class VagasCuidadorPage extends StatefulWidget {
 
 class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
   List<Map<String, dynamic>> vagas = [];
-
   String _planoAtual = 'Basico';
+  int _usosPlano = 0;
+  int _limitePlano = 0;
+
   bool _isLoadingPlano = true;
   bool _isLoadingVagas = true;
-
-  int _usosPlano = 0;
-  int _limitePlano = 5;
-  int _restantePlano = 5;
 
   @override
   void initState() {
     super.initState();
-    _inicializarTela();
-  }
-
-  Future<void> _inicializarTela() async {
-    await Future.wait([
-      _loadPlano(),
-      _loadStatusPlano(),
-      _loadVagas(),
-    ]);
-  }
-
-  int _toInt(dynamic value, {int defaultValue = 0}) {
-    if (value is int) return value;
-    if (value is double) return value.toInt();
-    return int.tryParse(value?.toString() ?? '') ?? defaultValue;
-  }
-
-  List<Map<String, dynamic>> _extrairLista(dynamic response) {
-    if (response is List) {
-      return response
-          .whereType<Map>()
-          .map((item) => Map<String, dynamic>.from(item))
-          .toList();
-    }
-
-    if (response is Map<String, dynamic>) {
-      final data = response['data'];
-
-      if (data is List) {
-        return data
-            .whereType<Map>()
-            .map((item) => Map<String, dynamic>.from(item))
-            .toList();
-      }
-    }
-
-    return [];
+    _loadPlano();
+    _loadVagas();
   }
 
   Future<void> _loadPlano() async {
     try {
-      final cuidadorId = await SessionService.getCuidadorId();
-
-      if (cuidadorId == null) {
-        if (!mounted) return;
-        setState(() {
-          _isLoadingPlano = false;
-        });
-        return;
-      }
-
-      final response = await ServicoApi.get('/api/cuidador/$cuidadorId/plano');
+      final response = await ApiCuidador.getStatusPlano();
 
       if (!mounted) return;
 
       setState(() {
-        if (response is Map<String, dynamic> &&
-            response['success'] == true &&
-            response['data'] != null) {
-          final data = response['data'];
-          if (data is Map<String, dynamic>) {
-            _planoAtual = (data['PlanoAtual'] ?? 'Basico').toString();
-          }
+        if (response['success'] == true && response['data'] != null) {
+          final data = Map<String, dynamic>.from(response['data']);
+          _planoAtual = (data['PlanoAtual'] ?? 'Basico').toString();
+          _usosPlano = int.tryParse('${data['UsosPlano'] ?? 0}') ?? 0;
+          _limitePlano = int.tryParse('${data['LimitePlano'] ?? 0}') ?? 0;
         }
         _isLoadingPlano = false;
       });
@@ -99,39 +48,6 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
     }
   }
 
-  Future<void> _loadStatusPlano() async {
-    try {
-      final cuidadorId = await SessionService.getCuidadorId();
-
-      if (cuidadorId == null) {
-        if (!mounted) return;
-        setState(() {
-          _usosPlano = 0;
-          _limitePlano = 5;
-          _restantePlano = 5;
-        });
-        return;
-      }
-
-      final response = await ApiCuidador.getPlanoStatus(cuidadorId);
-
-      if (!mounted) return;
-
-      if (response['success'] == true && response['data'] != null) {
-        final data = response['data'];
-
-        setState(() {
-          _planoAtual = (data['planoAtual'] ?? 'Basico').toString();
-          _usosPlano = _toInt(data['usosPlano']);
-          _limitePlano = _toInt(data['limitePlano'], defaultValue: 5);
-          _restantePlano = _toInt(data['restante'], defaultValue: 0);
-        });
-      }
-    } catch (e) {
-      // deixa silencioso por enquanto
-    }
-  }
-
   Future<void> _loadVagas() async {
     try {
       final response = await ApiCuidador.getVagasAbertas();
@@ -139,7 +55,7 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
       if (!mounted) return;
 
       setState(() {
-        vagas = _extrairLista(response);
+        vagas = response;
         _isLoadingVagas = false;
       });
     } catch (e) {
@@ -150,14 +66,21 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
     }
   }
 
+  Future<void> _recarregarTudo() async {
+    await Future.wait([
+      _loadPlano(),
+      _loadVagas(),
+    ]);
+  }
+
   void _mostrarUpgrade() {
     showDialog(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Upgrade de plano'),
+          title: const Text('Recurso Premium'),
           content: const Text(
-            'Seu plano atual atingiu o limite ou não permite continuar. Veja os planos para desbloquear mais vagas.',
+            'Para aceitar mais vagas, faça upgrade para o Plano Premium e desbloqueie mais oportunidades.',
           ),
           actions: [
             TextButton(
@@ -167,16 +90,13 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
             ElevatedButton(
               onPressed: () async {
                 Navigator.pop(dialogContext);
-
                 await Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => const PlanosCuidadorPage(),
                   ),
                 );
-
-                await _loadPlano();
-                await _loadStatusPlano();
+                _loadPlano();
               },
               child: const Text('Ver planos'),
             ),
@@ -190,58 +110,39 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
     BuildContext sheetContext,
     Map<String, dynamic> vaga,
   ) async {
-    final cuidadorId = await SessionService.getCuidadorId();
+    final idVaga = int.tryParse('${vaga['IdVaga'] ?? 0}') ?? 0;
 
-    if (cuidadorId == null) {
-      if (!mounted) return;
-      Navigator.pop(sheetContext);
+    if (idVaga <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Sessão inválida. Faça login novamente.'),
+          content: Text('ID da vaga inválido.'),
+          backgroundColor: Colors.red,
         ),
       );
       return;
     }
-
-    final idVaga = _toInt(vaga['IdVaga']);
-
-    if (idVaga == 0) {
-      if (!mounted) return;
-      Navigator.pop(sheetContext);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vaga inválida.'),
-        ),
-      );
-      return;
-    }
-
-    final resultado = await ApiCuidador.aceitarVaga(
-      idVaga: idVaga,
-      idCuidador: cuidadorId,
-    );
-
-    if (!mounted) return;
 
     Navigator.pop(sheetContext);
 
+    final response = await ApiCuidador.aceitarVaga(idVaga);
+
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(resultado['message']?.toString() ?? 'Resposta recebida'),
+        content: Text(response['message'] ?? 'Resposta recebida'),
+        backgroundColor:
+            response['success'] == true ? Colors.green : Colors.red,
       ),
     );
 
-    if (resultado['success'] == true) {
-      await _loadPlano();
-      await _loadStatusPlano();
-      await _loadVagas();
-    } else {
-      final mensagem = (resultado['message'] ?? '').toString().toLowerCase();
-      if (mensagem.contains('upgrade') ||
-          mensagem.contains('limite') ||
-          mensagem.contains('plano')) {
-        _mostrarUpgrade();
-      }
+    if (response['success'] == true) {
+      await _recarregarTudo();
+    } else if ((response['message'] ?? '')
+        .toString()
+        .toLowerCase()
+        .contains('premium')) {
+      _mostrarUpgrade();
     }
   }
 
@@ -255,7 +156,6 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
         return '${partes[2]}/${partes[1]}/${partes[0]}';
       }
     }
-
     return texto;
   }
 
@@ -263,34 +163,39 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
     final inicio = vaga['HoraInicio']?.toString() ?? '';
     final fim = vaga['HoraFim']?.toString() ?? '';
 
-    String limparHora(String valor) {
-      if (valor.isEmpty) return '';
-      return valor.length >= 5 ? valor.substring(0, 5) : valor;
-    }
+    if (inicio.isEmpty && fim.isEmpty) return '-';
+    if (fim.isEmpty) return inicio;
+    if (inicio.isEmpty) return fim;
 
-    final inicioFormatado = limparHora(inicio);
-    final fimFormatado = limparHora(fim);
-
-    if (inicioFormatado.isEmpty && fimFormatado.isEmpty) return '-';
-    if (inicioFormatado.isEmpty) return fimFormatado;
-    if (fimFormatado.isEmpty) return inicioFormatado;
-
-    return '$inicioFormatado às $fimFormatado';
+    return '$inicio às $fim';
   }
 
   String _formatarValor(dynamic valor) {
     if (valor == null) return 'R\$ 0,00';
+    final texto = valor.toString().replaceAll('.', ',');
+    return 'R\$ $texto';
+  }
 
-    final numero = double.tryParse(valor.toString());
-    if (numero != null) {
-      final texto = numero.toStringAsFixed(2).replaceAll('.', ',');
-      return 'R\$ $texto';
-    }
-
-    return 'R\$ ${valor.toString()}';
+  Widget _infoLinha(IconData icon, String label, String valor) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: const Color(0xFF35064E)),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            '$label: $valor',
+            style: const TextStyle(fontSize: 15),
+          ),
+        ),
+      ],
+    );
   }
 
   void _verDetalhes(Map<String, dynamic> vaga) {
+    final bloqueada =
+        _planoAtual != 'Premium' && _limitePlano > 0 && _usosPlano >= _limitePlano;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
@@ -410,6 +315,36 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
                 ),
               ),
               const SizedBox(height: 24),
+              if (bloqueada)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 14),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF4E5),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFFFD8A8)),
+                  ),
+                  child: const Text(
+                    'Você atingiu o limite do seu plano atual. Faça upgrade para continuar aceitando vagas.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF8A4B00),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              if (!bloqueada && _limitePlano > 0)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: Text(
+                    'Uso do plano: $_usosPlano de $_limitePlano',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
               SizedBox(
                 width: double.infinity,
                 height: 52,
@@ -421,9 +356,9 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
-                  child: const Text(
-                    'Aceitar vaga',
-                    style: TextStyle(
+                  child: Text(
+                    bloqueada ? 'Desbloquear com Premium' : 'Aceitar vaga',
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                       color: Colors.white,
@@ -435,22 +370,6 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
           ),
         );
       },
-    );
-  }
-
-  Widget _infoLinha(IconData icon, String label, String valor) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 20, color: const Color(0xFF35064E)),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            '$label: $valor',
-            style: const TextStyle(fontSize: 15),
-          ),
-        ),
-      ],
     );
   }
 
@@ -535,7 +454,7 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
 
   Widget _buildEmptyState() {
     return RefreshIndicator(
-      onRefresh: _loadVagas,
+      onRefresh: _recarregarTudo,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         children: const [
@@ -585,28 +504,14 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
                     ),
                   ),
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${vagas.length} vaga(s) encontrada(s) para você',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Usos do plano: $_usosPlano / $_limitePlano • Restantes: $_restantePlano',
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
+                        child: Text(
+                          '${vagas.length} vaga(s) encontrada(s) para você',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                          ),
                         ),
                       ),
                       Container(
@@ -641,7 +546,7 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
                   child: vagas.isEmpty
                       ? _buildEmptyState()
                       : RefreshIndicator(
-                          onRefresh: _loadVagas,
+                          onRefresh: _recarregarTudo,
                           child: ListView.builder(
                             physics: const AlwaysScrollableScrollPhysics(),
                             padding: const EdgeInsets.all(16),

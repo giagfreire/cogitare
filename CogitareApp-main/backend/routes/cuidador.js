@@ -582,5 +582,55 @@ router.get('/:id/plano', async (req, res) => {
     });
   }
 });
+// Minhas vagas aceitas pelo cuidador logado
+router.get('/minhas-vagas', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.tipo !== 'cuidador') {
+      return res.status(403).json({
+        success: false,
+        message: 'Apenas cuidadores podem acessar suas vagas',
+      });
+    }
 
+    const idCuidador = req.user.id;
+
+    const vagas = await db.query(`
+      SELECT
+        vc.IdVagaCuidador,
+        vc.IdVaga,
+        vc.IdCuidador,
+        vc.DataAceite,
+        v.Titulo,
+        v.Descricao,
+        v.Cidade,
+        v.DataServico,
+        v.HoraInicio,
+        v.HoraFim,
+        v.Valor,
+        v.Status,
+        r.IdResponsavel,
+        r.Nome AS NomeResponsavel,
+        r.Email AS EmailResponsavel,
+        r.Telefone AS TelefoneResponsavel
+      FROM vagacuidador vc
+      INNER JOIN vaga v ON v.IdVaga = vc.IdVaga
+      INNER JOIN responsavel r ON r.IdResponsavel = v.IdResponsavel
+      WHERE vc.IdCuidador = ?
+      ORDER BY vc.IdVagaCuidador DESC
+    `, [idCuidador]);
+
+    return res.json({
+      success: true,
+      message: 'Minhas vagas carregadas com sucesso',
+      data: vagas,
+    });
+  } catch (error) {
+    console.error('Erro ao buscar vagas aceitas do cuidador:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor',
+      error: error.message,
+    });
+  }
+});
 module.exports = router;

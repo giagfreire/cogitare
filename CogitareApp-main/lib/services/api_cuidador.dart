@@ -30,74 +30,92 @@ class ApiCuidador {
         // extras do cuidador
         'fumante': caregiver.smokingStatus,
         'temFilhos': caregiver.hasChildren,
-        'possuiCnh': caregiver.hasLicense,
+     'possuiCnh': caregiver.possuiCnh,
         'temCarro': caregiver.hasCar,
         'biografia': caregiver.biography,
         'valorHora': caregiver.hourlyRate,
       });
 
-      if (response['success'] == true) {
-        return {
-          'success': true,
-          'message': response['message'] ?? 'Cuidador cadastrado com sucesso',
-          'caregiverId': response['data']?['idCuidador'],
-          'addressId': response['data']?['idEndereco'],
-        };
-      } else {
-        return {
-          'success': false,
-          'message': response['message'] ?? 'Erro ao cadastrar cuidador',
-        };
-      }
+      return response;
     } catch (e) {
       return {
         'success': false,
-        'message': 'Erro de conexão: $e',
+        'message': 'Erro ao cadastrar cuidador: $e',
       };
     }
   }
 
-  /// Busca cuidador por ID
-  static Future<Cuidador?> getById(int id) async {
+  /// Buscar cuidador por ID
+  static Future<Map<String, dynamic>> getById(int idCuidador) async {
     try {
-      final response = await ApiClient.get('/api/cuidador/$id');
-
-      if (response['success'] == true) {
-        return Cuidador.fromJson(response['data']);
-      } else {
-        return null;
-      }
-    } catch (e) {
-      return null;
-    }
-  }
-
-  /// Atualiza cuidador
-  static Future<Map<String, dynamic>> update(int id, Cuidador caregiver) async {
-    try {
-      final response = await ApiClient.put('/api/cuidador/$id', {
-        'nome': caregiver.name,
-        'telefone': caregiver.phone,
-        'cpf': caregiver.cpf,
-        'dataNascimento':
-            caregiver.birthDate?.toIso8601String().split('T')[0],
-      });
-
-      if (response['success'] == true) {
-        return {
-          'success': true,
-          'message': response['message'] ?? 'Cuidador atualizado com sucesso',
-        };
-      } else {
-        return {
-          'success': false,
-          'message': response['message'] ?? 'Erro ao atualizar cuidador',
-        };
-      }
+      final response = await ApiClient.get('/api/cuidador/$idCuidador');
+      return response;
     } catch (e) {
       return {
         'success': false,
-        'message': 'Erro de conexão: $e',
+        'message': 'Erro ao buscar cuidador: $e',
+      };
+    }
+  }
+
+  /// Salvar disponibilidade do cuidador
+  static Future<Map<String, dynamic>> salvarDisponibilidade({
+    required int idCuidador,
+    required List<Map<String, dynamic>> disponibilidades,
+  }) async {
+    try {
+      final response = await ApiClient.post(
+        '/api/cuidador/$idCuidador/disponibilidade',
+        {
+          'disponibilidades': disponibilidades,
+        },
+      );
+
+      return response;
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Erro ao salvar disponibilidade: $e',
+      };
+    }
+  }
+
+  /// Buscar disponibilidade do cuidador
+  static Future<Map<String, dynamic>> getDisponibilidade(int idCuidador) async {
+    try {
+      final response =
+          await ApiClient.get('/api/cuidador/$idCuidador/disponibilidade');
+      return response;
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Erro ao buscar disponibilidade: $e',
+      };
+    }
+  }
+
+  /// Buscar serviços do cuidador
+  static Future<Map<String, dynamic>> getServicos() async {
+    try {
+      final response = await ApiClient.get('/api/cuidador/servicos');
+      return response;
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Erro ao buscar serviços: $e',
+      };
+    }
+  }
+
+  /// Buscar especialidades do cuidador
+  static Future<Map<String, dynamic>> getEspecialidades() async {
+    try {
+      final response = await ApiClient.get('/api/cuidador/especialidades');
+      return response;
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Erro ao buscar especialidades: $e',
       };
     }
   }
@@ -118,19 +136,15 @@ class ApiCuidador {
   }
 
   /// Aceitar vaga
-  static Future<Map<String, dynamic>> aceitarVaga({
-    required int idVaga,
-    required int idCuidador,
-  }) async {
+  static Future<Map<String, dynamic>> aceitarVaga(int idVaga) async {
     try {
-      final response = await ApiClient.post('/api/cuidador/aceitar-vaga', {
-        'idVaga': idVaga,
-        'idCuidador': idCuidador,
-      });
+      final response =
+          await ApiClient.post('/api/cuidador/aceitar-vaga', {'idVaga': idVaga});
 
       return {
         'success': response['success'] == true,
         'message': response['message'] ?? 'Resposta recebida',
+        'data': response['data'],
       };
     } catch (e) {
       return {
@@ -140,28 +154,31 @@ class ApiCuidador {
     }
   }
 
-  /// Buscar status do plano
-  static Future<Map<String, dynamic>> getPlanoStatus(int idCuidador) async {
+  /// Buscar status do plano do cuidador logado
+  static Future<Map<String, dynamic>> getStatusPlano() async {
     try {
-      final response =
-          await ApiClient.get('/api/cuidador/$idCuidador/status-plano');
-
-      if (response['success'] == true && response['data'] != null) {
-        return {
-          'success': true,
-          'data': Map<String, dynamic>.from(response['data']),
-        };
-      }
-
-      return {
-        'success': false,
-        'message': response['message'] ?? 'Erro ao buscar status do plano',
-      };
+      final response = await ApiClient.get('/api/cuidador/status-plano');
+      return response;
     } catch (e) {
       return {
         'success': false,
-        'message': 'Erro de conexão: $e',
+        'message': 'Erro ao buscar status do plano: $e',
       };
+    }
+  }
+
+  /// Buscar vagas aceitas pelo cuidador logado
+  static Future<List<Map<String, dynamic>>> getMinhasVagasAceitas() async {
+    try {
+      final response = await ApiClient.get('/api/cuidador/minhas-vagas');
+
+      if (response['success'] == true && response['data'] != null) {
+        return List<Map<String, dynamic>>.from(response['data']);
+      }
+
+      return [];
+    } catch (e) {
+      return [];
     }
   }
 }
