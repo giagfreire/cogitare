@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../services/api_cuidador.dart';
 
-class MinhasVagasAceitasPage extends StatefulWidget {
-  const MinhasVagasAceitasPage({super.key});
+class MinhasVagasCuidadorPage extends StatefulWidget {
+  const MinhasVagasCuidadorPage({super.key});
 
   @override
-  State<MinhasVagasAceitasPage> createState() =>
-      _MinhasVagasAceitasPageState();
+  State<MinhasVagasCuidadorPage> createState() =>
+      _MinhasVagasCuidadorPageState();
 }
 
-class _MinhasVagasAceitasPageState
-    extends State<MinhasVagasAceitasPage> {
-  List<Map<String, dynamic>> vagas = [];
-  bool loading = true;
+class _MinhasVagasCuidadorPageState
+    extends State<MinhasVagasCuidadorPage> {
+  bool _isLoading = true;
+  String? _errorMessage;
+  List<Map<String, dynamic>> _vagas = [];
 
   @override
   void initState() {
@@ -22,182 +22,82 @@ class _MinhasVagasAceitasPageState
   }
 
   Future<void> _carregarVagas() async {
-    setState(() => loading = true);
-
-    final lista = await ApiCuidador.getMinhasVagasAceitas();
-
-    if (!mounted) return;
-
     setState(() {
-      vagas = lista;
-      loading = false;
+      _isLoading = true;
+      _errorMessage = null;
     });
-  }
 
-  String _texto(dynamic valor) {
-    if (valor == null) return 'Não informado';
-    final t = valor.toString().trim();
-    if (t.isEmpty) return 'Não informado';
-    return t;
-  }
-
-  String _data(dynamic valor) {
-    if (valor == null) return 'Não informado';
     try {
-      final d = DateTime.parse(valor.toString());
-      return DateFormat('dd/MM/yyyy').format(d);
-    } catch (_) {
-      return valor.toString();
+      final vagas = await ApiCuidador.getMinhasVagasAceitas();
+
+      setState(() {
+        _vagas = vagas;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Erro ao carregar vagas';
+        _isLoading = false;
+      });
     }
   }
 
-  Color _corStatus(String status) {
-    switch (status) {
-      case 'Aberta':
-        return Colors.green;
-      case 'Encerrada':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  void _abrirDetalhes(Map<String, dynamic> vaga) {
-    final status = _texto(vaga['Status']);
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) {
-        return Padding(
-          padding: const EdgeInsets.all(16),
-          child: Wrap(
-            children: [
-              Text(
-                _texto(vaga['Titulo']),
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              Text('Descrição: ${_texto(vaga['Descricao'])}'),
-              const SizedBox(height: 8),
-              Text('Cidade: ${_texto(vaga['Cidade'])}'),
-              const SizedBox(height: 8),
-              Text('Data: ${_data(vaga['DataServico'])}'),
-              const SizedBox(height: 8),
-              Text(
-                'Horário: ${_texto(vaga['HoraInicio'])} às ${_texto(vaga['HoraFim'])}',
-              ),
-              const SizedBox(height: 8),
-              Text('Valor: R\$ ${_texto(vaga['Valor'])}'),
-              const SizedBox(height: 8),
-              Text('Status: $status'),
-
-              const Divider(height: 24),
-
-              const Text(
-                'Responsável',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text('Nome: ${_texto(vaga['NomeResponsavel'])}'),
-              Text('Email: ${_texto(vaga['EmailResponsavel'])}'),
-              Text('Telefone: ${_texto(vaga['TelefoneResponsavel'])}'),
-
-              if (vaga['DataAceite'] != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  'Você aceitou em: ${_data(vaga['DataAceite'])}',
-                ),
-              ],
-            ],
-          ),
-        );
-      },
-    );
-  }
+  String _t(dynamic v) =>
+      (v == null || v.toString().trim().isEmpty) ? 'Não informado' : v.toString();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Minhas Vagas'),
-        actions: [
-          IconButton(
-            onPressed: _carregarVagas,
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
-      body: loading
+      appBar: AppBar(title: const Text('Minhas vagas')),
+      body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : vagas.isEmpty
-              ? const Center(
-                  child: Text('Você ainda não aceitou nenhuma vaga'),
-                )
-              : RefreshIndicator(
-                  onRefresh: _carregarVagas,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: vagas.length,
-                    itemBuilder: (context, index) {
-                      final vaga = vagas[index];
-                      final status = _texto(vaga['Status']);
+          : _errorMessage != null
+              ? Center(child: Text(_errorMessage!))
+              : _vagas.isEmpty
+                  ? const Center(
+                      child: Text('Você ainda não aceitou nenhuma vaga'),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _vagas.length,
+                      itemBuilder: (context, index) {
+                        final vaga = _vagas[index];
 
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.all(16),
-                          title: Text(
-                            _texto(vaga['Titulo']),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 17,
-                            ),
-                          ),
-                          subtitle: Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: Column(
+                        return Card(
+                          child: ListTile(
+                            title: Text(_t(vaga['Titulo'])),
+                            subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Cidade: ${_texto(vaga['Cidade'])}'),
-                                const SizedBox(height: 4),
-                                Text('Data: ${_data(vaga['DataServico'])}'),
-                                const SizedBox(height: 4),
-                                Text('Valor: R\$ ${_texto(vaga['Valor'])}'),
-                                const SizedBox(height: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: _corStatus(status).withOpacity(0.12),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(
-                                    status,
-                                    style: TextStyle(
-                                      color: _corStatus(status),
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
+                                Text('Cidade: ${_t(vaga['Cidade'])}'),
+                                Text('Data: ${_t(vaga['DataServico'])}'),
+                                Text('Valor: R\$ ${_t(vaga['Valor'])}'),
+                                Text('Responsável: ${_t(vaga['NomeResponsavel'] ?? vaga['Nome'])}'),
                               ],
                             ),
+                            trailing: const Icon(Icons.arrow_forward_ios),
+                            onTap: () {
+                              showDialog(
+                                context: context,
+                                builder: (_) => AlertDialog(
+                                  title: Text(_t(vaga['Titulo'])),
+                                  content: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text('Descrição: ${_t(vaga['Descricao'])}'),
+                                      const SizedBox(height: 10),
+                                      Text('Telefone: ${_t(vaga['TelefoneResponsavel'] ?? vaga['Telefone'])}'),
+                                      Text('Email: ${_t(vaga['EmailResponsavel'] ?? vaga['Email'])}'),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
                           ),
-                          onTap: () => _abrirDetalhes(vaga),
-                        ),
-                      );
-                    },
-                  ),
-                ),
+                        );
+                      },
+                    ),
     );
   }
 }

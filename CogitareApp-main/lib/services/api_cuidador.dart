@@ -2,7 +2,6 @@ import '../models/cuidador.dart';
 import '../models/endereco.dart';
 import 'api_client.dart';
 
-/// Serviço de API para Cuidadores
 class ApiCuidador {
   /// Cadastro completo do cuidador + endereço
   static Future<Map<String, dynamic>> createComplete({
@@ -26,16 +25,18 @@ class ApiCuidador {
         'numero': address.number,
         'complemento': address.complement,
         'cep': address.zipCode,
-// extras do cuidador
-'fumante': caregiver.smokingStatus,
-'temFilhos': caregiver.hasChildren,
-'possuiCnh': caregiver.hasLicense,
-'temCarro': caregiver.hasCar,
-'biografia': caregiver.biography,
-'valorHora': caregiver.hourlyRate,
+
+        // extras do cuidador
+        'fumante': caregiver.smokingStatus,
+        'temFilhos': caregiver.hasChildren,
+        'possuiCnh': caregiver.hasLicense,
+        'temCarro': caregiver.hasCar,
+        'biografia': caregiver.biography,
+        'valorHora': caregiver.hourlyRate,
+        'fotoUrl': caregiver.photoUrl,
       });
 
-      return response;
+      return Map<String, dynamic>.from(response);
     } catch (e) {
       return {
         'success': false,
@@ -48,7 +49,7 @@ class ApiCuidador {
   static Future<Map<String, dynamic>> getById(int idCuidador) async {
     try {
       final response = await ApiClient.get('/api/cuidador/$idCuidador');
-      return response;
+      return Map<String, dynamic>.from(response);
     } catch (e) {
       return {
         'success': false,
@@ -66,11 +67,11 @@ class ApiCuidador {
       final response = await ApiClient.post(
         '/api/cuidador/$idCuidador/disponibilidade',
         {
-          'disponibilidades': disponibilidades,
+          'disponibilidade': disponibilidades,
         },
       );
 
-      return response;
+      return Map<String, dynamic>.from(response);
     } catch (e) {
       return {
         'success': false,
@@ -84,7 +85,8 @@ class ApiCuidador {
     try {
       final response =
           await ApiClient.get('/api/cuidador/$idCuidador/disponibilidade');
-      return response;
+
+      return Map<String, dynamic>.from(response);
     } catch (e) {
       return {
         'success': false,
@@ -93,28 +95,28 @@ class ApiCuidador {
     }
   }
 
-  /// Buscar serviços do cuidador
-  static Future<Map<String, dynamic>> getServicos() async {
-    try {
-      final response = await ApiClient.get('/api/cuidador/servicos');
-      return response;
-    } catch (e) {
-      return {
-        'success': false,
-        'message': 'Erro ao buscar serviços: $e',
-      };
-    }
-  }
-
   /// Buscar especialidades do cuidador
   static Future<Map<String, dynamic>> getEspecialidades() async {
     try {
       final response = await ApiClient.get('/api/cuidador/especialidades');
-      return response;
+      return Map<String, dynamic>.from(response);
     } catch (e) {
       return {
         'success': false,
         'message': 'Erro ao buscar especialidades: $e',
+      };
+    }
+  }
+
+  /// Buscar serviços do cuidador
+  static Future<Map<String, dynamic>> getServicos() async {
+    try {
+      final response = await ApiClient.get('/api/cuidador/servicos');
+      return Map<String, dynamic>.from(response);
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Erro ao buscar serviços: $e',
       };
     }
   }
@@ -124,8 +126,15 @@ class ApiCuidador {
     try {
       final response = await ApiClient.get('/api/cuidador/vagas-abertas');
 
-      if (response['success'] == true && response['data'] != null) {
-        return List<Map<String, dynamic>>.from(response['data']);
+      if (response is Map && response['success'] == true) {
+        final data = response['data'];
+
+        if (data is List) {
+          return data
+              .whereType<Map>()
+              .map((item) => Map<String, dynamic>.from(item))
+              .toList();
+        }
       }
 
       return [];
@@ -137,14 +146,12 @@ class ApiCuidador {
   /// Aceitar vaga
   static Future<Map<String, dynamic>> aceitarVaga(int idVaga) async {
     try {
-      final response =
-          await ApiClient.post('/api/cuidador/aceitar-vaga', {'idVaga': idVaga});
+      final response = await ApiClient.post(
+        '/api/cuidador/aceitar-vaga',
+        {'idVaga': idVaga},
+      );
 
-      return {
-        'success': response['success'] == true,
-        'message': response['message'] ?? 'Resposta recebida',
-        'data': response['data'],
-      };
+      return Map<String, dynamic>.from(response);
     } catch (e) {
       return {
         'success': false,
@@ -157,7 +164,7 @@ class ApiCuidador {
   static Future<Map<String, dynamic>> getStatusPlano() async {
     try {
       final response = await ApiClient.get('/api/cuidador/status-plano');
-      return response;
+      return Map<String, dynamic>.from(response);
     } catch (e) {
       return {
         'success': false,
@@ -166,13 +173,25 @@ class ApiCuidador {
     }
   }
 
+  /// Compatibilidade com telas antigas
+  static Future<Map<String, dynamic>> getPlanoStatus([int? _]) async {
+    return getStatusPlano();
+  }
+
   /// Buscar vagas aceitas pelo cuidador logado
   static Future<List<Map<String, dynamic>>> getMinhasVagasAceitas() async {
     try {
       final response = await ApiClient.get('/api/cuidador/minhas-vagas');
 
-      if (response['success'] == true && response['data'] != null) {
-        return List<Map<String, dynamic>>.from(response['data']);
+      if (response is Map && response['success'] == true) {
+        final data = response['data'];
+
+        if (data is List) {
+          return data
+              .whereType<Map>()
+              .map((item) => Map<String, dynamic>.from(item))
+              .toList();
+        }
       }
 
       return [];
