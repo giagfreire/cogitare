@@ -126,19 +126,17 @@ class ApiCuidador {
     try {
       final response = await ApiClient.get('/api/cuidador/vagas-abertas');
 
-      if (response is Map && response['success'] == true) {
-        final data = response['data'];
+      if (response['success'] == true && response['data'] is List) {
+        final data = response['data'] as List;
 
-        if (data is List) {
-          return data
-              .whereType<Map>()
-              .map((item) => Map<String, dynamic>.from(item))
-              .toList();
-        }
+        return data
+            .whereType<Map>()
+            .map((item) => Map<String, dynamic>.from(item))
+            .toList();
       }
 
       return [];
-    } catch (e) {
+    } catch (_) {
       return [];
     }
   }
@@ -164,7 +162,29 @@ class ApiCuidador {
   static Future<Map<String, dynamic>> getStatusPlano() async {
     try {
       final response = await ApiClient.get('/api/cuidador/status-plano');
-      return Map<String, dynamic>.from(response);
+
+      if (response['success'] == true && response['data'] is Map) {
+        final data = Map<String, dynamic>.from(response['data']);
+
+        return {
+          'success': true,
+          'data': {
+            'PlanoAtual': data['PlanoAtual'] ?? data['plano'] ?? 'Basico',
+            'UsosPlano': data['UsosPlano'] ?? data['usosPlano'] ?? 0,
+            'LimitePlano':
+                data['LimitePlano'] ?? data['limiteContatos'] ?? 5,
+            'Restantes':
+                data['Restantes'] ?? data['restantes'] ?? 0,
+            'Destaque':
+                data['Destaque'] ?? data['destaque'] ?? false,
+          },
+        };
+      }
+
+      return {
+        'success': false,
+        'message': response['message'] ?? 'Erro ao buscar status do plano.',
+      };
     } catch (e) {
       return {
         'success': false,
@@ -183,19 +203,17 @@ class ApiCuidador {
     try {
       final response = await ApiClient.get('/api/cuidador/minhas-vagas');
 
-      if (response is Map && response['success'] == true) {
-        final data = response['data'];
+      if (response['success'] == true && response['data'] is List) {
+        final data = response['data'] as List;
 
-        if (data is List) {
-          return data
-              .whereType<Map>()
-              .map((item) => Map<String, dynamic>.from(item))
-              .toList();
-        }
+        return data
+            .whereType<Map>()
+            .map((item) => Map<String, dynamic>.from(item))
+            .toList();
       }
 
       return [];
-    } catch (e) {
+    } catch (_) {
       return [];
     }
   }

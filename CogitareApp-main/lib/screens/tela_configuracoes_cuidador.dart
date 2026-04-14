@@ -3,6 +3,7 @@ import '../services/api_service.dart';
 import '../services/session_service.dart';
 import '../services/servico_autenticacao.dart';
 import 'onboarding.dart';
+import 'perfil_cuidador_page.dart';
 import 'tela_editar_perfil_cuidador.dart';
 import 'tela_termos_condicoes.dart';
 
@@ -56,6 +57,33 @@ class TelaConfiguracoesCuidador extends StatelessWidget {
     );
   }
 
+  Widget _itemConfig({
+    required BuildContext context,
+    required IconData icon,
+    required String titulo,
+    String? subtitulo,
+    required VoidCallback onTap,
+    Color? iconColor,
+    Color? textColor,
+  }) {
+    return ListTile(
+      leading: Icon(
+        icon,
+        color: iconColor ?? const Color(0xFF35064E),
+      ),
+      title: Text(
+        titulo,
+        style: TextStyle(
+          fontWeight: FontWeight.w500,
+          color: textColor,
+        ),
+      ),
+      subtitle: subtitulo != null ? Text(subtitulo) : null,
+      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+      onTap: onTap,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -64,9 +92,26 @@ class TelaConfiguracoesCuidador extends StatelessWidget {
       ),
       body: ListView(
         children: [
-          ListTile(
-            leading: const Icon(Icons.edit_outlined),
-            title: const Text('Editar perfil'),
+          _itemConfig(
+            context: context,
+            icon: Icons.person_outline,
+            titulo: 'Ver perfil',
+            subtitulo: 'Visualize suas informações cadastradas',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const PerfilCuidadorPage(),
+                ),
+              );
+            },
+          ),
+          const Divider(height: 1),
+          _itemConfig(
+            context: context,
+            icon: Icons.edit_outlined,
+            titulo: 'Editar perfil',
+            subtitulo: 'Atualize seus dados pessoais',
             onTap: () async {
               await Navigator.pushNamed(
                 context,
@@ -74,10 +119,12 @@ class TelaConfiguracoesCuidador extends StatelessWidget {
               );
             },
           ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.description_outlined),
-            title: const Text('Termos e condições'),
+          const Divider(height: 1),
+          _itemConfig(
+            context: context,
+            icon: Icons.description_outlined,
+            titulo: 'Termos e condições',
+            subtitulo: 'Leia os termos de uso do aplicativo',
             onTap: () {
               Navigator.pushNamed(
                 context,
@@ -85,10 +132,14 @@ class TelaConfiguracoesCuidador extends StatelessWidget {
               );
             },
           ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text('Sair da conta'),
+          const Divider(height: 1),
+          _itemConfig(
+            context: context,
+            icon: Icons.logout,
+            titulo: 'Sair da conta',
+            subtitulo: 'Encerrar sessão neste dispositivo',
+            iconColor: Colors.redAccent,
+            textColor: Colors.redAccent,
             onTap: () {
               _showLogoutDialog(context);
             },

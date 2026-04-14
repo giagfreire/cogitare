@@ -1,5 +1,4 @@
 const express = require('express');
-const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
@@ -16,16 +15,36 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // =========================
-// CORS
+// DESATIVAR CACHE / ETag
 // =========================
-app.use(cors({
-  origin: true,
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+app.disable('etag');
 
-app.options('*', cors());
+app.use((req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Surrogate-Control', 'no-store');
+  next();
+});
+
+// =========================
+// CORS / PREFLIGHT FIX
+// =========================
+app.use((req, res, next) => {
+  const origin = req.headers.origin || '*';
+
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Vary', 'Origin');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Max-Age', '86400');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  next();
+});
 
 // =========================
 // PARSE DO BODY
@@ -57,11 +76,15 @@ const limiter = rateLimit({
   legacyHeaders: false,
   message: {
     success: false,
-    message: 'Muitas tentativas. Tente novamente em alguns minutos.'
-  }
+    message: 'Muitas tentativas. Tente novamente em alguns minutos.',
+  },
 });
 
-app.use('/api/', limiter);
+// não aplicar rate limit em OPTIONS
+app.use('/api/', (req, res, next) => {
+  if (req.method === 'OPTIONS') return next();
+  return limiter(req, res, next);
+});
 
 // =========================
 // HEALTH CHECK
@@ -71,7 +94,7 @@ app.get('/api/health', (req, res) => {
     success: true,
     message: 'API funcionando corretamente',
     timestamp: new Date().toISOString(),
-    version: '1.0.0'
+    version: '1.0.0',
   });
 });
 
@@ -82,7 +105,7 @@ app.get('/', (req, res) => {
   res.status(200).json({
     success: true,
     message: 'API Cogitare - Sistema de Cuidados',
-    version: '1.0.0'
+    version: '1.0.0',
   });
 });
 
@@ -104,7 +127,7 @@ app.use((req, res) => {
   res.status(404).json({
     success: false,
     message: 'Rota não encontrada',
-    path: req.originalUrl
+    path: req.originalUrl,
   });
 });
 
@@ -115,10 +138,14 @@ app.use((err, req, res, next) => {
   console.error('ERRO NÃO TRATADO NO SERVIDOR:');
   console.error(err);
 
+  if (res.headersSent) {
+    return next(err);
+  }
+
   res.status(err.status || 500).json({
     success: false,
     message: err.message || 'Erro interno do servidor',
-    error: process.env.NODE_ENV === 'development' ? err.stack : err.message
+    error: process.env.NODE_ENV === 'development' ? err.stack : err.message,
   });
 });
 

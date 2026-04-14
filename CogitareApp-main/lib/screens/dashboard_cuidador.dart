@@ -5,6 +5,7 @@ import 'agenda_cuidador_page.dart';
 import 'planos_cuidador_page.dart';
 import 'vagas_cuidador_page.dart';
 import 'minhas_vagas_aceitas_page.dart';
+import 'perfil_cuidador_page.dart';
 
 class DashboardCuidador extends StatefulWidget {
   static const route = '/dashboard-cuidador';
@@ -45,8 +46,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
         return;
       }
 
-      final responseCuidador =
-          await ServicoApi.get('/api/cuidador/$cuidadorId');
+      final responseCuidador = await ServicoApi.get('/api/cuidador/$cuidadorId');
 
       if (responseCuidador['success'] == true &&
           responseCuidador['data'] != null) {
@@ -60,16 +60,21 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
         final responsePlano =
             await ServicoApi.get('/api/cuidador/$cuidadorId/plano');
 
-        if (responsePlano['success'] == true && responsePlano['data'] != null) {
+        if (responsePlano['success'] == true &&
+            responsePlano['data'] != null) {
           _planoAtual =
               (responsePlano['data']['PlanoAtual'] ?? 'Basico').toString();
         }
       } catch (_) {}
 
+      if (!mounted) return;
+
       setState(() {
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
+
       setState(() {
         _errorMessage = 'Erro ao carregar dashboard: $e';
         _isLoading = false;
@@ -306,9 +311,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                             ],
                           ),
                         ),
-
                         const SizedBox(height: 20),
-
                         const Text(
                           'Ações rápidas',
                           style: TextStyle(
@@ -316,9 +319,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-
                         const SizedBox(height: 12),
-
                         _acaoCard(
                           icon: Icons.work_outline,
                           titulo: 'Vagas disponíveis',
@@ -334,9 +335,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                             );
                           },
                         ),
-
                         const SizedBox(height: 12),
-
                         _acaoCard(
                           icon: Icons.assignment_turned_in_outlined,
                           titulo: 'Minhas vagas aceitas',
@@ -352,9 +351,23 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                             );
                           },
                         ),
-
                         const SizedBox(height: 12),
-
+                        _acaoCard(
+                          icon: Icons.person_outline,
+                          titulo: 'Meu perfil',
+                          subtitulo: 'Veja suas informações e edite seus dados.',
+                          onPressed: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const PerfilCuidadorPage(),
+                              ),
+                            );
+                            await _carregarDados();
+                          },
+                        ),
+                        const SizedBox(height: 12),
                         _acaoCard(
                           icon: Icons.workspace_premium_outlined,
                           titulo: 'Meu plano',
@@ -368,13 +381,11 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                                     const PlanosCuidadorPage(),
                               ),
                             );
-                            _carregarDados();
+                            await _carregarDados();
                           },
                           textoBotao: 'Ver',
                         ),
-
                         const SizedBox(height: 20),
-
                         const Text(
                           'Meu perfil',
                           style: TextStyle(
@@ -382,9 +393,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-
                         const SizedBox(height: 12),
-
                         Card(
                           elevation: 2,
                           shape: RoundedRectangleBorder(
@@ -417,9 +426,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                             ),
                           ),
                         ),
-
                         const SizedBox(height: 20),
-
                         const Text(
                           'Sobre mim',
                           style: TextStyle(
@@ -427,9 +434,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-
                         const SizedBox(height: 12),
-
                         Card(
                           elevation: 2,
                           shape: RoundedRectangleBorder(
@@ -446,9 +451,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                             ),
                           ),
                         ),
-
                         const SizedBox(height: 20),
-
                         SizedBox(
                           width: double.infinity,
                           child: OutlinedButton.icon(
@@ -462,7 +465,6 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                             label: const Text('Configurações'),
                           ),
                         ),
-
                         const SizedBox(height: 24),
                       ],
                     ),

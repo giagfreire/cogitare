@@ -4,12 +4,12 @@ import 'package:http/http.dart' as http;
 
 /// Cliente base para requisições HTTP
 class ApiClient {
-  static String get baseUrl {
-    if (kIsWeb) {
-      return 'http://127.0.0.1:3000';
-    }
-    return 'http://10.0.2.2:3000';
+ static String get baseUrl {
+  if (kIsWeb) {
+    return 'http://localhost:3000';
   }
+  return 'http://10.0.2.2:3000';
+}
 
   static String? _token;
 
@@ -23,8 +23,54 @@ class ApiClient {
 
   static Map<String, String> get _headers => {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
         if (_token != null) 'Authorization': 'Bearer $_token',
       };
+
+  static dynamic _decodeBody(http.Response response) {
+    if (response.body.isEmpty) return null;
+
+    try {
+      return jsonDecode(response.body);
+    } catch (_) {
+      return response.body;
+    }
+  }
+
+  static Map<String, dynamic> _normalizeSuccessResponse(dynamic data) {
+    if (data is Map<String, dynamic>) {
+      return data;
+    }
+
+    if (data is Map) {
+      return Map<String, dynamic>.from(data);
+    }
+
+    return {
+      'success': true,
+      'data': data,
+    };
+  }
+
+  static Exception _buildException(
+    String metodo,
+    http.Response response,
+    dynamic responseData,
+  ) {
+    String message = 'Erro na requisição $metodo';
+
+    if (responseData is Map && responseData['message'] != null) {
+      message = responseData['message'].toString();
+    } else if (responseData is String && responseData.trim().isNotEmpty) {
+      message = responseData;
+    } else {
+      message = '$message (${response.statusCode})';
+    }
+
+    return Exception(message);
+  }
 
   static Future<Map<String, dynamic>> get(String endpoint) async {
     try {
@@ -33,12 +79,12 @@ class ApiClient {
         headers: _headers,
       );
 
-      final responseData = jsonDecode(response.body);
+      final responseData = _decodeBody(response);
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        return responseData;
+        return _normalizeSuccessResponse(responseData);
       } else {
-        throw Exception(responseData['message'] ?? 'Erro na requisição GET');
+        throw _buildException('GET', response, responseData);
       }
     } catch (e) {
       throw Exception('Erro de conexão GET: $e');
@@ -56,12 +102,12 @@ class ApiClient {
         body: jsonEncode(data),
       );
 
-      final responseData = jsonDecode(response.body);
+      final responseData = _decodeBody(response);
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        return responseData;
+        return _normalizeSuccessResponse(responseData);
       } else {
-        throw Exception(responseData['message'] ?? 'Erro na requisição POST');
+        throw _buildException('POST', response, responseData);
       }
     } catch (e) {
       throw Exception('Erro de conexão POST: $e');
@@ -79,12 +125,12 @@ class ApiClient {
         body: jsonEncode(data),
       );
 
-      final responseData = jsonDecode(response.body);
+      final responseData = _decodeBody(response);
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        return responseData;
+        return _normalizeSuccessResponse(responseData);
       } else {
-        throw Exception(responseData['message'] ?? 'Erro na requisição PUT');
+        throw _buildException('PUT', response, responseData);
       }
     } catch (e) {
       throw Exception('Erro de conexão PUT: $e');
@@ -98,12 +144,12 @@ class ApiClient {
         headers: _headers,
       );
 
-      final responseData = jsonDecode(response.body);
+      final responseData = _decodeBody(response);
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        return responseData;
+        return _normalizeSuccessResponse(responseData);
       } else {
-        throw Exception(responseData['message'] ?? 'Erro na requisição DELETE');
+        throw _buildException('DELETE', response, responseData);
       }
     } catch (e) {
       throw Exception('Erro de conexão DELETE: $e');
