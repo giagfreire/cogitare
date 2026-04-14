@@ -113,7 +113,10 @@ app.get('/', (req, res) => {
 // ROTAS
 // =========================
 app.use('/api/auth', authRoutes);
-app.use('/api/cuidador', cuidadorRoutes);
+app.use('/api/cuidador', (req, res, next) => {
+  console.log('>>> PASSOU PELO MIDDLEWARE DO CUIDADOR');
+  next();
+}, cuidadorRoutes);
 app.use('/api/idoso', idosoRoutes);
 app.use('/api/endereco', enderecoRoutes);
 app.use('/api/responsavel', responsavelRoutes);
