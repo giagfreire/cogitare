@@ -80,7 +80,8 @@ router.get('/:id/plano', async (req, res) => {
         p.LimiteContatos
       FROM cuidador c
       LEFT JOIN assinaturacuidador a
-        ON a.IdCuidador = c.IdCuidador AND a.Status = 'Ativa'
+        ON a.IdCuidador = c.IdCuidador
+        AND a.Status = 'Ativa'
       LEFT JOIN plano p
         ON p.IdPlano = a.IdPlano
       WHERE c.IdCuidador = ?
@@ -103,8 +104,7 @@ router.get('/:id/plano', async (req, res) => {
     const plano = row.PlanoAtual || 'Basico';
     const usos = Number(row.UsosPlano) || 0;
     const limite =
-      Number(row.LimiteContatos) ||
-      (plano.toLowerCase() === 'premium' ? 20 : 5);
+      Number(row.LimiteContatos) || (plano.toLowerCase() === 'premium' ? 20 : 5);
 
     return res.status(200).json({
       success: true,
@@ -135,7 +135,7 @@ router.get('/:id', async (req, res) => {
     const { id } = req.params;
 
     const [rows] = await db.query(
-      `SELECT 
+      `SELECT
         c.IdCuidador AS id,
         c.Nome AS nome,
         c.Email AS email,
@@ -158,13 +158,14 @@ router.get('/:id', async (req, res) => {
         e.Complemento AS complemento,
         e.Cep AS cep
       FROM cuidador c
-      LEFT JOIN endereco e ON e.IdEndereco = c.IdEndereco
+      LEFT JOIN endereco e
+        ON e.IdEndereco = c.IdEndereco
       WHERE c.IdCuidador = ?
       LIMIT 1`,
       [id]
     );
 
-    if (!rows || rows.length == 0) {
+    if (!rows || rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Cuidador não encontrado',
@@ -184,6 +185,7 @@ router.get('/:id', async (req, res) => {
     });
   }
 });
+
 /**
  * BUSCAR DISPONIBILIDADE DO CUIDADOR
  */
@@ -192,7 +194,7 @@ router.get('/:id/disponibilidade', async (req, res) => {
     const { id } = req.params;
 
     const [rows] = await db.query(
-      `SELECT 
+      `SELECT
         IdDisponibilidade,
         IdCuidador,
         DiaSemana,

@@ -39,6 +39,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
       final cuidadorId = await SessionService.getCuidadorId();
 
       if (cuidadorId == null) {
+        if (!mounted) return;
         setState(() {
           _errorMessage = 'Não foi possível identificar o cuidador logado.';
           _isLoading = false;
@@ -47,34 +48,35 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
       }
 
       final responseCuidador = await ServicoApi.get('/api/cuidador/$cuidadorId');
+      print('RESPOSTA DASHBOARD CUIDADOR: $responseCuidador');
 
-      if (responseCuidador['success'] == true &&
-          responseCuidador['data'] != null) {
+      if (responseCuidador['success'] == true && responseCuidador['data'] != null) {
         _cuidador = Map<String, dynamic>.from(responseCuidador['data']);
+        print('DATA CUIDADOR: $_cuidador');
       } else {
         _errorMessage =
             responseCuidador['message'] ?? 'Erro ao carregar dados do cuidador.';
       }
 
       try {
-        final responsePlano =
-            await ServicoApi.get('/api/cuidador/$cuidadorId/plano');
+        final responsePlano = await ServicoApi.get('/api/cuidador/$cuidadorId/plano');
+        print('RESPOSTA PLANO CUIDADOR: $responsePlano');
 
-        if (responsePlano['success'] == true &&
-            responsePlano['data'] != null) {
+        if (responsePlano['success'] == true && responsePlano['data'] != null) {
           _planoAtual =
               (responsePlano['data']['PlanoAtual'] ?? 'Basico').toString();
         }
-      } catch (_) {}
+      } catch (e) {
+        print('ERRO AO CARREGAR PLANO: $e');
+      }
 
       if (!mounted) return;
-
       setState(() {
         _isLoading = false;
       });
     } catch (e) {
+      print('ERRO NO DASHBOARD: $e');
       if (!mounted) return;
-
       setState(() {
         _errorMessage = 'Erro ao carregar dashboard: $e';
         _isLoading = false;
@@ -185,15 +187,23 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
 
   @override
   Widget build(BuildContext context) {
-final nome = _textoSeguro(_cuidador?['nome'], fallback: 'Cuidador');
-final email = _textoSeguro(_cuidador?['email']);
-final telefone = _textoSeguro(_cuidador?['telefone']);
-final cidade = _textoSeguro(_cuidador?['cidade']);
-final valorHora = _textoSeguro(_cuidador?['valorHora'], fallback: 'A definir');
-final biografia = _textoSeguro(
-  _cuidador?['biografia'],
-  fallback: 'Você ainda não cadastrou uma biografia.',
-);
+    final nome = _textoSeguro(_cuidador?['nome'], fallback: 'Cuidador');
+    final email = _textoSeguro(_cuidador?['email']);
+    final telefone = _textoSeguro(_cuidador?['telefone']);
+    final cidade = _textoSeguro(_cuidador?['cidade']);
+    final valorHora = _textoSeguro(_cuidador?['valorHora'], fallback: 'A definir');
+    final biografia = _textoSeguro(
+      _cuidador?['biografia'],
+      fallback: 'Você ainda não cadastrou uma biografia.',
+    );
+
+    print('NOME NA TELA: $nome');
+    print('EMAIL NA TELA: $email');
+    print('TELEFONE NA TELA: $telefone');
+    print('CIDADE NA TELA: $cidade');
+    print('VALOR HORA NA TELA: $valorHora');
+    print('BIOGRAFIA NA TELA: $biografia');
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dashboard do Cuidador'),
@@ -276,14 +286,12 @@ final biografia = _textoSeguro(
                                         vertical: 6,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: _planoAtual.toLowerCase() ==
-                                                'premium'
+                                        color: _planoAtual.toLowerCase() == 'premium'
                                             ? const Color(0xFF35064E)
                                             : Colors.white,
                                         borderRadius: BorderRadius.circular(20),
                                         border: Border.all(
-                                          color: _planoAtual.toLowerCase() ==
-                                                  'premium'
+                                          color: _planoAtual.toLowerCase() == 'premium'
                                               ? const Color(0xFF35064E)
                                               : Colors.grey.shade400,
                                         ),
@@ -295,11 +303,9 @@ final biografia = _textoSeguro(
                                         style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.w600,
-                                          color:
-                                              _planoAtual.toLowerCase() ==
-                                                      'premium'
-                                                  ? Colors.white
-                                                  : Colors.black87,
+                                          color: _planoAtual.toLowerCase() == 'premium'
+                                              ? Colors.white
+                                              : Colors.black87,
                                         ),
                                       ),
                                     ),
@@ -321,14 +327,12 @@ final biografia = _textoSeguro(
                         _acaoCard(
                           icon: Icons.work_outline,
                           titulo: 'Vagas disponíveis',
-                          subtitulo:
-                              'Veja as vagas abertas e aceite novas oportunidades.',
+                          subtitulo: 'Veja as vagas abertas e aceite novas oportunidades.',
                           onPressed: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) =>
-                                    const VagasCuidadorPage(),
+                                builder: (context) => const VagasCuidadorPage(),
                               ),
                             );
                           },
@@ -337,8 +341,7 @@ final biografia = _textoSeguro(
                         _acaoCard(
                           icon: Icons.assignment_turned_in_outlined,
                           titulo: 'Minhas vagas aceitas',
-                          subtitulo:
-                              'Acompanhe as vagas que você já aceitou.',
+                          subtitulo: 'Acompanhe as vagas que você já aceitou.',
                           onPressed: () {
                             Navigator.push(
                               context,
@@ -358,8 +361,7 @@ final biografia = _textoSeguro(
                             await Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) =>
-                                    const PerfilCuidadorPage(),
+                                builder: (context) => const PerfilCuidadorPage(),
                               ),
                             );
                             await _carregarDados();
@@ -369,14 +371,12 @@ final biografia = _textoSeguro(
                         _acaoCard(
                           icon: Icons.workspace_premium_outlined,
                           titulo: 'Meu plano',
-                          subtitulo:
-                              'Veja seu plano atual e opções de upgrade.',
+                          subtitulo: 'Veja seu plano atual e opções de upgrade.',
                           onPressed: () async {
                             await Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) =>
-                                    const PlanosCuidadorPage(),
+                                builder: (context) => const PlanosCuidadorPage(),
                               ),
                             );
                             await _carregarDados();
@@ -403,17 +403,9 @@ final biografia = _textoSeguro(
                               children: [
                                 _infoRow(Icons.email_outlined, 'E-mail', email),
                                 const SizedBox(height: 12),
-                                _infoRow(
-                                  Icons.phone_outlined,
-                                  'Telefone',
-                                  telefone,
-                                ),
+                                _infoRow(Icons.phone_outlined, 'Telefone', telefone),
                                 const SizedBox(height: 12),
-                                _infoRow(
-                                  Icons.location_on_outlined,
-                                  'Cidade',
-                                  cidade,
-                                ),
+                                _infoRow(Icons.location_on_outlined, 'Cidade', cidade),
                                 const SizedBox(height: 12),
                                 _infoRow(
                                   Icons.attach_money_outlined,
