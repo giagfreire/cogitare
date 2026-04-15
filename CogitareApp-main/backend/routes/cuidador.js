@@ -135,29 +135,36 @@ router.get('/:id', async (req, res) => {
     const { id } = req.params;
 
     const [rows] = await db.query(
-      `SELECT
-        IdCuidador AS id,
-        Nome AS nome,
-        Email AS email,
-        Telefone AS telefone,
-        Cpf AS cpf,
-        DataNascimento AS dataNascimento,
-        FotoUrl AS fotoUrl,
-        Biografia AS biografia,
-        Fumante AS fumante,
-        TemFilhos AS temFilhos,
-        PossuiCNH AS possuiCNH,
-        TemCarro AS temCarro,
-        ValorHora AS valorHora,
-        IdEndereco AS idEndereco,
-        COALESCE(UsosPlano, 0) AS usosPlano
-      FROM cuidador
-      WHERE IdCuidador = ?
+      `SELECT 
+        c.IdCuidador AS id,
+        c.Nome AS nome,
+        c.Email AS email,
+        c.Telefone AS telefone,
+        c.Cpf AS cpf,
+        c.DataNascimento AS dataNascimento,
+        c.FotoUrl AS fotoUrl,
+        c.Biografia AS biografia,
+        c.Fumante AS fumante,
+        c.TemFilhos AS temFilhos,
+        c.PossuiCNH AS possuiCNH,
+        c.TemCarro AS temCarro,
+        c.ValorHora AS valorHora,
+        c.IdEndereco AS idEndereco,
+        COALESCE(c.UsosPlano, 0) AS usosPlano,
+        e.Cidade AS cidade,
+        e.Bairro AS bairro,
+        e.Rua AS rua,
+        e.Numero AS numero,
+        e.Complemento AS complemento,
+        e.Cep AS cep
+      FROM cuidador c
+      LEFT JOIN endereco e ON e.IdEndereco = c.IdEndereco
+      WHERE c.IdCuidador = ?
       LIMIT 1`,
       [id]
     );
 
-    if (!rows || rows.length === 0) {
+    if (!rows || rows.length == 0) {
       return res.status(404).json({
         success: false,
         message: 'Cuidador não encontrado',
@@ -175,6 +182,107 @@ router.get('/:id', async (req, res) => {
       message: 'Erro ao buscar cuidador',
       error: error.message,
     });
+  }
+});
+/**
+ * BUSCAR DISPONIBILIDADE DO CUIDADOR
+ */
+router.get('/:id/disponibilidade', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [rows] = await db.query(
+      `SELECT 
+        IdDisponibilidade,
+        IdCuidador,
+        DiaSemana,
+        DataInicio,
+        DataFim,
+        Observacoes,
+        Recorrente
+      FROM disponibilidade
+      WHERE IdCuidador = ?
+      ORDER BY
+        FIELD(DiaSemana, 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo')`,
+      [id]
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: rows,
+    });
+  } catch (error) {
+    console.error('ERRO GET DISPONIBILIDADE:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erro ao buscar disponibilidade',
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * SALVAR DISPONIBILIDADE DO CUIDADOR
+ */
+router.post('/:id/disponibilidade', async (req, res) => {
+  let connection;
+
+  try {
+    const { id } = req.params;
+    const { disponibilidade } = req.body;
+
+    if (!Array.isArray(disponibilidade)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Formato de disponibilidade inválido',
+      });
+    }
+
+    connection = await db.getConnection();
+    await connection.beginTransaction();
+
+    await connection.execute(
+      'DELETE FROM disponibilidade WHERE IdCuidador = ?',
+      [id]
+    );
+
+    for (const item of disponibilidade) {
+      const ativo = item.ativo === true;
+      const dia = item.dia;
+      const inicio = ativo ? item.inicio : null;
+      const fim = ativo ? item.fim : null;
+
+      await connection.execute(
+        `INSERT INTO disponibilidade
+          (IdCuidador, DiaSemana, DataInicio, DataFim, Observacoes, Recorrente)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [id, dia, inicio, fim, null, 1]
+      );
+    }
+
+    await connection.commit();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Disponibilidade salva com sucesso',
+    });
+  } catch (error) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch (_) {}
+    }
+
+    console.error('ERRO POST DISPONIBILIDADE:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erro ao salvar disponibilidade',
+      error: error.message,
+    });
+  } finally {
+    if (connection) {
+      connection.release();
+    }
   }
 });
 

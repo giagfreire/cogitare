@@ -25,9 +25,7 @@ router.post('/endereco', async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Endereço cadastrado com sucesso',
-      data: {
-        idEndereco: result.insertId
-      }
+      data: { idEndereco: result.insertId }
     });
   } catch (error) {
     console.error('Erro ao cadastrar endereço:', error);
@@ -94,9 +92,7 @@ router.post('/', async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Responsável cadastrado com sucesso',
-      data: {
-        idResponsavel: result.insertId
-      }
+      data: { idResponsavel: result.insertId }
     });
   } catch (error) {
     console.error('Erro ao cadastrar responsável:', error);
@@ -108,7 +104,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Cadastro completo (endereço + responsável)
+// Cadastro completo
 router.post('/completo', async (req, res) => {
   let connection;
 
@@ -194,7 +190,6 @@ router.post('/completo', async (req, res) => {
     }
 
     console.error('Erro no cadastro completo:', error);
-
     res.status(500).json({
       success: false,
       message: 'Erro interno do servidor',
@@ -232,7 +227,6 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // =========================
-// =========================
 // ROTAS DE VAGAS
 // =========================
 
@@ -246,15 +240,7 @@ router.post('/vagas', authenticateToken, async (req, res) => {
       });
     }
 
-    const {
-      titulo,
-      descricao,
-      cidade,
-      dataServico,
-      horaInicio,
-      horaFim,
-      valor
-    } = req.body;
+    const { titulo, descricao, cidade, dataServico, horaInicio, horaFim, valor } = req.body;
 
     if (!titulo || !descricao || !cidade || !dataServico || !horaInicio || !horaFim || !valor) {
       return res.status(400).json({
@@ -264,28 +250,16 @@ router.post('/vagas', authenticateToken, async (req, res) => {
     }
 
     const result = await db.query(
-      `INSERT INTO vaga 
+      `INSERT INTO vaga
       (IdResponsavel, Titulo, Descricao, Cidade, DataServico, HoraInicio, HoraFim, Valor, Status)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        req.user.id,
-        titulo,
-        descricao,
-        cidade,
-        dataServico,
-        horaInicio,
-        horaFim,
-        valor,
-        'Aberta'
-      ]
+      [req.user.id, titulo, descricao, cidade, dataServico, horaInicio, horaFim, valor, 'Aberta']
     );
 
     res.status(201).json({
       success: true,
       message: 'Vaga criada com sucesso',
-      data: {
-        idVaga: result.insertId
-      }
+      data: { idVaga: result.insertId }
     });
   } catch (error) {
     console.error('Erro ao criar vaga:', error);
@@ -301,14 +275,11 @@ router.post('/vagas', authenticateToken, async (req, res) => {
 router.get('/vagas/minhas', authenticateToken, async (req, res) => {
   try {
     const vagas = await db.query(
-      `SELECT 
-        v.*,
-        r.Nome AS NomeResponsavel,
-        r.Telefone AS TelefoneResponsavel
-      FROM vaga v
-      INNER JOIN responsavel r ON v.IdResponsavel = r.IdResponsavel
-      WHERE v.IdResponsavel = ?
-      ORDER BY v.IdVaga DESC`,
+      `SELECT v.*, r.Nome AS NomeResponsavel, r.Telefone AS TelefoneResponsavel
+       FROM vaga v
+       INNER JOIN responsavel r ON v.IdResponsavel = r.IdResponsavel
+       WHERE v.IdResponsavel = ?
+       ORDER BY v.IdVaga DESC`,
       [req.user.id]
     );
 
@@ -327,18 +298,15 @@ router.get('/vagas/minhas', authenticateToken, async (req, res) => {
   }
 });
 
-// Listar vagas abertas (para o cuidador)
+// Listar vagas abertas
 router.get('/vagas/abertas', authenticateToken, async (req, res) => {
   try {
     const vagas = await db.query(
-      `SELECT
-        v.*,
-        r.Nome AS NomeResponsavel,
-        r.Telefone AS TelefoneResponsavel
-      FROM vaga v
-      INNER JOIN responsavel r ON v.IdResponsavel = r.IdResponsavel
-      WHERE v.Status = 'Aberta'
-      ORDER BY v.IdVaga DESC`
+      `SELECT v.*, r.Nome AS NomeResponsavel, r.Telefone AS TelefoneResponsavel
+       FROM vaga v
+       INNER JOIN responsavel r ON v.IdResponsavel = r.IdResponsavel
+       WHERE v.Status = 'Aberta'
+       ORDER BY v.IdVaga DESC`
     );
 
     res.json({
@@ -355,7 +323,8 @@ router.get('/vagas/abertas', authenticateToken, async (req, res) => {
     });
   }
 });
-// CRIAR VAGA
+
+// Criar vaga sem token
 router.post('/criar-vaga', async (req, res) => {
   try {
     const {
@@ -370,14 +339,8 @@ router.post('/criar-vaga', async (req, res) => {
     } = req.body;
 
     if (
-      !idResponsavel ||
-      !titulo ||
-      !descricao ||
-      !cidade ||
-      !dataServico ||
-      !horaInicio ||
-      !horaFim ||
-      valor == null
+      !idResponsavel || !titulo || !descricao || !cidade ||
+      !dataServico || !horaInicio || !horaFim || valor == null
     ) {
       return res.status(400).json({
         success: false,
@@ -389,6 +352,7 @@ router.post('/criar-vaga', async (req, res) => {
       'SELECT IdResponsavel FROM responsavel WHERE IdResponsavel = ?',
       [idResponsavel]
     );
+
     const responsavelRows = Array.isArray(responsavelResult[0])
       ? responsavelResult[0]
       : responsavelResult;
@@ -404,28 +368,16 @@ router.post('/criar-vaga', async (req, res) => {
       `INSERT INTO vaga
       (IdResponsavel, Titulo, Descricao, Cidade, DataServico, HoraInicio, HoraFim, Valor, Status)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Aberta')`,
-      [
-        idResponsavel,
-        titulo,
-        descricao,
-        cidade,
-        dataServico,
-        horaInicio,
-        horaFim,
-        valor
-      ]
+      [idResponsavel, titulo, descricao, cidade, dataServico, horaInicio, horaFim, valor]
     );
 
     return res.status(201).json({
       success: true,
       message: 'Vaga criada com sucesso',
-      data: {
-        idVaga: result.insertId
-      }
+      data: { idVaga: result.insertId }
     });
   } catch (error) {
     console.error('Erro ao criar vaga:', error);
-
     return res.status(500).json({
       success: false,
       message: 'Erro ao criar vaga',
@@ -433,27 +385,18 @@ router.post('/criar-vaga', async (req, res) => {
     });
   }
 });
-// LISTAR VAGAS DO RESPONSÁVEL
+
+// Listar vagas do responsável por ID
 router.get('/:id/vagas', async (req, res) => {
   try {
     const { id } = req.params;
 
     const result = await db.query(
-      `SELECT 
-        IdVaga,
-        IdResponsavel,
-        Titulo,
-        Descricao,
-        Cidade,
-        DataServico,
-        HoraInicio,
-        HoraFim,
-        Valor,
-        Status,
-        DataCriacao
-      FROM vaga
-      WHERE IdResponsavel = ?
-      ORDER BY DataCriacao DESC`,
+      `SELECT IdVaga, IdResponsavel, Titulo, Descricao, Cidade, DataServico,
+              HoraInicio, HoraFim, Valor, Status, DataCriacao
+       FROM vaga
+       WHERE IdResponsavel = ?
+       ORDER BY DataCriacao DESC`,
       [id]
     );
 
@@ -465,7 +408,6 @@ router.get('/:id/vagas', async (req, res) => {
     });
   } catch (error) {
     console.error('Erro ao listar vagas do responsável:', error);
-
     return res.status(500).json({
       success: false,
       message: 'Erro ao listar vagas do responsável',
@@ -473,6 +415,7 @@ router.get('/:id/vagas', async (req, res) => {
     });
   }
 });
+
 // Editar vaga
 router.put('/vagas/:idVaga', authenticateToken, async (req, res) => {
   try {
@@ -519,7 +462,7 @@ router.put('/vagas/:idVaga', authenticateToken, async (req, res) => {
   }
 });
 
-// Alterar status da vaga
+// Alterar status
 router.put('/vagas/:idVaga/status', authenticateToken, async (req, res) => {
   try {
     if (req.user.tipo !== 'responsavel') {
@@ -613,7 +556,7 @@ router.delete('/vagas/:idVaga', authenticateToken, async (req, res) => {
   }
 });
 
-// Ver interessados em uma vaga
+// Ver interessados
 router.get('/vagas/:idVaga/interessados', authenticateToken, async (req, res) => {
   try {
     if (req.user.tipo !== 'responsavel') {
@@ -637,22 +580,15 @@ router.get('/vagas/:idVaga/interessados', authenticateToken, async (req, res) =>
       });
     }
 
-    const interessados = await db.query(`
-      SELECT
-        vc.IdVagaCuidador,
-        vc.IdVaga,
-        vc.IdCuidador,
-        vc.DataAceite,
-        c.Nome,
-        c.Email,
-        c.Telefone,
-        c.Biografia,
-        c.ValorHora
-      FROM vagacuidador vc
-      INNER JOIN cuidador c ON c.IdCuidador = vc.IdCuidador
-      WHERE vc.IdVaga = ?
-      ORDER BY vc.IdVagaCuidador DESC
-    `, [idVaga]);
+    const interessados = await db.query(
+      `SELECT vc.IdVagaCuidador, vc.IdVaga, vc.IdCuidador, vc.DataAceite,
+              c.Nome, c.Email, c.Telefone, c.Biografia, c.ValorHora
+       FROM vagacuidador vc
+       INNER JOIN cuidador c ON c.IdCuidador = vc.IdCuidador
+       WHERE vc.IdVaga = ?
+       ORDER BY vc.IdVagaCuidador DESC`,
+      [idVaga]
+    );
 
     res.json({
       success: true,
@@ -668,4 +604,5 @@ router.get('/vagas/:idVaga/interessados', authenticateToken, async (req, res) =>
     });
   }
 });
+
 module.exports = router;
