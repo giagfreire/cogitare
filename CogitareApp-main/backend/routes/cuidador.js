@@ -292,5 +292,139 @@ router.post('/:id/disponibilidade', async (req, res) => {
     }
   }
 });
+router.put('/:id', async (req, res) => {
+  let connection;
+
+  try {
+    const { id } = req.params;
+    const {
+      nome,
+      telefone,
+      biografia,
+      valorHora,
+      cidade,
+      bairro,
+      rua,
+      numero,
+      complemento,
+      cep,
+    } = req.body;
+
+    connection = await db.getConnection();
+    await connection.beginTransaction();
+
+    const [cuidadorRows] = await connection.execute(
+      `SELECT IdEndereco
+       FROM cuidador
+       WHERE IdCuidador = ?
+       LIMIT 1`,
+      [id]
+    );
+
+    if (!cuidadorRows || cuidadorRows.length == 0) {
+      await connection.rollback();
+      return res.status(404).json({
+        success: false,
+        message: 'Cuidador não encontrado',
+      });
+    }
+
+    let idEndereco = cuidadorRows[0].IdEndereco;
+
+    await connection.execute(
+      `UPDATE cuidador
+       SET Nome = ?,
+           Telefone = ?,
+           Biografia = ?,
+           ValorHora = ?
+       WHERE IdCuidador = ?`,
+      [
+        nome ?? null,
+        telefone ?? null,
+        biografia ?? null,
+        valorHora ?? null,
+        id,
+      ]
+    );
+
+    const temAlgumEndereco =
+      cidade != null ||
+      bairro != null ||
+      rua != null ||
+      numero != null ||
+      complemento != null ||
+      cep != null;
+
+    if (temAlgumEndereco) {
+      if (!idEndereco) {
+        const [enderecoResult] = await connection.execute(
+          `INSERT INTO endereco (Cidade, Bairro, Rua, Numero, Complemento, Cep)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [
+            cidade ?? null,
+            bairro ?? null,
+            rua ?? null,
+            numero ?? null,
+            complemento ?? null,
+            cep ?? null,
+          ]
+        );
+
+        idEndereco = enderecoResult.insertId;
+
+        await connection.execute(
+          `UPDATE cuidador
+           SET IdEndereco = ?
+           WHERE IdCuidador = ?`,
+          [idEndereco, id]
+        );
+      } else {
+        await connection.execute(
+          `UPDATE endereco
+           SET Cidade = ?,
+               Bairro = ?,
+               Rua = ?,
+               Numero = ?,
+               Complemento = ?,
+               Cep = ?
+           WHERE IdEndereco = ?`,
+          [
+            cidade ?? null,
+            bairro ?? null,
+            rua ?? null,
+            numero ?? null,
+            complemento ?? null,
+            cep ?? null,
+            idEndereco,
+          ]
+        );
+      }
+    }
+
+    await connection.commit();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Perfil atualizado com sucesso',
+    });
+  } catch (error) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch (_) {}
+    }
+
+    console.error('ERRO UPDATE CUIDADOR:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erro ao atualizar perfil',
+      error: error.message,
+    });
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+});
 
 module.exports = router;

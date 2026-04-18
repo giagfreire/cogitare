@@ -43,12 +43,15 @@ class _PlanosCuidadorPageState extends State<PlanosCuidadorPage> {
         return;
       }
 
-      final response = await ServicoApi.put(
-        '/api/cuidador/$cuidadorId/plano',
-        {
-          'plano': planoSelecionado,
-        },
-      );
+    final int idPlano = planoSelecionado == 'Premium' ? 2 : 1;
+
+final response = await ServicoApi.post(
+  '/api/planos/assinar',
+  {
+    'idCuidador': cuidadorId,
+    'idPlano': idPlano,
+  },
+);
 
       if (!mounted) return;
 

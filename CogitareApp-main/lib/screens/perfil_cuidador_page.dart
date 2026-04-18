@@ -163,18 +163,17 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
 
   @override
   Widget build(BuildContext context) {
-    final nome = _textoSeguro(_cuidador?['Nome'], fallback: 'Cuidador');
-    final email = _textoSeguro(_cuidador?['Email']);
-    final telefone = _textoSeguro(_cuidador?['Telefone']);
-    final cpf = _textoSeguro(_cuidador?['CPF']);
-    final cidade = _textoSeguro(_cuidador?['Cidade']);
-    final valorHora =
-        _textoSeguro(_cuidador?['ValorHora'], fallback: 'A definir');
-    final biografia = _textoSeguro(
-      _cuidador?['Biografia'],
-      fallback: 'Você ainda não cadastrou uma biografia.',
-    );
-    final dataNascimento = _formatarData(_cuidador?['DataNascimento']);
+   final nome = _textoSeguro(_cuidador?['nome'], fallback: 'Cuidador');
+final email = _textoSeguro(_cuidador?['email']);
+final telefone = _textoSeguro(_cuidador?['telefone']);
+final cpf = _textoSeguro(_cuidador?['cpf']);
+final cidade = _textoSeguro(_cuidador?['cidade']);
+final valorHora = _textoSeguro(_cuidador?['valorHora'], fallback: 'A definir');
+final biografia = _textoSeguro(
+  _cuidador?['biografia'],
+  fallback: 'Você ainda não cadastrou uma biografia.',
+);
+final dataNascimento = _formatarData(_cuidador?['dataNascimento']);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F7FB),

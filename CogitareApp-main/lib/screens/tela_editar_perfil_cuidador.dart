@@ -89,15 +89,15 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
       if (response['success'] == true && response['data'] != null) {
         final data = Map<String, dynamic>.from(response['data']);
 
-        nomeController.text = _textoSeguro(data['Nome']);
-        emailController.text = _textoSeguro(data['Email']);
-        telefoneController.text = _textoSeguro(data['Telefone']);
-        cpfController.text = _textoSeguro(data['CPF']);
-        cidadeController.text = _textoSeguro(data['Cidade']);
-        biografiaController.text = _textoSeguro(data['Biografia']);
-        valorHoraController.text = _textoSeguro(data['ValorHora']);
+   nomeController.text = _textoSeguro(data['nome']);
+emailController.text = _textoSeguro(data['email']);
+telefoneController.text = _textoSeguro(data['telefone']);
+cpfController.text = _textoSeguro(data['cpf']);
+cidadeController.text = _textoSeguro(data['cidade']);
+biografiaController.text = _textoSeguro(data['biografia']);
+valorHoraController.text = _textoSeguro(data['valorHora']);
 
-        final dataNascimentoTexto = _textoSeguro(data['DataNascimento']);
+final dataNascimentoTexto = _textoSeguro(data['dataNascimento']);
         if (dataNascimentoTexto.isNotEmpty) {
           try {
             dataNascimento = DateTime.parse(dataNascimentoTexto);
