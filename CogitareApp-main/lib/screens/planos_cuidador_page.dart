@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
-import '../services/session_service.dart';
+import 'pagamento_plano_cuidador_page.dart';
 
 class PlanosCuidadorPage extends StatefulWidget {
   const PlanosCuidadorPage({super.key});
@@ -27,63 +26,36 @@ class _PlanosCuidadorPageState extends State<PlanosCuidadorPage> {
       _isSaving = true;
     });
 
-    try {
-      final cuidadorId = await SessionService.getCuidadorId();
+    await Future.delayed(const Duration(milliseconds: 400));
 
-      if (cuidadorId == null) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Não foi possível identificar o cuidador logado.'),
-          ),
-        );
-        setState(() {
-          _isSaving = false;
-        });
-        return;
-      }
+    if (!mounted) return;
 
-    final int idPlano = planoSelecionado == 'Premium' ? 2 : 1;
+    setState(() {
+      _isSaving = false;
+    });
 
-final response = await ServicoApi.post(
-  '/api/planos/assinar',
-  {
-    'idCuidador': cuidadorId,
-    'idPlano': idPlano,
-  },
-);
+    final bool premium = planoSelecionado == 'Premium';
 
-      if (!mounted) return;
-
-      if (response['success'] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Plano $planoSelecionado selecionado com sucesso!'),
-          ),
-        );
-
-        Navigator.pop(context, planoSelecionado);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(response['message'] ?? 'Erro ao salvar plano.'),
-          ),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro ao salvar plano: $e'),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PagamentoPlanoCuidadorPage(
+          nomePlano: premium ? 'Premium' : 'Básico',
+          preco: premium ? 'R\$ 59,90' : 'R\$ 29,90',
+          beneficios: premium
+              ? const [
+                  'Até 20 contatos liberados',
+                  'Destaque no app',
+                  'Maior chance de ser encontrado',
+                ]
+              : const [
+                  'Até 5 contatos liberados',
+                  'Acesso às vagas',
+                  'Perfil ativo no app',
+                ],
         ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isSaving = false;
-        });
-      }
-    }
+      ),
+    );
   }
 
   Widget _planoCard({
@@ -110,9 +82,7 @@ final response = await ServicoApi.post(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selecionado
-                ? const Color(0xFF35064E)
-                : Colors.grey.shade300,
+            color: selecionado ? const Color(0xFF35064E) : Colors.grey.shade300,
             width: selecionado ? 2.2 : 1.2,
           ),
           boxShadow: [
@@ -273,6 +243,7 @@ final response = await ServicoApi.post(
                   destaque: true,
                   valor: 'Premium',
                 ),
+                const SizedBox(height: 90),
               ],
             ),
           ),
