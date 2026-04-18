@@ -20,7 +20,7 @@ router.post('/cadastro', async (req, res) => {
 
     const senhaHash = await bcrypt.hash(senha, 10);
 
-    const [result] = await db.query(
+    const result = await db.query(
       `INSERT INTO cuidador (Nome, Email, Senha, Telefone, Cpf, UsosPlano)
        VALUES (?, ?, ?, ?, ?, 0)`,
       [nome, email, senhaHash, telefone, cpf]
@@ -47,7 +47,7 @@ router.post('/cadastro', async (req, res) => {
  */
 router.get('/vagas-abertas', async (req, res) => {
   try {
-    const [rows] = await db.query(
+    const rows = await db.query(
       `SELECT * FROM vaga WHERE Status = 'Aberta'`
     );
 
@@ -72,20 +72,20 @@ router.get('/:id/plano', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const [rows] = await db.query(
-      `SELECT
-        c.IdCuidador,
-        COALESCE(c.UsosPlano, 0) AS UsosPlano,
-        p.Nome AS PlanoAtual,
-        p.LimiteContatos
-      FROM cuidador c
-      LEFT JOIN assinaturacuidador a
-        ON a.IdCuidador = c.IdCuidador
-        AND a.Status = 'Ativa'
-      LEFT JOIN plano p
-        ON p.IdPlano = a.IdPlano
-      WHERE c.IdCuidador = ?
-      LIMIT 1`,
+    const rows = await db.query(
+      `SELECT 
+         c.IdCuidador,
+         COALESCE(c.UsosPlano, 0) AS UsosPlano,
+         p.Nome AS PlanoAtual,
+         p.LimiteContatos
+       FROM cuidador c
+       LEFT JOIN assinaturacuidador a
+         ON a.IdCuidador = c.IdCuidador
+         AND a.Status = 'Ativa'
+       LEFT JOIN plano p
+         ON p.IdPlano = a.IdPlano
+       WHERE c.IdCuidador = ?
+       LIMIT 1`,
       [id]
     );
 
@@ -134,36 +134,38 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const [rows] = await db.query(
+    const rows = await db.query(
       `SELECT
-        c.IdCuidador AS id,
-        c.Nome AS nome,
-        c.Email AS email,
-        c.Telefone AS telefone,
-        c.Cpf AS cpf,
-        c.DataNascimento AS dataNascimento,
-        c.FotoUrl AS fotoUrl,
-        c.Biografia AS biografia,
-        c.Fumante AS fumante,
-        c.TemFilhos AS temFilhos,
-        c.PossuiCNH AS possuiCNH,
-        c.TemCarro AS temCarro,
-        c.ValorHora AS valorHora,
-        c.IdEndereco AS idEndereco,
-        COALESCE(c.UsosPlano, 0) AS usosPlano,
-        e.Cidade AS cidade,
-        e.Bairro AS bairro,
-        e.Rua AS rua,
-        e.Numero AS numero,
-        e.Complemento AS complemento,
-        e.Cep AS cep
-      FROM cuidador c
-      LEFT JOIN endereco e
-        ON e.IdEndereco = c.IdEndereco
-      WHERE c.IdCuidador = ?
-      LIMIT 1`,
+         c.IdCuidador AS id,
+         c.Nome AS nome,
+         c.Email AS email,
+         c.Telefone AS telefone,
+         c.Cpf AS cpf,
+         c.DataNascimento AS dataNascimento,
+         c.FotoUrl AS fotoUrl,
+         c.Biografia AS biografia,
+         c.Fumante AS fumante,
+         c.TemFilhos AS temFilhos,
+         c.PossuiCNH AS possuiCNH,
+         c.TemCarro AS temCarro,
+         c.ValorHora AS valorHora,
+         c.IdEndereco AS idEndereco,
+         COALESCE(c.UsosPlano, 0) AS usosPlano,
+         e.Cidade AS cidade,
+         e.Bairro AS bairro,
+         e.Rua AS rua,
+         e.Numero AS numero,
+         e.Complemento AS complemento,
+         e.Cep AS cep
+       FROM cuidador c
+       LEFT JOIN endereco e
+         ON e.IdEndereco = c.IdEndereco
+       WHERE c.IdCuidador = ?
+       LIMIT 1`,
       [id]
     );
+
+    console.log('ROWS GET CUIDADOR:', rows);
 
     if (!rows || rows.length === 0) {
       return res.status(404).json({
@@ -193,19 +195,21 @@ router.get('/:id/disponibilidade', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const [rows] = await db.query(
+    const rows = await db.query(
       `SELECT
-        IdDisponibilidade,
-        IdCuidador,
-        DiaSemana,
-        DataInicio,
-        DataFim,
-        Observacoes,
-        Recorrente
-      FROM disponibilidade
-      WHERE IdCuidador = ?
-      ORDER BY
-        FIELD(DiaSemana, 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo')`,
+         IdDisponibilidade,
+         IdCuidador,
+         DiaSemana,
+         DataInicio,
+         DataFim,
+         Observacoes,
+         Recorrente
+       FROM disponibilidade
+       WHERE IdCuidador = ?
+       ORDER BY FIELD(
+         DiaSemana,
+         'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'
+       )`,
       [id]
     );
 
@@ -256,7 +260,7 @@ router.post('/:id/disponibilidade', async (req, res) => {
 
       await connection.execute(
         `INSERT INTO disponibilidade
-          (IdCuidador, DiaSemana, DataInicio, DataFim, Observacoes, Recorrente)
+         (IdCuidador, DiaSemana, DataInicio, DataFim, Observacoes, Recorrente)
          VALUES (?, ?, ?, ?, ?, ?)`,
         [id, dia, inicio, fim, null, 1]
       );
@@ -276,6 +280,7 @@ router.post('/:id/disponibilidade', async (req, res) => {
     }
 
     console.error('ERRO POST DISPONIBILIDADE:', error);
+
     return res.status(500).json({
       success: false,
       message: 'Erro ao salvar disponibilidade',
