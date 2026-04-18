@@ -35,9 +35,12 @@ class _PagamentoPlanoCuidadorPageState
       _carregando = false;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Integração com Mercado Pago será ligada em seguida.'),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SucessoPagamentoPage(
+          nomePlano: widget.nomePlano,
+        ),
       ),
     );
   }

@@ -1,12 +1,47 @@
 import 'package:flutter/material.dart';
 
-class SucessoPagamentoPage extends StatelessWidget {
+class SucessoPagamentoPage extends StatefulWidget {
   final String nomePlano;
 
   const SucessoPagamentoPage({
     super.key,
     required this.nomePlano,
   });
+
+  @override
+  State<SucessoPagamentoPage> createState() =>
+      _SucessoPagamentoPageState();
+}
+
+class _SucessoPagamentoPageState extends State<SucessoPagamentoPage> {
+  bool _carregando = false;
+
+  Future<void> _finalizar() async {
+    setState(() {
+      _carregando = true;
+    });
+
+    try {
+      // 🔥 AQUI depois vamos ligar com backend real
+      await Future.delayed(const Duration(seconds: 1));
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Plano atualizado com sucesso!')),
+      );
+
+      Navigator.popUntil(context, (route) => route.isFirst);
+    } catch (e) {
+      setState(() {
+        _carregando = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Erro ao atualizar plano')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,6 +53,8 @@ class SucessoPagamentoPage extends StatelessWidget {
           child: Column(
             children: [
               const Spacer(),
+
+              // ✅ Ícone sucesso
               Container(
                 height: 110,
                 width: 110,
@@ -31,7 +68,9 @@ class SucessoPagamentoPage extends StatelessWidget {
                   size: 72,
                 ),
               ),
+
               const SizedBox(height: 28),
+
               const Text(
                 'Pagamento realizado com sucesso!',
                 textAlign: TextAlign.center,
@@ -41,9 +80,11 @@ class SucessoPagamentoPage extends StatelessWidget {
                   color: Colors.black87,
                 ),
               ),
+
               const SizedBox(height: 14),
+
               Text(
-                'Seu plano $nomePlano foi ativado com sucesso no app.',
+                'Seu plano ${widget.nomePlano} foi ativado com sucesso no app.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
@@ -51,7 +92,10 @@ class SucessoPagamentoPage extends StatelessWidget {
                   height: 1.5,
                 ),
               ),
+
               const SizedBox(height: 26),
+
+              // 📦 Card info
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(18),
@@ -68,7 +112,7 @@ class SucessoPagamentoPage extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
-                    _linhaInfo('Plano ativado', nomePlano),
+                    _linhaInfo('Plano ativado', widget.nomePlano),
                     const SizedBox(height: 12),
                     _linhaInfo('Status', 'Pagamento aprovado'),
                     const SizedBox(height: 12),
@@ -76,14 +120,15 @@ class SucessoPagamentoPage extends StatelessWidget {
                   ],
                 ),
               ),
+
               const Spacer(),
+
+              // 🔵 BOTÃO PRINCIPAL (ATUALIZADO)
               SizedBox(
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.popUntil(context, (route) => route.isFirst);
-                  },
+                  onPressed: _carregando ? null : _finalizar,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF35064E),
                     foregroundColor: Colors.white,
@@ -92,23 +137,37 @@ class SucessoPagamentoPage extends StatelessWidget {
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  child: const Text(
-                    'Ir para o início',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  child: _carregando
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Ir para o início',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ),
+
               const SizedBox(height: 12),
+
+              // ⚪ BOTÃO VOLTAR
               SizedBox(
                 width: double.infinity,
                 height: 52,
                 child: OutlinedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
+                  onPressed: _carregando
+                      ? null
+                      : () {
+                          Navigator.pop(context);
+                        },
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(color: Colors.grey.shade300),
                     shape: RoundedRectangleBorder(
