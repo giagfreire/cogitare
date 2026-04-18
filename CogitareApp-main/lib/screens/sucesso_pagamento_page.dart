@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../services/api_service.dart';
+import '../services/session_service.dart';
 
 class SucessoPagamentoPage extends StatefulWidget {
   final String nomePlano;
@@ -22,23 +24,50 @@ class _SucessoPagamentoPageState extends State<SucessoPagamentoPage> {
     });
 
     try {
-      // 🔥 AQUI depois vamos ligar com backend real
-      await Future.delayed(const Duration(seconds: 1));
+      final cuidadorId = await SessionService.getCuidadorId();
+
+      if (cuidadorId == null) {
+        throw Exception('Cuidador não identificado');
+      }
+
+      final int idPlano = widget.nomePlano.toLowerCase() == 'premium' ? 2 : 1;
+
+      final response = await ServicoApi.post(
+        '/api/planos/assinar',
+        {
+          'idCuidador': cuidadorId,
+          'idPlano': idPlano,
+        },
+      );
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Plano atualizado com sucesso!')),
-      );
+      if (response['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Plano atualizado com sucesso!')),
+        );
 
-      Navigator.popUntil(context, (route) => route.isFirst);
+        Navigator.popUntil(context, (route) => route.isFirst);
+      } else {
+        setState(() {
+          _carregando = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(response['message'] ?? 'Erro ao atualizar plano'),
+          ),
+        );
+      }
     } catch (e) {
+      if (!mounted) return;
+
       setState(() {
         _carregando = false;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Erro ao atualizar plano')),
+        SnackBar(content: Text('Erro ao atualizar plano: $e')),
       );
     }
   }
@@ -53,8 +82,6 @@ class _SucessoPagamentoPageState extends State<SucessoPagamentoPage> {
           child: Column(
             children: [
               const Spacer(),
-
-              // ✅ Ícone sucesso
               Container(
                 height: 110,
                 width: 110,
@@ -68,9 +95,7 @@ class _SucessoPagamentoPageState extends State<SucessoPagamentoPage> {
                   size: 72,
                 ),
               ),
-
               const SizedBox(height: 28),
-
               const Text(
                 'Pagamento realizado com sucesso!',
                 textAlign: TextAlign.center,
@@ -80,9 +105,7 @@ class _SucessoPagamentoPageState extends State<SucessoPagamentoPage> {
                   color: Colors.black87,
                 ),
               ),
-
               const SizedBox(height: 14),
-
               Text(
                 'Seu plano ${widget.nomePlano} foi ativado com sucesso no app.',
                 textAlign: TextAlign.center,
@@ -92,10 +115,7 @@ class _SucessoPagamentoPageState extends State<SucessoPagamentoPage> {
                   height: 1.5,
                 ),
               ),
-
               const SizedBox(height: 26),
-
-              // 📦 Card info
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(18),
@@ -120,10 +140,7 @@ class _SucessoPagamentoPageState extends State<SucessoPagamentoPage> {
                   ],
                 ),
               ),
-
               const Spacer(),
-
-              // 🔵 BOTÃO PRINCIPAL (ATUALIZADO)
               SizedBox(
                 width: double.infinity,
                 height: 54,
@@ -155,10 +172,7 @@ class _SucessoPagamentoPageState extends State<SucessoPagamentoPage> {
                         ),
                 ),
               ),
-
               const SizedBox(height: 12),
-
-              // ⚪ BOTÃO VOLTAR
               SizedBox(
                 width: double.infinity,
                 height: 52,
