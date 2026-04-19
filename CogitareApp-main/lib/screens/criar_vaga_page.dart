@@ -22,59 +22,55 @@ class _CriarVagaPageState extends State<CriarVagaPage> {
   TimeOfDay? _horaFim;
 
   bool _carregando = false;
+Future<void> _criarVaga() async {
+  if (!_formKey.currentState!.validate()) return;
 
-  Future<void> _criarVaga() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    if (_dataSelecionada == null ||
-        _horaInicio == null ||
-        _horaFim == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Preencha data e horários')),
-      );
-      return;
-    }
-
-    setState(() => _carregando = true);
-
-    try {
-      final responsavelId = await SessionService.getResponsavelId();
-
-      final response = await ServicoApi.post(
-        '/api/responsavel/vagas',
-        {
-          'idResponsavel': responsavelId,
-          'titulo': _tituloController.text,
-          'descricao': _descricaoController.text,
-          'cidade': _cidadeController.text,
-          'dataServico': _dataSelecionada.toString().split(' ')[0],
-          'horaInicio': _horaInicio!.format(context),
-          'horaFim': _horaFim!.format(context),
-          'valor': _valorController.text,
-        },
-      );
-
-      if (!mounted) return;
-
-      if (response['success'] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Vaga criada com sucesso!')),
-        );
-
-        Navigator.pop(context);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(response['message'] ?? 'Erro')),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro: $e')),
-      );
-    }
-
-    setState(() => _carregando = false);
+  if (_dataSelecionada == null || _horaInicio == null || _horaFim == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Preencha data e horários')),
+    );
+    return;
   }
+
+  setState(() => _carregando = true);
+
+  try {
+    final responsavelId = 1;
+
+    final response = await ServicoApi.post(
+      '/api/responsavel/vagas',
+      {
+        'idResponsavel': responsavelId,
+        'titulo': _tituloController.text,
+        'descricao': _descricaoController.text,
+        'cidade': _cidadeController.text,
+        'dataServico': _dataSelecionada.toString().split(' ')[0],
+        'horaInicio': _horaInicio!.format(context),
+        'horaFim': _horaFim!.format(context),
+        'valor': _valorController.text,
+      },
+    );
+
+    if (!mounted) return;
+
+    if (response['success'] == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vaga criada com sucesso!')),
+      );
+      Navigator.pop(context);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(response['message'] ?? 'Erro')),
+      );
+    }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Erro: $e')),
+    );
+  }
+
+  setState(() => _carregando = false);
+}
 
   Future<void> _selecionarData() async {
     final data = await showDatePicker(
