@@ -107,35 +107,66 @@ class _PerfilResponsavelPageState extends State<PerfilResponsavelPage> {
     );
   }
 
-  void abrirTermos() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Termos e Condições'),
-        content: const SingleChildScrollView(
-          child: Text(
-            'Este aplicativo conecta responsáveis e cuidadores para facilitar '
-            'o encontro de oportunidades de cuidado. Ao utilizar a plataforma, '
-            'o usuário concorda em fornecer informações verdadeiras, utilizar '
-            'o sistema de forma ética e respeitar os demais usuários. '
-            '\n\n'
-            'A plataforma não substitui a verificação individual de documentos, '
-            'experiência e referências profissionais. Cada usuário é responsável '
-            'pelas informações fornecidas em seu perfil e pelas interações realizadas.'
-            '\n\n'
-            'Se desejar, depois eu transformo isso em uma tela bonita e completa '
-            'de termos e política de privacidade.',
-          ),
+void abrirTermos() {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Termos e Condições'),
+      content: const SingleChildScrollView(
+        child: Text(
+          '''
+TERMOS E CONDIÇÕES DE USO – COGITARE
+
+1. OBJETIVO DA PLATAFORMA
+A plataforma Cogitare tem como objetivo conectar responsáveis e cuidadores, facilitando a divulgação e a busca por oportunidades de cuidado.
+
+2. CADASTRO E RESPONSABILIDADE
+O usuário declara que todas as informações fornecidas são verdadeiras e atualizadas. O usuário é responsável pela veracidade dos dados inseridos no sistema.
+
+3. USO DA PLATAFORMA
+É proibido:
+- Utilizar dados falsos ou de terceiros sem autorização
+- Praticar qualquer tipo de fraude ou tentativa de golpe
+- Utilizar a plataforma para fins ilegais ou indevidos
+
+4. RELAÇÃO ENTRE USUÁRIOS
+A Cogitare atua apenas como intermediadora entre responsáveis e cuidadores.
+A plataforma não se responsabiliza por:
+- Conduta dos usuários
+- Acordos realizados fora da plataforma
+- Serviços prestados
+
+5. PRIVACIDADE
+Os dados dos usuários são utilizados exclusivamente para funcionamento da plataforma, não sendo compartilhados com terceiros sem consentimento, exceto quando exigido por lei.
+
+6. SEGURANÇA
+O usuário é responsável por manter a confidencialidade de sua conta e senha.
+
+7. EXCLUSÃO DE CONTA
+O usuário pode solicitar a exclusão de sua conta a qualquer momento.
+A exclusão poderá resultar na remoção permanente de seus dados.
+
+8. ALTERAÇÕES NOS TERMOS
+A Cogitare pode alterar estes termos a qualquer momento, sendo responsabilidade do usuário revisá-los periodicamente.
+
+9. ACEITE
+Ao utilizar a plataforma, o usuário declara estar de acordo com todos os termos acima.
+
+---
+Cogitare © 2026
+          ''',
+          style: TextStyle(fontSize: 14),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fechar'),
-          ),
-        ],
       ),
-    );
-  }
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Fechar'),
+        ),
+      ],
+    ),
+  );
+}
 
   void confirmarApagarConta() {
     showDialog(

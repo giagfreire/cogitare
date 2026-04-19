@@ -4,6 +4,7 @@ import '../services/servico_autenticacao.dart';
 import 'criar_vaga_page.dart';
 import 'tela_login_unificada.dart';
 import 'minhas_vagas_responsavel_page.dart';
+import 'perfil_responsavel_page.dart';
 
 class TelaDashboardResponsavel extends StatefulWidget {
   static const route = '/responsavel-dashboard';
@@ -323,22 +324,41 @@ class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
     }).length;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Dashboard do Responsável'),
-        automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            onPressed: _carregarDashboard,
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Atualizar',
+appBar: AppBar(
+  title: const Text(
+    'Dashboard',
+    style: TextStyle(
+      fontWeight: FontWeight.bold,
+    ),
+  ),
+  centerTitle: false,
+  elevation: 0,
+  actions: [
+    IconButton(
+      icon: const Icon(Icons.notifications_none),
+      tooltip: 'Notificações',
+      onPressed: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Notificações em breve'),
           ),
-          IconButton(
-            onPressed: _logout,
-            icon: const Icon(Icons.logout),
-            tooltip: 'Sair',
+        );
+      },
+    ),
+    IconButton(
+      icon: const Icon(Icons.person_outline),
+      tooltip: 'Meu perfil',
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const PerfilResponsavelPage(),
           ),
-        ],
-      ),
+        );
+      },
+    ),
+  ],
+),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _irParaCriarVaga,
         icon: const Icon(Icons.add),
