@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../services/api_responsavel.dart';
+import '../services/api_service.dart';
+import '../services/session_service.dart';
 
 class CriarVagaPage extends StatefulWidget {
   const CriarVagaPage({super.key});
@@ -11,296 +12,161 @@ class CriarVagaPage extends StatefulWidget {
 class _CriarVagaPageState extends State<CriarVagaPage> {
   final _formKey = GlobalKey<FormState>();
 
-  final TextEditingController _tituloController = TextEditingController();
-  final TextEditingController _descricaoController = TextEditingController();
-  final TextEditingController _cidadeController = TextEditingController();
-  final TextEditingController _dataServicoController = TextEditingController();
-  final TextEditingController _horaInicioController = TextEditingController();
-  final TextEditingController _horaFimController = TextEditingController();
-  final TextEditingController _valorController = TextEditingController();
+  final _tituloController = TextEditingController();
+  final _descricaoController = TextEditingController();
+  final _cidadeController = TextEditingController();
+  final _valorController = TextEditingController();
 
-  bool _salvando = false;
+  DateTime? _dataSelecionada;
+  TimeOfDay? _horaInicio;
+  TimeOfDay? _horaFim;
 
-  @override
-  void dispose() {
-    _tituloController.dispose();
-    _descricaoController.dispose();
-    _cidadeController.dispose();
-    _dataServicoController.dispose();
-    _horaInicioController.dispose();
-    _horaFimController.dispose();
-    _valorController.dispose();
-    super.dispose();
+  bool _carregando = false;
+
+  Future<void> _criarVaga() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    if (_dataSelecionada == null ||
+        _horaInicio == null ||
+        _horaFim == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Preencha data e horários')),
+      );
+      return;
+    }
+
+    setState(() => _carregando = true);
+
+    try {
+      final responsavelId = await SessionService.getResponsavelId();
+
+      final response = await ServicoApi.post(
+        '/api/responsavel/vagas',
+        {
+          'idResponsavel': responsavelId,
+          'titulo': _tituloController.text,
+          'descricao': _descricaoController.text,
+          'cidade': _cidadeController.text,
+          'dataServico': _dataSelecionada.toString().split(' ')[0],
+          'horaInicio': _horaInicio!.format(context),
+          'horaFim': _horaFim!.format(context),
+          'valor': _valorController.text,
+        },
+      );
+
+      if (!mounted) return;
+
+      if (response['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Vaga criada com sucesso!')),
+        );
+
+        Navigator.pop(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(response['message'] ?? 'Erro')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro: $e')),
+      );
+    }
+
+    setState(() => _carregando = false);
   }
 
   Future<void> _selecionarData() async {
-    final agora = DateTime.now();
-
     final data = await showDatePicker(
       context: context,
-      initialDate: agora,
-      firstDate: DateTime(2024),
-      lastDate: DateTime(2035),
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime(2030),
     );
 
     if (data != null) {
-      final texto =
-          '${data.year.toString().padLeft(4, '0')}-'
-          '${data.month.toString().padLeft(2, '0')}-'
-          '${data.day.toString().padLeft(2, '0')}';
-
-      _dataServicoController.text = texto;
+      setState(() => _dataSelecionada = data);
     }
   }
 
-  Future<void> _selecionarHora(TextEditingController controller) async {
+  Future<void> _selecionarHora(bool inicio) async {
     final hora = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
     );
 
     if (hora != null) {
-      final texto =
-          '${hora.hour.toString().padLeft(2, '0')}:'
-          '${hora.minute.toString().padLeft(2, '0')}:00';
-
-      controller.text = texto;
+      setState(() {
+        if (inicio) {
+          _horaInicio = hora;
+        } else {
+          _horaFim = hora;
+        }
+      });
     }
-  }
-
-  Future<void> _salvarVaga() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _salvando = true);
-
-    final double valor =
-        double.tryParse(_valorController.text.trim().replaceAll(',', '.')) ??
-            0.0;
-
-    final response = await ApiResponsavel.criarVaga(
-      titulo: _tituloController.text.trim(),
-      descricao: _descricaoController.text.trim(),
-      cidade: _cidadeController.text.trim(),
-      dataServico: _dataServicoController.text.trim(),
-      horaInicio: _horaInicioController.text.trim(),
-      horaFim: _horaFimController.text.trim(),
-      valor: valor,
-    );
-
-    if (!mounted) return;
-
-    setState(() => _salvando = false);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(response['message'] ?? 'Operação concluída'),
-        backgroundColor:
-            response['success'] == true ? Colors.green : Colors.red,
-      ),
-    );
-
-    if (response['success'] == true) {
-      Navigator.pop(context, true);
-    }
-  }
-
-  InputDecoration _inputDecoration({
-    required String label,
-    String? hint,
-    Widget? suffixIcon,
-  }) {
-    return InputDecoration(
-      labelText: label,
-      hintText: hint,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      suffixIcon: suffixIcon,
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Criar vaga'),
-      ),
-      body: SafeArea(
+      appBar: AppBar(title: const Text('Criar Vaga')),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
           child: ListView(
-            padding: const EdgeInsets.all(16),
             children: [
-              const Text(
-                'Nova vaga',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
+              _campo(_tituloController, 'Título'),
+              _campo(_descricaoController, 'Descrição'),
+              _campo(_cidadeController, 'Cidade'),
+              _campo(_valorController, 'Valor'),
+
+              const SizedBox(height: 10),
+
+              ElevatedButton(
+                onPressed: _selecionarData,
+                child: Text(_dataSelecionada == null
+                    ? 'Selecionar Data'
+                    : _dataSelecionada.toString().split(' ')[0]),
               ),
-              const SizedBox(height: 8),
-              const Text(
-                'Preencha os dados abaixo para publicar uma nova necessidade.',
+
+              ElevatedButton(
+                onPressed: () => _selecionarHora(true),
+                child: Text(_horaInicio == null
+                    ? 'Hora início'
+                    : _horaInicio!.format(context)),
               ),
+
+              ElevatedButton(
+                onPressed: () => _selecionarHora(false),
+                child: Text(_horaFim == null
+                    ? 'Hora fim'
+                    : _horaFim!.format(context)),
+              ),
+
               const SizedBox(height: 20),
 
-              TextFormField(
-                controller: _tituloController,
-                textInputAction: TextInputAction.next,
-                decoration: _inputDecoration(
-                  label: 'Título',
-                  hint: 'Ex.: Cuidador para acompanhamento diário',
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Informe o título';
-                  }
-                  if (value.trim().length < 3) {
-                    return 'Digite um título maior';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 14),
-
-              TextFormField(
-                controller: _descricaoController,
-                textInputAction: TextInputAction.newline,
-                maxLines: 4,
-                decoration: _inputDecoration(
-                  label: 'Descrição',
-                  hint: 'Descreva a necessidade da vaga',
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Informe a descrição';
-                  }
-                  if (value.trim().length < 10) {
-                    return 'Digite uma descrição mais completa';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 14),
-
-              TextFormField(
-                controller: _cidadeController,
-                textInputAction: TextInputAction.next,
-                decoration: _inputDecoration(
-                  label: 'Cidade',
-                  hint: 'Ex.: São Caetano do Sul',
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Informe a cidade';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 14),
-
-              TextFormField(
-                controller: _dataServicoController,
-                readOnly: true,
-                decoration: _inputDecoration(
-                  label: 'Data do serviço',
-                  hint: 'AAAA-MM-DD',
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.calendar_today),
-                    onPressed: _selecionarData,
-                  ),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Informe a data do serviço';
-                  }
-                  return null;
-                },
-                onTap: _selecionarData,
-              ),
-              const SizedBox(height: 14),
-
-              TextFormField(
-                controller: _horaInicioController,
-                readOnly: true,
-                decoration: _inputDecoration(
-                  label: 'Hora de início',
-                  hint: 'HH:MM:SS',
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.access_time),
-                    onPressed: () => _selecionarHora(_horaInicioController),
-                  ),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Informe a hora de início';
-                  }
-                  return null;
-                },
-                onTap: () => _selecionarHora(_horaInicioController),
-              ),
-              const SizedBox(height: 14),
-
-              TextFormField(
-                controller: _horaFimController,
-                readOnly: true,
-                decoration: _inputDecoration(
-                  label: 'Hora de fim',
-                  hint: 'HH:MM:SS',
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.access_time),
-                    onPressed: () => _selecionarHora(_horaFimController),
-                  ),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Informe a hora de fim';
-                  }
-                  return null;
-                },
-                onTap: () => _selecionarHora(_horaFimController),
-              ),
-              const SizedBox(height: 14),
-
-              TextFormField(
-                controller: _valorController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: _inputDecoration(
-                  label: 'Valor',
-                  hint: 'Ex.: 150.00',
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Informe o valor';
-                  }
-
-                  final numero =
-                      double.tryParse(value.trim().replaceAll(',', '.'));
-                  if (numero == null || numero <= 0) {
-                    return 'Informe um valor válido';
-                  }
-
-                  return null;
-                },
-              ),
-              const SizedBox(height: 24),
-
-              SizedBox(
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _salvando ? null : _salvarVaga,
-                  child: _salvando
-                      ? const SizedBox(
-                          height: 22,
-                          width: 22,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Publicar vaga'),
-                ),
+              ElevatedButton(
+                onPressed: _carregando ? null : _criarVaga,
+                child: _carregando
+                    ? const CircularProgressIndicator()
+                    : const Text('Criar vaga'),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _campo(TextEditingController controller, String label) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextFormField(
+        controller: controller,
+        validator: (value) =>
+            value == null || value.isEmpty ? 'Obrigatório' : null,
+        decoration: InputDecoration(labelText: label),
       ),
     );
   }
