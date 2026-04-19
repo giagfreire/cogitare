@@ -179,6 +179,87 @@ class _MinhasVagasResponsavelPageState
     }
   }
 
+  Future<void> alterarStatusVaga({
+    required int idVaga,
+    required String novoStatus,
+  }) async {
+    try {
+      final response = await ApiClient.put(
+        '/api/responsavel/vagas/$idVaga/status',
+        {'status': novoStatus},
+      );
+
+      print('RESPOSTA ALTERAR STATUS VAGA: $response');
+
+      if (response != null && response['success'] == true) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              novoStatus == 'Encerrada'
+                  ? 'Vaga encerrada com sucesso'
+                  : 'Vaga reaberta com sucesso',
+            ),
+          ),
+        );
+
+        fetchVagas();
+      } else {
+        throw Exception(response?['message'] ?? 'Erro ao alterar status');
+      }
+    } catch (e) {
+      print('ERRO AO ALTERAR STATUS: $e');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao alterar status: $e'),
+        ),
+      );
+    }
+  }
+
+  void confirmarAlterarStatus(Map<String, dynamic> vaga) {
+    final statusAtual = (vaga['Status'] ?? '').toString();
+    final isAberta = statusAtual.toLowerCase() == 'aberta';
+    final novoStatus = isAberta ? 'Encerrada' : 'Aberta';
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(isAberta ? 'Encerrar vaga' : 'Reabrir vaga'),
+        content: Text(
+          isAberta
+              ? 'Tem certeza que deseja encerrar a vaga "${vaga['Titulo'] ?? 'Sem título'}"?'
+              : 'Tem certeza que deseja reabrir a vaga "${vaga['Titulo'] ?? 'Sem título'}"?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              alterarStatusVaga(
+                idVaga: vaga['IdVaga'],
+                novoStatus: novoStatus,
+              );
+            },
+            child: Text(
+              isAberta ? 'Encerrar' : 'Reabrir',
+              style: TextStyle(
+                color: isAberta ? Colors.red : Colors.green,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> verInteressados(int idVaga) async {
     try {
       final response =
@@ -417,6 +498,7 @@ class _MinhasVagasResponsavelPageState
 
   Widget buildCardVaga(Map<String, dynamic> vaga) {
     final status = (vaga['Status'] ?? '').toString();
+    final isAberta = status.toLowerCase() == 'aberta';
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -468,22 +550,42 @@ class _MinhasVagasResponsavelPageState
               ],
             ),
             const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 5,
-              ),
-              decoration: BoxDecoration(
-                color: getStatusColor(status).withOpacity(0.15),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                status.isEmpty ? 'Sem status' : status,
-                style: TextStyle(
-                  color: getStatusColor(status),
-                  fontWeight: FontWeight.bold,
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: getStatusColor(status).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    status.isEmpty ? 'Sem status' : status,
+                    style: TextStyle(
+                      color: getStatusColor(status),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
-              ),
+                OutlinedButton.icon(
+                  onPressed: () => confirmarAlterarStatus(vaga),
+                  icon: Icon(
+                    isAberta ? Icons.pause_circle_outline : Icons.play_circle_outline,
+                    color: isAberta ? Colors.red : Colors.green,
+                  ),
+                  label: Text(
+                    isAberta ? 'Encerrar' : 'Reabrir',
+                    style: TextStyle(
+                      color: isAberta ? Colors.red : Colors.green,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 10),
             Row(

@@ -136,7 +136,7 @@ class ApiCuidador {
       }
 
       return [];
-    } catch (_) {
+    } catch (e) {
       return [];
     }
   }
@@ -149,7 +149,11 @@ class ApiCuidador {
         {'idVaga': idVaga},
       );
 
-      return Map<String, dynamic>.from(response);
+      return {
+        'success': response['success'] == true,
+        'message': response['message'] ?? 'Resposta recebida',
+        'data': response['data'],
+      };
     } catch (e) {
       return {
         'success': false,
@@ -173,10 +177,8 @@ class ApiCuidador {
             'UsosPlano': data['UsosPlano'] ?? data['usosPlano'] ?? 0,
             'LimitePlano':
                 data['LimitePlano'] ?? data['limiteContatos'] ?? 5,
-            'Restantes':
-                data['Restantes'] ?? data['restantes'] ?? 0,
-            'Destaque':
-                data['Destaque'] ?? data['destaque'] ?? false,
+            'Restantes': data['Restantes'] ?? data['restantes'] ?? 0,
+            'Destaque': data['Destaque'] ?? data['destaque'] ?? false,
           },
         };
       }
@@ -213,7 +215,7 @@ class ApiCuidador {
       }
 
       return [];
-    } catch (_) {
+    } catch (e) {
       return [];
     }
   }

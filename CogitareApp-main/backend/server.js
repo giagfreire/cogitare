@@ -20,7 +20,10 @@ const PORT = process.env.PORT || 3000;
 app.disable('etag');
 
 app.use((req, res, next) => {
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader(
+    'Cache-Control',
+    'no-store, no-cache, must-revalidate, proxy-revalidate'
+  );
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
   res.setHeader('Surrogate-Control', 'no-store');
@@ -35,8 +38,14 @@ app.use((req, res, next) => {
 
   res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Vary', 'Origin');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader(
+    'Access-Control-Allow-Methods',
+    'GET, POST, PUT, DELETE, OPTIONS'
+  );
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'Content-Type, Authorization'
+  );
   res.setHeader('Access-Control-Max-Age', '86400');
 
   if (req.method === 'OPTIONS') {
@@ -113,10 +122,16 @@ app.get('/', (req, res) => {
 // ROTAS
 // =========================
 app.use('/api/auth', authRoutes);
-app.use('/api/cuidador', (req, res, next) => {
-  console.log('>>> PASSOU PELO MIDDLEWARE DO CUIDADOR');
-  next();
-}, cuidadorRoutes);
+
+app.use(
+  '/api/cuidador',
+  (req, res, next) => {
+    console.log('>>> PASSOU PELO MIDDLEWARE DO CUIDADOR');
+    next();
+  },
+  cuidadorRoutes
+);
+
 app.use('/api/idoso', idosoRoutes);
 app.use('/api/endereco', enderecoRoutes);
 app.use('/api/responsavel', responsavelRoutes);

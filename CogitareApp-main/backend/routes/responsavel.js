@@ -101,7 +101,16 @@ router.post('/', async (req, res) => {
       `INSERT INTO responsavel
       (IdEndereco, Cpf, Nome, Email, Telefone, DataNascimento, Senha, FotoUrl)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [idEndereco, cpf, nome, email, telefone, dataNascimento, hashedPassword, fotoUrl || null]
+      [
+        idEndereco,
+        cpf,
+        nome,
+        email,
+        telefone,
+        dataNascimento,
+        hashedPassword,
+        fotoUrl || null,
+      ]
     );
 
     return res.status(201).json({
@@ -201,7 +210,16 @@ router.post('/completo', async (req, res) => {
       `INSERT INTO responsavel
       (IdEndereco, Cpf, Nome, Email, Telefone, DataNascimento, Senha, FotoUrl)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [idEndereco, cpf, nome, email, telefone, dataNascimento, hashedPassword, fotoUrl || null]
+      [
+        idEndereco,
+        cpf,
+        nome,
+        email,
+        telefone,
+        dataNascimento,
+        hashedPassword,
+        fotoUrl || null,
+      ]
     );
 
     await connection.commit();
@@ -268,6 +286,186 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // =========================
+// PERFIL DO RESPONSÁVEL
+// =========================
+
+// Buscar perfil do responsável logado
+router.get('/perfil', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.tipo !== 'responsavel') {
+      return res.status(403).json({
+        success: false,
+        message: 'Apenas responsáveis podem acessar o perfil',
+      });
+    }
+
+    const rows = await db.query(
+      `SELECT
+        IdResponsavel,
+        IdEndereco,
+        Nome,
+        Email,
+        Telefone,
+        Cpf,
+        DataNascimento,
+        FotoUrl
+      FROM responsavel
+      WHERE IdResponsavel = ?`,
+      [req.user.id]
+    );
+
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Responsável não encontrado',
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: rows[0],
+    });
+  } catch (error) {
+    console.error('ERRO AO BUSCAR PERFIL:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erro ao buscar perfil',
+      error: error.message,
+    });
+  }
+});
+
+// Atualizar perfil do responsável logado
+router.put('/perfil', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.tipo !== 'responsavel') {
+      return res.status(403).json({
+        success: false,
+        message: 'Apenas responsáveis podem editar o perfil',
+      });
+    }
+
+    const { nome, email, telefone, dataNascimento, fotoUrl } = req.body;
+
+    if (!nome || !email || !telefone || !dataNascimento) {
+      return res.status(400).json({
+        success: false,
+        message: 'Nome, email, telefone e data de nascimento são obrigatórios',
+      });
+    }
+
+    const emailExistente = await db.query(
+      'SELECT IdResponsavel FROM responsavel WHERE Email = ? AND IdResponsavel <> ?',
+      [email, req.user.id]
+    );
+
+    if (emailExistente.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Este email já está em uso por outro responsável',
+      });
+    }
+
+    await db.query(
+      `UPDATE responsavel
+       SET Nome = ?, Email = ?, Telefone = ?, DataNascimento = ?, FotoUrl = ?
+       WHERE IdResponsavel = ?`,
+      [nome, email, telefone, dataNascimento, fotoUrl || null, req.user.id]
+    );
+
+    const atualizado = await db.query(
+      `SELECT
+        IdResponsavel,
+        IdEndereco,
+        Nome,
+        Email,
+        Telefone,
+        Cpf,
+        DataNascimento,
+        FotoUrl
+      FROM responsavel
+      WHERE IdResponsavel = ?`,
+      [req.user.id]
+    );
+
+    return res.json({
+      success: true,
+      message: 'Perfil atualizado com sucesso',
+      data: atualizado[0],
+    });
+  } catch (error) {
+    console.error('ERRO AO ATUALIZAR PERFIL:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erro ao atualizar perfil',
+      error: error.message,
+    });
+  }
+});
+
+// Apagar conta do responsável logado
+router.delete('/perfil', authenticateToken, async (req, res) => {
+  let connection;
+
+  try {
+    if (req.user.tipo !== 'responsavel') {
+      return res.status(403).json({
+        success: false,
+        message: 'Apenas responsáveis podem apagar a conta',
+      });
+    }
+
+    connection = await db.getConnection();
+    await connection.beginTransaction();
+
+    // apaga vínculos em vagacuidador das vagas desse responsável
+    await connection.execute(
+      `DELETE vc
+       FROM vagacuidador vc
+       INNER JOIN vaga v ON vc.IdVaga = v.IdVaga
+       WHERE v.IdResponsavel = ?`,
+      [req.user.id]
+    );
+
+    // apaga vagas do responsável
+    await connection.execute(
+      'DELETE FROM vaga WHERE IdResponsavel = ?',
+      [req.user.id]
+    );
+
+    // apaga a conta
+    await connection.execute(
+      'DELETE FROM responsavel WHERE IdResponsavel = ?',
+      [req.user.id]
+    );
+
+    await connection.commit();
+
+    return res.json({
+      success: true,
+      message: 'Conta apagada com sucesso',
+    });
+  } catch (error) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch (_) {}
+    }
+
+    console.error('ERRO AO APAGAR CONTA:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erro ao apagar conta',
+      error: error.message,
+    });
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+});
+
+// =========================
 // VAGAS
 // =========================
 router.post('/vagas', authenticateToken, async (req, res) => {
@@ -289,7 +487,16 @@ router.post('/vagas', authenticateToken, async (req, res) => {
       valor,
     } = req.body;
 
-    if (!titulo || !descricao || !cidade || !dataServico || !horaInicio || !horaFim || !valor) {
+    if (
+      !titulo ||
+      !descricao ||
+      !cidade ||
+      !dataServico ||
+      !horaInicio ||
+      !horaFim ||
+      valor === undefined ||
+      valor === null
+    ) {
       return res.status(400).json({
         success: false,
         message: 'Todos os campos obrigatórios devem ser preenchidos',
@@ -300,7 +507,17 @@ router.post('/vagas', authenticateToken, async (req, res) => {
       `INSERT INTO vaga
       (IdResponsavel, Titulo, Descricao, Cidade, DataServico, HoraInicio, HoraFim, Valor, Status)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [req.user.id, titulo, descricao, cidade, dataServico, horaInicio, horaFim, valor, 'Aberta']
+      [
+        req.user.id,
+        titulo,
+        descricao,
+        cidade,
+        dataServico,
+        horaInicio,
+        horaFim,
+        valor,
+        'Aberta',
+      ]
     );
 
     return res.status(201).json({
@@ -578,7 +795,6 @@ router.put('/vagas/:idVaga/status', authenticateToken, async (req, res) => {
   }
 });
 
-// exclusão correta
 router.delete('/vagas/:idVaga', authenticateToken, async (req, res) => {
   try {
     if (req.user.tipo !== 'responsavel') {

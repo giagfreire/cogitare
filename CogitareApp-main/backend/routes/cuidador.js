@@ -1,6 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const db = require('../config/database');
+const { authenticateToken } = require('../middlewares/auth');
 
 const router = express.Router();
 
@@ -424,6 +425,79 @@ router.put('/:id', async (req, res) => {
     if (connection) {
       connection.release();
     }
+  }
+});
+router.post('/aceitar-vaga', authenticateToken, async (req, res) => {
+  const { idVaga } = req.body;
+  const idCuidador = req.user.id;
+
+  if (!idVaga) {
+    return res.status(400).json({
+      success: false,
+      message: 'ID da vaga é obrigatório',
+    });
+  }
+
+  try {
+    // 🔍 verifica se vaga existe
+    const [vaga] = await db.query(
+      'SELECT * FROM vaga WHERE IdVaga = ?',
+      [idVaga]
+    );
+
+    if (vaga.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vaga não encontrada',
+      });
+    }
+
+    // 🚫 verifica se está aberta
+    if (vaga[0].Status !== 'Aberta') {
+      return res.status(400).json({
+        success: false,
+        message: 'Essa vaga não está mais disponível',
+      });
+    }
+
+    // 🚫 evita duplicado
+    const [existe] = await db.query(
+      'SELECT * FROM vagacuidador WHERE IdVaga = ? AND IdCuidador = ?',
+      [idVaga, idCuidador]
+    );
+
+    if (existe.length > 0) {
+      return res.json({
+        success: false,
+        message: 'Você já aceitou essa vaga',
+      });
+    }
+
+    // 💾 salva aceite
+    await db.query(
+      'INSERT INTO vagacuidador (IdVaga, IdCuidador) VALUES (?, ?)',
+      [idVaga, idCuidador]
+    );
+
+    // 🔢 atualiza contador do plano (opcional mas ideal)
+    await db.query(
+      `UPDATE assinaturacuidador 
+       SET ContatosUsados = ContatosUsados + 1 
+       WHERE IdCuidador = ? AND Status = 'Ativa'`,
+      [idCuidador]
+    );
+
+    return res.json({
+      success: true,
+      message: 'Vaga aceita com sucesso',
+    });
+  } catch (error) {
+    console.error('Erro ao aceitar vaga:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor',
+    });
   }
 });
 

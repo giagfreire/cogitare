@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../services/api_client.dart';
 import '../services/servico_autenticacao.dart';
 import 'tela_login_unificada.dart';
+import 'editar_perfil_responsavel_page.dart';
+import 'configuracoes_responsavel_page.dart';
 
 class PerfilResponsavelPage extends StatefulWidget {
   const PerfilResponsavelPage({super.key});
@@ -26,19 +28,22 @@ class _PerfilResponsavelPageState extends State<PerfilResponsavelPage> {
     });
 
     try {
-      final userData = await ServicoAutenticacao.getUserData();
+      final response = await ApiClient.get('/api/responsavel/perfil');
 
-      setState(() {
-        responsavel = userData != null ? Map<String, dynamic>.from(userData) : {};
-        isLoading = false;
-      });
+      if (response['success'] == true && response['data'] != null) {
+        responsavel = Map<String, dynamic>.from(response['data']);
+      } else {
+        responsavel = {};
+      }
     } catch (e) {
       print('ERRO AO CARREGAR PERFIL RESPONSAVEL: $e');
-      setState(() {
-        responsavel = {};
-        isLoading = false;
-      });
+      responsavel = {};
     }
+
+    if (!mounted) return;
+    setState(() {
+      isLoading = false;
+    });
   }
 
   String textoSeguro(dynamic valor, {String fallback = 'Não informado'}) {
@@ -91,30 +96,44 @@ class _PerfilResponsavelPageState extends State<PerfilResponsavelPage> {
     );
   }
 
-  void abrirEditarPerfil() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Próximo passo: tela de editar perfil'),
+  void abrirEditarPerfil() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const EditarPerfilResponsavelPage(),
       ),
     );
+
+    if (result == true) {
+      await carregarPerfil();
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    }
   }
 
-  void abrirConfiguracoes() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Próximo passo: tela de configurações'),
+  void abrirConfiguracoes() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const ConfiguracoesResponsavelPage(),
       ),
     );
+
+    if (result == true) {
+      await carregarPerfil();
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    }
   }
 
-void abrirTermos() {
-  showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Termos e Condições'),
-      content: const SingleChildScrollView(
-        child: Text(
-          '''
+  void abrirTermos() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Termos e Condições'),
+        content: const SingleChildScrollView(
+          child: Text(
+            '''
 TERMOS E CONDIÇÕES DE USO – COGITARE
 
 1. OBJETIVO DA PLATAFORMA
@@ -154,47 +173,14 @@ Ao utilizar a plataforma, o usuário declara estar de acordo com todos os termos
 
 ---
 Cogitare © 2026
-          ''',
-          style: TextStyle(fontSize: 14),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Fechar'),
-        ),
-      ],
-    ),
-  );
-}
-
-  void confirmarApagarConta() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Apagar conta'),
-        content: const Text(
-          'Essa ação é permanente. Depois eu posso ligar esse botão ao banco '
-          'de dados para apagar a conta de verdade. Deseja continuar?',
+            ''',
+            style: TextStyle(fontSize: 14),
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Próximo passo: apagar conta de verdade'),
-                ),
-              );
-            },
-            child: const Text(
-              'Apagar',
-              style: TextStyle(color: Colors.red),
-            ),
+            child: const Text('Fechar'),
           ),
         ],
       ),
@@ -262,6 +248,11 @@ Cogitare © 2026
       responsavel?['DataNascimento'] ?? responsavel?['dataNascimento'],
     );
 
+    final fotoUrl = textoSeguro(
+      responsavel?['FotoUrl'] ?? responsavel?['fotoUrl'],
+      fallback: '',
+    );
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Meu Perfil'),
@@ -288,9 +279,14 @@ Cogitare © 2026
                     ),
                     child: Column(
                       children: [
-                        const CircleAvatar(
+                        CircleAvatar(
                           radius: 38,
-                          child: Icon(Icons.person, size: 38),
+                          backgroundImage:
+                              fotoUrl.isNotEmpty ? NetworkImage(fotoUrl) : null,
+                          onBackgroundImageError: (_, __) {},
+                          child: fotoUrl.isEmpty
+                              ? const Icon(Icons.person, size: 38)
+                              : null,
                         ),
                         const SizedBox(height: 12),
                         Text(
@@ -351,7 +347,7 @@ Cogitare © 2026
                   buildMenuCard(
                     icon: Icons.settings_outlined,
                     titulo: 'Configurações',
-                    subtitulo: 'Preferências e ajustes da conta',
+                    subtitulo: 'Perfil, termos, sair e apagar conta',
                     onTap: abrirConfiguracoes,
                   ),
                   buildMenuCard(
@@ -366,14 +362,6 @@ Cogitare © 2026
                     subtitulo: 'Encerrar sessão neste dispositivo',
                     onTap: confirmarSair,
                     iconColor: Colors.orange,
-                  ),
-                  buildMenuCard(
-                    icon: Icons.delete_outline,
-                    titulo: 'Apagar conta',
-                    subtitulo: 'Excluir sua conta permanentemente',
-                    onTap: confirmarApagarConta,
-                    iconColor: Colors.red,
-                    textColor: Colors.red,
                   ),
                 ],
               ),

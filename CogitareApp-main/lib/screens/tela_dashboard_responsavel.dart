@@ -40,10 +40,9 @@ class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
         ServicoApi.setToken(token);
       }
 
-      final userData = await ServicoAutenticacao.getUserData();
       final userType = await ServicoAutenticacao.getUserType();
 
-      if (userType != 'responsavel' || userData == null) {
+      if (userType != 'responsavel') {
         setState(() {
           _errorMessage = 'Não foi possível identificar o responsável logado.';
           _isLoading = false;
@@ -51,7 +50,13 @@ class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
         return;
       }
 
-      _responsavel = Map<String, dynamic>.from(userData);
+      final perfilResponse = await ServicoApi.get('/api/responsavel/perfil');
+
+      if (perfilResponse['success'] == true && perfilResponse['data'] != null) {
+        _responsavel = Map<String, dynamic>.from(perfilResponse['data']);
+      } else {
+        _responsavel = {};
+      }
 
       final response = await ServicoApi.get('/api/responsavel/vagas/minhas');
 
@@ -97,6 +102,19 @@ class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
     );
 
     await _carregarDashboard();
+  }
+
+  Future<void> _abrirPerfil() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const PerfilResponsavelPage(),
+      ),
+    );
+
+    if (result == true) {
+      await _carregarDashboard();
+    }
   }
 
   Future<void> _logout() async {
@@ -324,41 +342,34 @@ class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
     }).length;
 
     return Scaffold(
-appBar: AppBar(
-  title: const Text(
-    'Dashboard',
-    style: TextStyle(
-      fontWeight: FontWeight.bold,
-    ),
-  ),
-  centerTitle: false,
-  elevation: 0,
-  actions: [
-    IconButton(
-      icon: const Icon(Icons.notifications_none),
-      tooltip: 'Notificações',
-      onPressed: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Notificações em breve'),
+      appBar: AppBar(
+        title: const Text(
+          'Dashboard',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
           ),
-        );
-      },
-    ),
-    IconButton(
-      icon: const Icon(Icons.person_outline),
-      tooltip: 'Meu perfil',
-      onPressed: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const PerfilResponsavelPage(),
+        ),
+        centerTitle: false,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_none),
+            tooltip: 'Notificações',
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Notificações em breve'),
+                ),
+              );
+            },
           ),
-        );
-      },
-    ),
-  ],
-),
+          IconButton(
+            icon: const Icon(Icons.person_outline),
+            tooltip: 'Meu perfil',
+            onPressed: _abrirPerfil,
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _irParaCriarVaga,
         icon: const Icon(Icons.add),

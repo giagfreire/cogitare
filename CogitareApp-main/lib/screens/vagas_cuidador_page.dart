@@ -107,6 +107,45 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
     );
   }
 
+  Future<void> _aceitarVaga(int idVaga) async {
+    try {
+      final response = await ApiCuidador.aceitarVaga(idVaga);
+
+      if (!mounted) return;
+
+      if (response['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Vaga aceita com sucesso'),
+          ),
+        );
+
+        await _recarregarTudo();
+      } else {
+        throw Exception(response['message'] ?? 'Erro ao aceitar vaga');
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao aceitar vaga: $e'),
+        ),
+      );
+    }
+  }
+
+  void _tentarAceitarVaga(int idVaga) {
+    final atingiuLimite = _limitePlano > 0 && _usosPlano >= _limitePlano;
+
+    if (_planoAtual != 'Premium' && atingiuLimite) {
+      _mostrarUpgrade();
+      return;
+    }
+
+    _aceitarVaga(idVaga);
+  }
+
   Future<void> _verDetalhes(Map<String, dynamic> vaga) async {
     final atualizou = await Navigator.push(
       context,
@@ -235,24 +274,46 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
               _formatarValor(vaga['Valor']),
             ),
             const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: () => _verDetalhes(vaga),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFF35064E)),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => _verDetalhes(vaga),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFF35064E)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Ver detalhes',
+                      style: TextStyle(
+                        color: Color(0xFF35064E),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
-                child: const Text(
-                  'Ver detalhes',
-                  style: TextStyle(
-                    color: Color(0xFF35064E),
-                    fontWeight: FontWeight.w600,
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => _tentarAceitarVaga(vaga['IdVaga']),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF35064E),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Aceitar',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
           ],
         ),

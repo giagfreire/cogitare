@@ -107,6 +107,68 @@ class ApiResponsavel {
     }
   }
 
+  /// Buscar perfil do responsável logado
+  static Future<Map<String, dynamic>?> getPerfil() async {
+    try {
+      final response = await ApiClient.get('/api/responsavel/perfil');
+
+      if (response['success'] == true && response['data'] != null) {
+        return Map<String, dynamic>.from(response['data']);
+      }
+
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Atualizar perfil do responsável logado
+  static Future<Map<String, dynamic>> atualizarPerfil({
+    required String nome,
+    required String email,
+    required String telefone,
+    required String dataNascimento,
+    String? fotoUrl,
+  }) async {
+    try {
+      final response = await ApiClient.put('/api/responsavel/perfil', {
+        'nome': nome,
+        'email': email,
+        'telefone': telefone,
+        'dataNascimento': dataNascimento,
+        'fotoUrl': fotoUrl,
+      });
+
+      return {
+        'success': response['success'] == true,
+        'message': response['message'] ?? 'Perfil atualizado com sucesso',
+        'data': response['data'],
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Erro ao atualizar perfil: $e',
+      };
+    }
+  }
+
+  /// Apagar conta do responsável logado
+  static Future<Map<String, dynamic>> apagarConta() async {
+    try {
+      final response = await ApiClient.delete('/api/responsavel/perfil');
+
+      return {
+        'success': response['success'] == true,
+        'message': response['message'] ?? 'Conta apagada com sucesso',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Erro ao apagar conta: $e',
+      };
+    }
+  }
+
   /// Criar vaga
   static Future<Map<String, dynamic>> criarVaga({
     required String titulo,
