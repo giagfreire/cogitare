@@ -8,6 +8,7 @@ class Idoso {
   final String? gender;
   final String? medicalCare;
   final String? extraDescription;
+  final String? photoUrl;
   final List<int>? selectedServices;
   final Map<String, bool>? availability;
 
@@ -21,69 +22,49 @@ class Idoso {
     this.gender,
     this.medicalCare,
     this.extraDescription,
+    this.photoUrl,
     this.selectedServices,
     this.availability,
   });
 
   Map<String, dynamic> toJson() {
-  return {
-    'IdResponsavel': guardianId,
-    'IdMobilidade': mobilityId,
-    'IdNivelAutonomia': autonomyLevelId,
-    'Nome': name,
-    'DataNascimento': birthDate?.toIso8601String().split('T')[0], // yyyy-MM-dd
-    'Sexo': gender,
-    'CuidadosMedicos': medicalCare,
-    'DescricaoExtra': extraDescription,
-    'FotoUrl': null, 
-    'SelectedServices': selectedServices,
-    'Availability': availability,
-  };
-}
-
+    return {
+      'IdResponsavel': guardianId,
+      'IdMobilidade': mobilityId,
+      'IdNivelAutonomia': autonomyLevelId,
+      'Nome': name,
+      'DataNascimento': birthDate?.toIso8601String().split('T')[0],
+      'Sexo': gender,
+      'CuidadosMedicos': medicalCare,
+      'DescricaoExtra': extraDescription,
+      'FotoUrl': photoUrl,
+      'SelectedServices': selectedServices,
+      'Availability': availability,
+    };
+  }
 
   factory Idoso.fromJson(Map<String, dynamic> json) {
     return Idoso(
-      id: json['id'],
-      guardianId: json['guardianId'],
-      mobilityId: json['mobilityId'],
-      autonomyLevelId: json['autonomyLevelId'],
-      name: json['name'] ?? '',
-      birthDate:
-          json['birthDate'] != null ? DateTime.parse(json['birthDate']) : null,
-      gender: json['gender'],
-      medicalCare: json['medicalCare'],
-      extraDescription: json['extraDescription'],
-      selectedServices: json['selectedServices']?.cast<int>(),
-      availability: json['availability']?.cast<String, bool>(),
-    );
-  }
-
-  Idoso copyWith({
-    int? id,
-    int? guardianId,
-    int? mobilityId,
-    int? autonomyLevelId,
-    String? name,
-    DateTime? birthDate,
-    String? gender,
-    String? medicalCare,
-    String? extraDescription,
-    List<int>? selectedServices,
-    Map<String, bool>? availability,
-  }) {
-    return Idoso(
-      id: id ?? this.id,
-      guardianId: guardianId ?? this.guardianId,
-      mobilityId: mobilityId ?? this.mobilityId,
-      autonomyLevelId: autonomyLevelId ?? this.autonomyLevelId,
-      name: name ?? this.name,
-      birthDate: birthDate ?? this.birthDate,
-      gender: gender ?? this.gender,
-      medicalCare: medicalCare ?? this.medicalCare,
-      extraDescription: extraDescription ?? this.extraDescription,
-      selectedServices: selectedServices ?? this.selectedServices,
-      availability: availability ?? this.availability,
+      id: json['IdIdoso'] ?? json['id'],
+      guardianId: json['IdResponsavel'] ?? json['guardianId'],
+      mobilityId: json['IdMobilidade'] ?? json['mobilityId'],
+      autonomyLevelId: json['IdNivelAutonomia'] ?? json['autonomyLevelId'],
+      name: json['Nome'] ?? json['name'] ?? '',
+      birthDate: json['DataNascimento'] != null
+          ? DateTime.tryParse(json['DataNascimento'].toString())
+          : (json['birthDate'] != null
+              ? DateTime.tryParse(json['birthDate'].toString())
+              : null),
+      gender: json['Sexo'] ?? json['gender'],
+      medicalCare: json['CuidadosMedicos'] ?? json['medicalCare'],
+      extraDescription: json['DescricaoExtra'] ?? json['extraDescription'],
+      photoUrl: json['FotoUrl'] ?? json['photoUrl'],
+      selectedServices: json['SelectedServices'] != null
+          ? List<int>.from(json['SelectedServices'])
+          : null,
+      availability: json['Availability'] != null
+          ? Map<String, bool>.from(json['Availability'])
+          : null,
     );
   }
 }
