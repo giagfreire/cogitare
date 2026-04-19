@@ -35,7 +35,6 @@ class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
 
     try {
       final token = await ServicoAutenticacao.getToken();
-
       if (token != null && token.isNotEmpty) {
         ServicoApi.setToken(token);
       }
@@ -70,7 +69,6 @@ class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
       }
     } catch (e) {
       if (!mounted) return;
-
       setState(() {
         _errorMessage = 'Erro ao carregar dashboard: $e';
         _isLoading = false;
@@ -120,7 +118,6 @@ class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
     if (valor == null) return fallback;
 
     final texto = valor.toString().trim();
-
     if (texto.isEmpty || texto.toLowerCase() == 'null') {
       return fallback;
     }
@@ -307,25 +304,23 @@ class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
       _responsavel?['Nome'] ?? _responsavel?['nome'],
       fallback: 'Responsável',
     );
-    final email = _textoSeguro(_responsavel?['Email'] ?? _responsavel?['email']);
+
+    final email = _textoSeguro(
+      _responsavel?['Email'] ?? _responsavel?['email'],
+    );
+
     final telefone = _textoSeguro(
       _responsavel?['Telefone'] ?? _responsavel?['telefone'],
     );
 
-    final vagasAbertas = _vagas
-        .where(
-          (vaga) =>
-              _textoSeguro(vaga['Status'], fallback: 'Aberta').toLowerCase() ==
-              'aberta',
-        )
-        .length;
+    final vagasAbertas = _vagas.where((vaga) {
+      return _textoSeguro(vaga['Status'], fallback: 'Aberta').toLowerCase() ==
+          'aberta';
+    }).length;
 
-    final vagasEncerradas = _vagas
-        .where(
-          (vaga) =>
-              _textoSeguro(vaga['Status']).toLowerCase() == 'encerrada',
-        )
-        .length;
+    final vagasEncerradas = _vagas.where((vaga) {
+      return _textoSeguro(vaga['Status']).toLowerCase() == 'encerrada';
+    }).length;
 
     return Scaffold(
       appBar: AppBar(

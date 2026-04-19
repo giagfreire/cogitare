@@ -2,11 +2,12 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const db = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
-const authMiddleware = require('../middlewares/auth');
 
 const router = express.Router();
 
-// Cadastrar endereço
+// =========================
+// ENDEREÇO
+// =========================
 router.post('/endereco', async (req, res) => {
   try {
     const { cidade, bairro, rua, numero, complemento, cep } = req.body;
@@ -14,31 +15,34 @@ router.post('/endereco', async (req, res) => {
     if (!cidade || !bairro || !rua || !numero || !cep) {
       return res.status(400).json({
         success: false,
-        message: 'Cidade, bairro, rua, número e CEP são obrigatórios'
+        message: 'Cidade, bairro, rua, número e CEP são obrigatórios',
       });
     }
 
     const result = await db.query(
-      'INSERT INTO endereco (Cidade, Bairro, Rua, Numero, Complemento, Cep) VALUES (?, ?, ?, ?, ?, ?)',
+      `INSERT INTO endereco (Cidade, Bairro, Rua, Numero, Complemento, Cep)
+       VALUES (?, ?, ?, ?, ?, ?)`,
       [cidade, bairro, rua, numero, complemento || null, cep]
     );
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: 'Endereço cadastrado com sucesso',
-      data: { idEndereco: result.insertId }
+      data: { idEndereco: result.insertId },
     });
   } catch (error) {
     console.error('Erro ao cadastrar endereço:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Erro interno do servidor',
-      error: error.message
+      error: error.message,
     });
   }
 });
 
-// Cadastrar responsável
+// =========================
+// CADASTRAR RESPONSÁVEL
+// =========================
 router.post('/', async (req, res) => {
   try {
     const {
@@ -49,13 +53,21 @@ router.post('/', async (req, res) => {
       telefone,
       dataNascimento,
       senha,
-      fotoUrl
+      fotoUrl,
     } = req.body;
 
-    if (!idEndereco || !cpf || !nome || !email || !telefone || !dataNascimento || !senha) {
+    if (
+      !idEndereco ||
+      !cpf ||
+      !nome ||
+      !email ||
+      !telefone ||
+      !dataNascimento ||
+      !senha
+    ) {
       return res.status(400).json({
         success: false,
-        message: 'Todos os campos obrigatórios devem ser preenchidos'
+        message: 'Todos os campos obrigatórios devem ser preenchidos',
       });
     }
 
@@ -67,7 +79,7 @@ router.post('/', async (req, res) => {
     if (existingCpf.length > 0) {
       return res.status(400).json({
         success: false,
-        message: 'CPF já cadastrado'
+        message: 'CPF já cadastrado',
       });
     }
 
@@ -79,33 +91,37 @@ router.post('/', async (req, res) => {
     if (existingEmail.length > 0) {
       return res.status(400).json({
         success: false,
-        message: 'Email já cadastrado'
+        message: 'Email já cadastrado',
       });
     }
 
     const hashedPassword = await bcrypt.hash(senha, 10);
 
     const result = await db.query(
-      'INSERT INTO responsavel (IdEndereco, Cpf, Nome, Email, Telefone, DataNascimento, Senha, FotoUrl) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      `INSERT INTO responsavel
+      (IdEndereco, Cpf, Nome, Email, Telefone, DataNascimento, Senha, FotoUrl)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [idEndereco, cpf, nome, email, telefone, dataNascimento, hashedPassword, fotoUrl || null]
     );
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: 'Responsável cadastrado com sucesso',
-      data: { idResponsavel: result.insertId }
+      data: { idResponsavel: result.insertId },
     });
   } catch (error) {
     console.error('Erro ao cadastrar responsável:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Erro interno do servidor',
-      error: error.message
+      error: error.message,
     });
   }
 });
 
-// Cadastro completo
+// =========================
+// CADASTRO COMPLETO
+// =========================
 router.post('/completo', async (req, res) => {
   let connection;
 
@@ -123,13 +139,25 @@ router.post('/completo', async (req, res) => {
       telefone,
       dataNascimento,
       senha,
-      fotoUrl
+      fotoUrl,
     } = req.body;
 
-    if (!cidade || !bairro || !rua || !numero || !cep || !cpf || !nome || !email || !telefone || !dataNascimento || !senha) {
+    if (
+      !cidade ||
+      !bairro ||
+      !rua ||
+      !numero ||
+      !cep ||
+      !cpf ||
+      !nome ||
+      !email ||
+      !telefone ||
+      !dataNascimento ||
+      !senha
+    ) {
       return res.status(400).json({
         success: false,
-        message: 'Todos os campos obrigatórios devem ser preenchidos'
+        message: 'Todos os campos obrigatórios devem ser preenchidos',
       });
     }
 
@@ -141,7 +169,7 @@ router.post('/completo', async (req, res) => {
     if (existingCpf.length > 0) {
       return res.status(400).json({
         success: false,
-        message: 'CPF já cadastrado'
+        message: 'CPF já cadastrado',
       });
     }
 
@@ -153,7 +181,7 @@ router.post('/completo', async (req, res) => {
     if (existingEmail.length > 0) {
       return res.status(400).json({
         success: false,
-        message: 'Email já cadastrado'
+        message: 'Email já cadastrado',
       });
     }
 
@@ -161,7 +189,8 @@ router.post('/completo', async (req, res) => {
     await connection.beginTransaction();
 
     const [addressResult] = await connection.execute(
-      'INSERT INTO endereco (Cidade, Bairro, Rua, Numero, Complemento, Cep) VALUES (?, ?, ?, ?, ?, ?)',
+      `INSERT INTO endereco (Cidade, Bairro, Rua, Numero, Complemento, Cep)
+       VALUES (?, ?, ?, ?, ?, ?)`,
       [cidade, bairro, rua, numero, complemento || null, cep]
     );
 
@@ -169,19 +198,21 @@ router.post('/completo', async (req, res) => {
     const hashedPassword = await bcrypt.hash(senha, 10);
 
     const [guardianResult] = await connection.execute(
-      'INSERT INTO responsavel (IdEndereco, Cpf, Nome, Email, Telefone, DataNascimento, Senha, FotoUrl) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      `INSERT INTO responsavel
+      (IdEndereco, Cpf, Nome, Email, Telefone, DataNascimento, Senha, FotoUrl)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [idEndereco, cpf, nome, email, telefone, dataNascimento, hashedPassword, fotoUrl || null]
     );
 
     await connection.commit();
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: 'Responsável cadastrado com sucesso',
       data: {
         idResponsavel: guardianResult.insertId,
-        idEndereco: idEndereco
-      }
+        idEndereco,
+      },
     });
   } catch (error) {
     if (connection) {
@@ -191,10 +222,10 @@ router.post('/completo', async (req, res) => {
     }
 
     console.error('Erro no cadastro completo:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Erro interno do servidor',
-      error: error.message
+      error: error.message,
     });
   } finally {
     if (connection) {
@@ -203,50 +234,65 @@ router.post('/completo', async (req, res) => {
   }
 });
 
-// Listar responsáveis
+// =========================
+// LISTAR RESPONSÁVEIS
+// =========================
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const responsaveis = await db.query(`
-      SELECT r.*, e.Cidade, e.Bairro, e.Rua, e.Numero, e.Complemento, e.Cep
+      SELECT
+        r.*,
+        e.Cidade,
+        e.Bairro,
+        e.Rua,
+        e.Numero,
+        e.Complemento,
+        e.Cep
       FROM responsavel r
       LEFT JOIN endereco e ON r.IdEndereco = e.IdEndereco
     `);
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Responsáveis listados com sucesso',
-      data: responsaveis
+      data: responsaveis,
     });
   } catch (error) {
     console.error('Erro ao listar responsáveis:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Erro interno do servidor',
-      error: error.message
+      error: error.message,
     });
   }
 });
 
 // =========================
-// ROTAS DE VAGAS
+// VAGAS
 // =========================
-
-// Criar vaga
 router.post('/vagas', authenticateToken, async (req, res) => {
   try {
     if (req.user.tipo !== 'responsavel') {
       return res.status(403).json({
         success: false,
-        message: 'Apenas responsáveis podem criar vagas'
+        message: 'Apenas responsáveis podem criar vagas',
       });
     }
 
-    const { titulo, descricao, cidade, dataServico, horaInicio, horaFim, valor } = req.body;
+    const {
+      titulo,
+      descricao,
+      cidade,
+      dataServico,
+      horaInicio,
+      horaFim,
+      valor,
+    } = req.body;
 
     if (!titulo || !descricao || !cidade || !dataServico || !horaInicio || !horaFim || !valor) {
       return res.status(400).json({
         success: false,
-        message: 'Todos os campos obrigatórios devem ser preenchidos'
+        message: 'Todos os campos obrigatórios devem ser preenchidos',
       });
     }
 
@@ -257,75 +303,78 @@ router.post('/vagas', authenticateToken, async (req, res) => {
       [req.user.id, titulo, descricao, cidade, dataServico, horaInicio, horaFim, valor, 'Aberta']
     );
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: 'Vaga criada com sucesso',
-      data: { idVaga: result.insertId }
+      data: { idVaga: result.insertId },
     });
   } catch (error) {
     console.error('Erro ao criar vaga:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Erro interno do servidor',
-      error: error.message
+      error: error.message,
     });
   }
 });
 
-// Listar vagas do responsável logado
 router.get('/vagas/minhas', authenticateToken, async (req, res) => {
   try {
     const vagas = await db.query(
-      `SELECT v.*, r.Nome AS NomeResponsavel, r.Telefone AS TelefoneResponsavel
-       FROM vaga v
-       INNER JOIN responsavel r ON v.IdResponsavel = r.IdResponsavel
-       WHERE v.IdResponsavel = ?
-       ORDER BY v.IdVaga DESC`,
+      `SELECT
+        v.*,
+        r.Nome AS NomeResponsavel,
+        r.Telefone AS TelefoneResponsavel
+      FROM vaga v
+      INNER JOIN responsavel r ON v.IdResponsavel = r.IdResponsavel
+      WHERE v.IdResponsavel = ?
+      ORDER BY v.IdVaga DESC`,
       [req.user.id]
     );
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Vagas listadas com sucesso',
-      data: vagas
+      data: vagas,
     });
   } catch (error) {
     console.error('Erro ao listar vagas:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Erro interno do servidor',
-      error: error.message
+      error: error.message,
     });
   }
 });
 
-// Listar vagas abertas
 router.get('/vagas/abertas', authenticateToken, async (req, res) => {
   try {
     const vagas = await db.query(
-      `SELECT v.*, r.Nome AS NomeResponsavel, r.Telefone AS TelefoneResponsavel
-       FROM vaga v
-       INNER JOIN responsavel r ON v.IdResponsavel = r.IdResponsavel
-       WHERE v.Status = 'Aberta'
-       ORDER BY v.IdVaga DESC`
+      `SELECT
+        v.*,
+        r.Nome AS NomeResponsavel,
+        r.Telefone AS TelefoneResponsavel
+      FROM vaga v
+      INNER JOIN responsavel r ON v.IdResponsavel = r.IdResponsavel
+      WHERE v.Status = 'Aberta'
+      ORDER BY v.IdVaga DESC`
     );
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Vagas abertas listadas com sucesso',
-      data: vagas
+      data: vagas,
     });
   } catch (error) {
     console.error('Erro ao listar vagas abertas:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Erro interno do servidor',
-      error: error.message
+      error: error.message,
     });
   }
 });
 
-// Criar vaga sem token
 router.post('/criar-vaga', async (req, res) => {
   try {
     const {
@@ -336,32 +385,34 @@ router.post('/criar-vaga', async (req, res) => {
       dataServico,
       horaInicio,
       horaFim,
-      valor
+      valor,
     } = req.body;
 
     if (
-      !idResponsavel || !titulo || !descricao || !cidade ||
-      !dataServico || !horaInicio || !horaFim || valor == null
+      !idResponsavel ||
+      !titulo ||
+      !descricao ||
+      !cidade ||
+      !dataServico ||
+      !horaInicio ||
+      !horaFim ||
+      valor == null
     ) {
       return res.status(400).json({
         success: false,
-        message: 'Preencha todos os campos obrigatórios da vaga'
+        message: 'Preencha todos os campos obrigatórios da vaga',
       });
     }
 
-    const responsavelResult = await db.query(
+    const responsavelRows = await db.query(
       'SELECT IdResponsavel FROM responsavel WHERE IdResponsavel = ?',
       [idResponsavel]
     );
 
-    const responsavelRows = Array.isArray(responsavelResult[0])
-      ? responsavelResult[0]
-      : responsavelResult;
-
     if (!responsavelRows || responsavelRows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Responsável não encontrado'
+        message: 'Responsável não encontrado',
       });
     }
 
@@ -375,60 +426,74 @@ router.post('/criar-vaga', async (req, res) => {
     return res.status(201).json({
       success: true,
       message: 'Vaga criada com sucesso',
-      data: { idVaga: result.insertId }
+      data: { idVaga: result.insertId },
     });
   } catch (error) {
     console.error('Erro ao criar vaga:', error);
     return res.status(500).json({
       success: false,
       message: 'Erro ao criar vaga',
-      error: error.message
+      error: error.message,
     });
   }
 });
 
-// Listar vagas do responsável por ID
 router.get('/:id/vagas', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const result = await db.query(
-      `SELECT IdVaga, IdResponsavel, Titulo, Descricao, Cidade, DataServico,
-              HoraInicio, HoraFim, Valor, Status, DataCriacao
-       FROM vaga
-       WHERE IdResponsavel = ?
-       ORDER BY DataCriacao DESC`,
+    const rows = await db.query(
+      `SELECT
+        IdVaga,
+        IdResponsavel,
+        Titulo,
+        Descricao,
+        Cidade,
+        DataServico,
+        HoraInicio,
+        HoraFim,
+        Valor,
+        Status,
+        DataCriacao
+      FROM vaga
+      WHERE IdResponsavel = ?
+      ORDER BY DataCriacao DESC`,
       [id]
     );
 
-    const rows = Array.isArray(result[0]) ? result[0] : result;
-
     return res.json({
       success: true,
-      data: rows
+      data: rows,
     });
   } catch (error) {
     console.error('Erro ao listar vagas do responsável:', error);
     return res.status(500).json({
       success: false,
       message: 'Erro ao listar vagas do responsável',
-      error: error.message
+      error: error.message,
     });
   }
 });
 
-// Editar vaga
 router.put('/vagas/:idVaga', authenticateToken, async (req, res) => {
   try {
     if (req.user.tipo !== 'responsavel') {
       return res.status(403).json({
         success: false,
-        message: 'Apenas responsáveis podem editar vagas'
+        message: 'Apenas responsáveis podem editar vagas',
       });
     }
 
     const { idVaga } = req.params;
-    const { titulo, descricao, cidade, dataServico, horaInicio, horaFim, valor } = req.body;
+    const {
+      titulo,
+      descricao,
+      cidade,
+      dataServico,
+      horaInicio,
+      horaFim,
+      valor,
+    } = req.body;
 
     const vagas = await db.query(
       'SELECT * FROM vaga WHERE IdVaga = ? AND IdResponsavel = ?',
@@ -438,7 +503,7 @@ router.put('/vagas/:idVaga', authenticateToken, async (req, res) => {
     if (vagas.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Vaga não encontrada'
+        message: 'Vaga não encontrada',
       });
     }
 
@@ -449,27 +514,26 @@ router.put('/vagas/:idVaga', authenticateToken, async (req, res) => {
       [titulo, descricao, cidade, dataServico, horaInicio, horaFim, valor, idVaga, req.user.id]
     );
 
-    res.json({
+    return res.json({
       success: true,
-      message: 'Vaga atualizada com sucesso'
+      message: 'Vaga atualizada com sucesso',
     });
   } catch (error) {
     console.error('Erro ao editar vaga:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Erro interno do servidor',
-      error: error.message
+      error: error.message,
     });
   }
 });
 
-// Alterar status
 router.put('/vagas/:idVaga/status', authenticateToken, async (req, res) => {
   try {
     if (req.user.tipo !== 'responsavel') {
       return res.status(403).json({
         success: false,
-        message: 'Apenas responsáveis podem alterar status de vagas'
+        message: 'Apenas responsáveis podem alterar status de vagas',
       });
     }
 
@@ -479,7 +543,7 @@ router.put('/vagas/:idVaga/status', authenticateToken, async (req, res) => {
     if (!status || !['Aberta', 'Encerrada'].includes(status)) {
       return res.status(400).json({
         success: false,
-        message: 'Status inválido'
+        message: 'Status inválido',
       });
     }
 
@@ -491,7 +555,7 @@ router.put('/vagas/:idVaga/status', authenticateToken, async (req, res) => {
     if (vagas.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Vaga não encontrada'
+        message: 'Vaga não encontrada',
       });
     }
 
@@ -500,27 +564,27 @@ router.put('/vagas/:idVaga/status', authenticateToken, async (req, res) => {
       [status, idVaga, req.user.id]
     );
 
-    res.json({
+    return res.json({
       success: true,
-      message: 'Status da vaga atualizado com sucesso'
+      message: 'Status da vaga atualizado com sucesso',
     });
   } catch (error) {
     console.error('Erro ao atualizar status da vaga:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Erro interno do servidor',
-      error: error.message
+      error: error.message,
     });
   }
 });
 
-// Excluir vaga
+// exclusão correta
 router.delete('/vagas/:idVaga', authenticateToken, async (req, res) => {
   try {
     if (req.user.tipo !== 'responsavel') {
       return res.status(403).json({
         success: false,
-        message: 'Apenas responsáveis podem excluir vagas'
+        message: 'Apenas responsáveis podem excluir vagas',
       });
     }
 
@@ -534,7 +598,7 @@ router.delete('/vagas/:idVaga', authenticateToken, async (req, res) => {
     if (vagas.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Vaga não encontrada'
+        message: 'Vaga não encontrada',
       });
     }
 
@@ -543,27 +607,26 @@ router.delete('/vagas/:idVaga', authenticateToken, async (req, res) => {
       [idVaga, req.user.id]
     );
 
-    res.json({
+    return res.json({
       success: true,
-      message: 'Vaga excluída com sucesso'
+      message: 'Vaga excluída com sucesso',
     });
   } catch (error) {
     console.error('Erro ao excluir vaga:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Erro interno do servidor',
-      error: error.message
+      error: error.message,
     });
   }
 });
 
-// Ver interessados
 router.get('/vagas/:idVaga/interessados', authenticateToken, async (req, res) => {
   try {
     if (req.user.tipo !== 'responsavel') {
       return res.status(403).json({
         success: false,
-        message: 'Apenas responsáveis podem ver interessados'
+        message: 'Apenas responsáveis podem ver interessados',
       });
     }
 
@@ -577,65 +640,38 @@ router.get('/vagas/:idVaga/interessados', authenticateToken, async (req, res) =>
     if (vagas.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Vaga não encontrada'
+        message: 'Vaga não encontrada',
       });
     }
 
     const interessados = await db.query(
-      `SELECT vc.IdVagaCuidador, vc.IdVaga, vc.IdCuidador, vc.DataAceite,
-              c.Nome, c.Email, c.Telefone, c.Biografia, c.ValorHora
-       FROM vagacuidador vc
-       INNER JOIN cuidador c ON c.IdCuidador = vc.IdCuidador
-       WHERE vc.IdVaga = ?
-       ORDER BY vc.IdVagaCuidador DESC`,
+      `SELECT
+        vc.IdVagaCuidador,
+        vc.IdVaga,
+        vc.IdCuidador,
+        vc.DataAceite,
+        c.Nome,
+        c.Email,
+        c.Telefone,
+        c.Biografia,
+        c.ValorHora
+      FROM vagacuidador vc
+      INNER JOIN cuidador c ON c.IdCuidador = vc.IdCuidador
+      WHERE vc.IdVaga = ?
+      ORDER BY vc.IdVagaCuidador DESC`,
       [idVaga]
     );
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Interessados listados com sucesso',
-      data: interessados
+      data: interessados,
     });
   } catch (error) {
     console.error('Erro ao listar interessados:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Erro interno do servidor',
-      error: error.message
-    });
-  }
-});
-router.delete('/vaga/:id', authMiddleware, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const idResponsavel = req.user.id;
-
-    const [vaga] = await db.query(
-      'SELECT * FROM vaga WHERE IdVaga = ? AND IdResponsavel = ?',
-      [id, idResponsavel]
-    );
-
-    if (!vaga || vaga.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Vaga não encontrada para este responsável',
-      });
-    }
-
-    await db.query(
-      'DELETE FROM vaga WHERE IdVaga = ? AND IdResponsavel = ?',
-      [id, idResponsavel]
-    );
-
-    res.status(200).json({
-      success: true,
-      message: 'Vaga excluída com sucesso',
-    });
-  } catch (error) {
-    console.error('ERRO AO EXCLUIR VAGA:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno do servidor ao excluir vaga',
       error: error.message,
     });
   }
