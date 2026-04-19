@@ -179,6 +179,85 @@ class _MinhasVagasResponsavelPageState
     }
   }
 
+  Future<void> verInteressados(int idVaga) async {
+    try {
+      final response =
+          await ApiClient.get('/api/responsavel/vagas/$idVaga/interessados');
+
+      print('RESPOSTA INTERESSADOS: $response');
+
+      if (!mounted) return;
+
+      if (response != null && response['success'] == true) {
+        final List<dynamic> interessados = response['data'] ?? [];
+
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Interessados'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: interessados.isEmpty
+                  ? const Text('Nenhum cuidador interessado ainda.')
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: interessados.length,
+                      itemBuilder: (context, index) {
+                        final interessado =
+                            Map<String, dynamic>.from(interessados[index]);
+
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          child: ListTile(
+                            title: Text(interessado['Nome'] ?? 'Sem nome'),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 6),
+                                Text(
+                                  '📧 ${interessado['Email'] ?? 'Não informado'}',
+                                ),
+                                Text(
+                                  '📱 ${interessado['Telefone'] ?? 'Não informado'}',
+                                ),
+                                Text(
+                                  '💰 Valor/hora: R\$ ${interessado['ValorHora'] ?? 'Não informado'}',
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  '📝 ${interessado['Biografia'] ?? 'Sem biografia'}',
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Fechar'),
+              ),
+            ],
+          ),
+        );
+      } else {
+        throw Exception(response?['message'] ?? 'Erro ao buscar interessados');
+      }
+    } catch (e) {
+      print('ERRO AO BUSCAR INTERESSADOS: $e');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao buscar interessados: $e'),
+        ),
+      );
+    }
+  }
+
   void verDetalhesVaga(Map<String, dynamic> vaga) {
     showDialog(
       context: context,
@@ -414,6 +493,11 @@ class _MinhasVagasResponsavelPageState
                   icon: const Icon(Icons.visibility),
                   tooltip: 'Ver detalhes',
                   onPressed: () => verDetalhesVaga(vaga),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.people, color: Colors.deepPurple),
+                  tooltip: 'Ver interessados',
+                  onPressed: () => verInteressados(vaga['IdVaga']),
                 ),
                 IconButton(
                   icon: const Icon(Icons.edit, color: Colors.blue),
