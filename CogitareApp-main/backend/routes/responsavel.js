@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const db = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
+const authMiddleware = require('../middlewares/auth');
 
 const router = express.Router();
 
@@ -601,6 +602,41 @@ router.get('/vagas/:idVaga/interessados', authenticateToken, async (req, res) =>
       success: false,
       message: 'Erro interno do servidor',
       error: error.message
+    });
+  }
+});
+router.delete('/vaga/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const idResponsavel = req.user.id;
+
+    const [vaga] = await db.query(
+      'SELECT * FROM vaga WHERE IdVaga = ? AND IdResponsavel = ?',
+      [id, idResponsavel]
+    );
+
+    if (!vaga || vaga.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vaga não encontrada para este responsável',
+      });
+    }
+
+    await db.query(
+      'DELETE FROM vaga WHERE IdVaga = ? AND IdResponsavel = ?',
+      [id, idResponsavel]
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Vaga excluída com sucesso',
+    });
+  } catch (error) {
+    console.error('ERRO AO EXCLUIR VAGA:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor ao excluir vaga',
+      error: error.message,
     });
   }
 });

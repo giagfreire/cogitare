@@ -24,6 +24,8 @@ class ApiClient {
   static Map<String, String> get _headers => {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
         if (_token != null) 'Authorization': 'Bearer $_token',
       };
 
@@ -32,120 +34,63 @@ class ApiClient {
 
     try {
       return jsonDecode(response.body);
-    } catch (_) {
+    } catch (e) {
       return response.body;
     }
   }
 
-  static Future<Map<String, dynamic>> post(
-    String endpoint,
-    Map<String, dynamic> data,
-  ) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl$endpoint'),
-        headers: _headers,
-        body: jsonEncode(data),
-      );
+  // =========================
+  // GET
+  // =========================
+  static Future<dynamic> get(String endpoint) async {
+    final uri = Uri.parse('$baseUrl$endpoint');
 
-      final responseData = _decodeBody(response);
+    final response = await http.get(uri, headers: _headers);
 
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        if (responseData is Map<String, dynamic>) {
-          return responseData;
-        }
-        return {'success': true, 'data': responseData};
-      }
-
-      throw Exception(
-        responseData is Map<String, dynamic>
-            ? (responseData['message'] ?? 'Erro na requisição POST')
-            : 'Erro na requisição POST',
-      );
-    } catch (e) {
-      throw Exception('Erro de conexão POST: $e');
-    }
+    return _decodeBody(response);
   }
 
-  static Future<Map<String, dynamic>> get(String endpoint) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl$endpoint'),
-        headers: _headers,
-      );
+  // =========================
+  // POST
+  // =========================
+  static Future<dynamic> post(String endpoint, dynamic body) async {
+    final uri = Uri.parse('$baseUrl$endpoint');
 
-      final responseData = _decodeBody(response);
+    final response = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode(body),
+    );
 
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        if (responseData is Map<String, dynamic>) {
-          return responseData;
-        }
-        return {'success': true, 'data': responseData};
-      }
-
-      throw Exception(
-        responseData is Map<String, dynamic>
-            ? (responseData['message'] ?? 'Erro na requisição GET')
-            : 'Erro na requisição GET',
-      );
-    } catch (e) {
-      throw Exception('Erro de conexão GET: $e');
-    }
+    return _decodeBody(response);
   }
 
-  static Future<Map<String, dynamic>> put(
-    String endpoint,
-    Map<String, dynamic> data,
-  ) async {
-    try {
-      final response = await http.put(
-        Uri.parse('$baseUrl$endpoint'),
-        headers: _headers,
-        body: jsonEncode(data),
-      );
+  // =========================
+  // PUT
+  // =========================
+  static Future<dynamic> put(String endpoint, dynamic body) async {
+    final uri = Uri.parse('$baseUrl$endpoint');
 
-      final responseData = _decodeBody(response);
+    final response = await http.put(
+      uri,
+      headers: _headers,
+      body: jsonEncode(body),
+    );
 
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        if (responseData is Map<String, dynamic>) {
-          return responseData;
-        }
-        return {'success': true, 'data': responseData};
-      }
-
-      throw Exception(
-        responseData is Map<String, dynamic>
-            ? (responseData['message'] ?? 'Erro na requisição PUT')
-            : 'Erro na requisição PUT',
-      );
-    } catch (e) {
-      throw Exception('Erro de conexão PUT: $e');
-    }
+    return _decodeBody(response);
   }
 
-  static Future<Map<String, dynamic>> delete(String endpoint) async {
-    try {
-      final response = await http.delete(
-        Uri.parse('$baseUrl$endpoint'),
-        headers: _headers,
-      );
+  // =========================
+  // DELETE 
+  // =========================
+  static Future<dynamic> delete(String endpoint) async {
+    final uri = Uri.parse('$baseUrl$endpoint');
 
-      final responseData = _decodeBody(response);
+    final response = await http.delete(
+      uri,
+      headers: _headers,
+    );
 
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        if (responseData is Map<String, dynamic>) {
-          return responseData;
-        }
-        return {'success': true, 'data': responseData};
-      }
-
-      throw Exception(
-        responseData is Map<String, dynamic>
-            ? (responseData['message'] ?? 'Erro na requisição DELETE')
-            : 'Erro na requisição DELETE',
-      );
-    } catch (e) {
-      throw Exception('Erro de conexão DELETE: $e');
-    }
+    return _decodeBody(response);
   }
 }
