@@ -1,8 +1,9 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
-import 'selecao_papel.dart';
+import 'package:flutter/material.dart';
+
 import '../services/servico_autenticacao.dart';
 import '../utils/navigation_utils.dart';
+import 'selecao_papel.dart';
 
 class OnboardingScreen extends StatefulWidget {
   final bool skipToLastPage;
@@ -67,6 +68,80 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final initialPage = widget.skipToLastPage ? onboardingData.length : 0;
     _currentPage = initialPage;
     _pageController = PageController(initialPage: initialPage);
+  }
+
+  Future<void> _goToLogin() async {
+    try {
+      NavigationUtils.navigateToLogin(context);
+      return;
+    } catch (_) {}
+
+    try {
+      Navigator.pushNamed(context, '/login');
+      return;
+    } catch (_) {}
+
+    try {
+      Navigator.pushNamed(context, '/entrar');
+      return;
+    } catch (_) {}
+
+    try {
+      Navigator.pushNamed(context, '/tela-login');
+      return;
+    } catch (_) {}
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('A rota de login ainda não está configurada no app.'),
+      ),
+    );
+  }
+
+  void _showTermsDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Termos de Uso'),
+          content: const SingleChildScrollView(
+            child: Text(
+              'Ao utilizar o aplicativo Cogitare, você concorda em fornecer '
+              'informações verdadeiras e atualizadas. Os dados cadastrados '
+              'serão utilizados para facilitar a conexão entre responsáveis '
+              'e cuidadores, melhorar a organização da rotina de cuidados '
+              'e oferecer mais praticidade no uso do app.\n\n'
+              'O usuário é responsável pelas informações inseridas no sistema. '
+              'A plataforma se compromete a preservar a privacidade e a segurança '
+              'dos dados, adotando boas práticas de proteção das informações.\n\n'
+              'Ao prosseguir, você declara estar ciente e de acordo com essas condições.',
+              style: TextStyle(height: 1.5),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Fechar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _startApp() async {
+    await ServicoAutenticacao.markOnboardingSeen();
+
+    if (!mounted) return;
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const SelecaoPapel(),
+      ),
+    );
   }
 
   @override
@@ -158,8 +233,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                               CrossAxisAlignment.start,
                                           children: [
                                             const Padding(
-                                              padding:
-                                                  EdgeInsets.only(top: 2),
+                                              padding: EdgeInsets.only(top: 2),
                                               child: Icon(
                                                 Icons.check_circle,
                                                 size: 18,
@@ -378,18 +452,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () async {
-                await ServicoAutenticacao.markOnboardingSeen();
-
-                if (!context.mounted) return;
-
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const SelecaoPapel(),
-                  ),
-                );
-              },
+              onPressed: _startApp,
               style: ElevatedButton.styleFrom(
                 backgroundColor: rosa,
                 foregroundColor: Colors.white,
@@ -408,51 +471,58 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          RichText(
-            textAlign: TextAlign.center,
-            text: TextSpan(
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade800,
+          Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                "Já tem uma conta? ",
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade800,
+                ),
               ),
-              children: [
-                const TextSpan(text: "Já tem uma conta? "),
-                WidgetSpan(
-                  alignment: PlaceholderAlignment.middle,
-                  child: GestureDetector(
-                    onTap: () {
-                      NavigationUtils.navigateToLogin(context);
-                    },
-                    child: const Text(
-                      "Faça login.",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: roxo,
-                        decoration: TextDecoration.underline,
-                      ),
-                    ),
+              TextButton(
+                onPressed: _goToLogin,
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 0,
+                  ),
+                  minimumSize: const Size(0, 0),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text(
+                  "Faça login.",
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: roxo,
+                    decoration: TextDecoration.underline,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           RichText(
             textAlign: TextAlign.center,
             text: TextSpan(
               style: TextStyle(
                 fontSize: 12,
                 color: Colors.grey.shade600,
+                height: 1.5,
               ),
-              children: const [
-                TextSpan(text: "Ao prosseguir você concorda com os "),
+              children: [
+                const TextSpan(text: "Ao prosseguir você concorda com os "),
                 TextSpan(
                   text: "Termos de Uso",
-                  style: TextStyle(
+                  style: const TextStyle(
                     decoration: TextDecoration.underline,
                     color: roxo,
                     fontWeight: FontWeight.w600,
                   ),
+                  recognizer: TapGestureRecognizer()..onTap = _showTermsDialog,
                 ),
               ],
             ),

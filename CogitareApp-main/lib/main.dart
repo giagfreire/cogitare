@@ -5,6 +5,7 @@ import 'screens/tela_cadastro_responsavel.dart';
 import 'screens/tela_cadastro_idoso.dart';
 import 'screens/tela_sucesso.dart';
 import 'screens/criar_vaga_page.dart';
+import 'screens/tela_login.dart';
 
 void main() {
   runApp(const CogitareApp());
@@ -154,6 +155,7 @@ class CogitareApp extends StatelessWidget {
       initialRoute: '/',
       routes: {
         '/': (context) => const OnboardingScreen(),
+        '/login': (context) => const TelaLogin(),
         TelaCadastroResponsavel.route: (context) =>
             const TelaCadastroResponsavel(),
         TelaCadastroIdoso.route: (context) => const TelaCadastroIdoso(),
