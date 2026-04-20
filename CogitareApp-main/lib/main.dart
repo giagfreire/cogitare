@@ -42,21 +42,21 @@ class CogitareApp extends StatelessWidget {
           elevation: 0,
           centerTitle: true,
         ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFFE0472),
-            foregroundColor: Colors.white,
-            minimumSize: const Size(double.infinity, 52),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            textStyle: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
+elevatedButtonTheme: ElevatedButtonThemeData(
+  style: ElevatedButton.styleFrom(
+    backgroundColor: const Color(0xFFFE0472),
+    foregroundColor: Colors.white,
+    minimumSize: const Size(0, 52),
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16),
+    ),
+    textStyle: const TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.w600,
+    ),
+  ),
+),        inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: Colors.white,
           labelStyle: const TextStyle(
