@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+
 import '../services/api_service.dart';
-import '../services/session_service.dart';
+import '../services/servico_autenticacao.dart';
 import 'agenda_cuidador_page.dart';
-import 'planos_cuidador_page.dart';
-import 'vagas_cuidador_page.dart';
 import 'minhas_vagas_aceitas_page.dart';
 import 'perfil_cuidador_page.dart';
+import 'planos_cuidador_page.dart';
+import 'vagas_cuidador_page.dart';
 
 class DashboardCuidador extends StatefulWidget {
   static const route = '/dashboard-cuidador';
@@ -20,8 +21,14 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
   int _selectedIndex = 0;
   bool _isLoading = true;
   String? _errorMessage;
+
   Map<String, dynamic>? _cuidador;
   String _planoAtual = 'Basico';
+
+  static const Color roxo = Color(0xFF42124C);
+  static const Color rosa = Color(0xFFFE0472);
+  static const Color verde = Color(0xFF8AFF00);
+  static const Color fundo = Color(0xFFF7F8FC);
 
   @override
   void initState() {
@@ -30,13 +37,48 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
   }
 
   Future<void> _carregarDados() async {
+    if (!mounted) return;
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      final cuidadorId = await SessionService.getCuidadorId();
+      final token = await ServicoAutenticacao.getToken();
+      if (token != null && token.toString().trim().isNotEmpty) {
+        ServicoApi.setToken(token.toString());
+      }
+
+      final userType = await ServicoAutenticacao.getUserType();
+      final userData = await ServicoAutenticacao.getUserData();
+
+      if (userType != 'cuidador') {
+        if (!mounted) return;
+        setState(() {
+          _errorMessage = 'O usuário logado não é um cuidador.';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      if (userData == null) {
+        if (!mounted) return;
+        setState(() {
+          _errorMessage = 'Não foi possível recuperar os dados do cuidador logado.';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      final dynamic cuidadorIdDinamico =
+          userData['IdCuidador'] ??
+          userData['idCuidador'] ??
+          userData['cuidadorId'] ??
+          userData['id'] ??
+          userData['Id'];
+
+      final int? cuidadorId = _parseInt(cuidadorIdDinamico);
 
       if (cuidadorId == null) {
         if (!mounted) return;
@@ -47,12 +89,13 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
         return;
       }
 
+      print('ID DO CUIDADOR LOGADO: $cuidadorId');
+
       final responseCuidador = await ServicoApi.get('/api/cuidador/$cuidadorId');
       print('RESPOSTA DASHBOARD CUIDADOR: $responseCuidador');
 
       if (responseCuidador['success'] == true && responseCuidador['data'] != null) {
         _cuidador = Map<String, dynamic>.from(responseCuidador['data']);
-        print('DATA CUIDADOR: $_cuidador');
       } else {
         _errorMessage =
             responseCuidador['message'] ?? 'Erro ao carregar dados do cuidador.';
@@ -63,8 +106,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
         print('RESPOSTA PLANO CUIDADOR: $responsePlano');
 
         if (responsePlano['success'] == true && responsePlano['data'] != null) {
-          _planoAtual =
-              (responsePlano['data']['PlanoAtual'] ?? 'Basico').toString();
+          _planoAtual = (responsePlano['data']['PlanoAtual'] ?? 'Basico').toString();
         }
       } catch (e) {
         print('ERRO AO CARREGAR PLANO: $e');
@@ -75,13 +117,20 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
         _isLoading = false;
       });
     } catch (e) {
-      print('ERRO NO DASHBOARD: $e');
+      print('ERRO NO DASHBOARD CUIDADOR: $e');
+
       if (!mounted) return;
       setState(() {
         _errorMessage = 'Erro ao carregar dashboard: $e';
         _isLoading = false;
       });
     }
+  }
+
+  int? _parseInt(dynamic valor) {
+    if (valor == null) return null;
+    if (valor is int) return valor;
+    return int.tryParse(valor.toString());
   }
 
   Future<void> _refreshDashboard() async {
@@ -93,24 +142,32 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
       setState(() {
         _selectedIndex = 0;
       });
-    } else if (index == 1) {
+      return;
+    }
+
+    if (index == 1) {
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => const AgendaCuidadorPage(),
         ),
       );
-    } else if (index == 2) {
+      return;
+    }
+
+    if (index == 2) {
       Navigator.pushNamed(context, '/configuracoes-cuidador');
     }
   }
 
   String _textoSeguro(dynamic valor, {String fallback = 'Não informado'}) {
     if (valor == null) return fallback;
+
     final texto = valor.toString().trim();
     if (texto.isEmpty || texto.toLowerCase() == 'null') {
       return fallback;
     }
+
     return texto;
   }
 
@@ -118,12 +175,23 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 20, color: Colors.blueGrey),
+        Icon(icon, size: 20, color: roxo),
         const SizedBox(width: 10),
         Expanded(
-          child: Text(
-            '$label: $value',
-            style: const TextStyle(fontSize: 15),
+          child: RichText(
+            text: TextSpan(
+              style: const TextStyle(
+                fontSize: 15,
+                color: Colors.black87,
+              ),
+              children: [
+                TextSpan(
+                  text: '$label: ',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                TextSpan(text: value),
+              ],
+            ),
           ),
         ),
       ],
@@ -140,18 +208,26 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Icon(
-              icon,
-              size: 32,
-              color: const Color(0xFF35064E),
+            Container(
+              height: 52,
+              width: 52,
+              decoration: BoxDecoration(
+                color: roxo.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(
+                icon,
+                size: 28,
+                color: roxo,
+              ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -166,16 +242,28 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                   const SizedBox(height: 4),
                   Text(
                     subtitulo,
-                    style: const TextStyle(fontSize: 14),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade700,
+                      height: 1.35,
+                    ),
                   ),
                 ],
               ),
             ),
+            const SizedBox(width: 10),
             ElevatedButton(
               onPressed: onPressed,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF35064E),
+                backgroundColor: rosa,
                 foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               child: Text(textoBotao),
             ),
@@ -187,13 +275,23 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
 
   @override
   Widget build(BuildContext context) {
-    final nome = _textoSeguro(_cuidador?['nome'], fallback: 'Cuidador');
-    final email = _textoSeguro(_cuidador?['email']);
-    final telefone = _textoSeguro(_cuidador?['telefone']);
-    final cidade = _textoSeguro(_cuidador?['cidade']);
-    final valorHora = _textoSeguro(_cuidador?['valorHora'], fallback: 'A definir');
+    final nome = _textoSeguro(
+      _cuidador?['Nome'] ?? _cuidador?['nome'],
+      fallback: 'Cuidador',
+    );
+    final email = _textoSeguro(_cuidador?['Email'] ?? _cuidador?['email']);
+    final telefone = _textoSeguro(_cuidador?['Telefone'] ?? _cuidador?['telefone']);
+    final cidade = _textoSeguro(
+      _cuidador?['Cidade'] ??
+          _cuidador?['cidade'] ??
+          _cuidador?['endereco']?['cidade'],
+    );
+    final valorHora = _textoSeguro(
+      _cuidador?['ValorHora'] ?? _cuidador?['valorHora'],
+      fallback: 'A definir',
+    );
     final biografia = _textoSeguro(
-      _cuidador?['biografia'],
+      _cuidador?['Biografia'] ?? _cuidador?['biografia'],
       fallback: 'Você ainda não cadastrou uma biografia.',
     );
 
@@ -205,9 +303,12 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
     print('BIOGRAFIA NA TELA: $biografia');
 
     return Scaffold(
+      backgroundColor: fundo,
       appBar: AppBar(
         title: const Text('Dashboard do Cuidador'),
         automaticallyImplyLeading: false,
+        backgroundColor: roxo,
+        foregroundColor: Colors.white,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -227,6 +328,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                         Text(
                           _errorMessage!,
                           textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 15),
                         ),
                         const SizedBox(height: 16),
                         ElevatedButton(
@@ -247,19 +349,29 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                       children: [
                         Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(18),
                           decoration: BoxDecoration(
-                            color: Colors.blue.shade50,
-                            borderRadius: BorderRadius.circular(18),
+                            gradient: LinearGradient(
+                              colors: [
+                                roxo,
+                                roxo.withOpacity(0.88),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(22),
                           ),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const CircleAvatar(
                                 radius: 30,
-                                child: Icon(Icons.person, size: 32),
+                                backgroundColor: Colors.white24,
+                                child: Icon(
+                                  Icons.person,
+                                  size: 32,
+                                  color: Colors.white,
+                                ),
                               ),
-                              const SizedBox(width: 12),
+                              const SizedBox(width: 14),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -267,8 +379,9 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                                     Text(
                                       'Olá, $nome',
                                       style: const TextStyle(
-                                        fontSize: 20,
+                                        fontSize: 21,
                                         fontWeight: FontWeight.bold,
+                                        color: Colors.white,
                                       ),
                                     ),
                                     const SizedBox(height: 4),
@@ -276,25 +389,20 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                                       'Bem-vinda de volta',
                                       style: TextStyle(
                                         fontSize: 14,
-                                        color: Colors.black54,
+                                        color: Colors.white70,
                                       ),
                                     ),
-                                    const SizedBox(height: 10),
+                                    const SizedBox(height: 12),
                                     Container(
                                       padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 6,
+                                        horizontal: 12,
+                                        vertical: 7,
                                       ),
                                       decoration: BoxDecoration(
                                         color: _planoAtual.toLowerCase() == 'premium'
-                                            ? const Color(0xFF35064E)
+                                            ? verde
                                             : Colors.white,
                                         borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(
-                                          color: _planoAtual.toLowerCase() == 'premium'
-                                              ? const Color(0xFF35064E)
-                                              : Colors.grey.shade400,
-                                        ),
                                       ),
                                       child: Text(
                                         _planoAtual.toLowerCase() == 'premium'
@@ -302,10 +410,10 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                                             : 'Plano Básico',
                                         style: TextStyle(
                                           fontSize: 12,
-                                          fontWeight: FontWeight.w600,
+                                          fontWeight: FontWeight.w700,
                                           color: _planoAtual.toLowerCase() == 'premium'
-                                              ? Colors.white
-                                              : Colors.black87,
+                                              ? Colors.black
+                                              : roxo,
                                         ),
                                       ),
                                     ),
@@ -315,7 +423,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                             ],
                           ),
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 22),
                         const Text(
                           'Ações rápidas',
                           style: TextStyle(
@@ -327,7 +435,8 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                         _acaoCard(
                           icon: Icons.work_outline,
                           titulo: 'Vagas disponíveis',
-                          subtitulo: 'Veja as vagas abertas e aceite novas oportunidades.',
+                          subtitulo:
+                              'Veja as vagas abertas e aceite novas oportunidades.',
                           onPressed: () {
                             Navigator.push(
                               context,
@@ -341,7 +450,8 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                         _acaoCard(
                           icon: Icons.assignment_turned_in_outlined,
                           titulo: 'Minhas vagas aceitas',
-                          subtitulo: 'Acompanhe as vagas que você já aceitou.',
+                          subtitulo:
+                              'Acompanhe as vagas que você já aceitou.',
                           onPressed: () {
                             Navigator.push(
                               context,
@@ -356,12 +466,14 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                         _acaoCard(
                           icon: Icons.person_outline,
                           titulo: 'Meu perfil',
-                          subtitulo: 'Veja suas informações e edite seus dados.',
+                          subtitulo:
+                              'Veja suas informações e edite seus dados.',
                           onPressed: () async {
                             await Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const PerfilCuidadorPage(),
+                                builder: (context) =>
+                                    const PerfilCuidadorPage(),
                               ),
                             );
                             await _carregarDados();
@@ -371,19 +483,21 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                         _acaoCard(
                           icon: Icons.workspace_premium_outlined,
                           titulo: 'Meu plano',
-                          subtitulo: 'Veja seu plano atual e opções de upgrade.',
+                          subtitulo:
+                              'Veja seu plano atual e opções de upgrade.',
+                          textoBotao: 'Ver',
                           onPressed: () async {
                             await Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const PlanosCuidadorPage(),
+                                builder: (context) =>
+                                    const PlanosCuidadorPage(),
                               ),
                             );
                             await _carregarDados();
                           },
-                          textoBotao: 'Ver',
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 22),
                         const Text(
                           'Meu perfil',
                           style: TextStyle(
@@ -395,18 +509,22 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                         Card(
                           elevation: 2,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(18),
                           ),
                           child: Padding(
                             padding: const EdgeInsets.all(16),
                             child: Column(
                               children: [
                                 _infoRow(Icons.email_outlined, 'E-mail', email),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 14),
                                 _infoRow(Icons.phone_outlined, 'Telefone', telefone),
-                                const SizedBox(height: 12),
-                                _infoRow(Icons.location_on_outlined, 'Cidade', cidade),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 14),
+                                _infoRow(
+                                  Icons.location_on_outlined,
+                                  'Cidade',
+                                  cidade,
+                                ),
+                                const SizedBox(height: 14),
                                 _infoRow(
                                   Icons.attach_money_outlined,
                                   'Valor por hora',
@@ -416,7 +534,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 22),
                         const Text(
                           'Sobre mim',
                           style: TextStyle(
@@ -428,7 +546,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                         Card(
                           elevation: 2,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(18),
                           ),
                           child: Padding(
                             padding: const EdgeInsets.all(16),
@@ -453,6 +571,14 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                             },
                             icon: const Icon(Icons.settings),
                             label: const Text('Configurações'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: roxo,
+                              side: const BorderSide(color: roxo),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 24),
@@ -463,6 +589,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
+        selectedItemColor: roxo,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),
