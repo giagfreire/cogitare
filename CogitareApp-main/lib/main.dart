@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 
-import 'screens/onboarding.dart';
-import 'screens/tela_cadastro_responsavel.dart';
-import 'screens/tela_cadastro_idoso.dart';
-import 'screens/tela_sucesso.dart';
 import 'screens/criar_vaga_page.dart';
-import 'screens/tela_login.dart';
+import 'screens/onboarding.dart';
+import 'screens/tela_cadastro_idoso.dart';
+import 'screens/tela_cadastro_responsavel.dart';
+import 'screens/tela_login_unificada.dart';
+import 'screens/tela_sucesso.dart';
+import 'screens/tela_termos_condicoes.dart';
 
 void main() {
   runApp(const CogitareApp());
@@ -155,11 +156,12 @@ class CogitareApp extends StatelessWidget {
       initialRoute: '/',
       routes: {
         '/': (context) => const OnboardingScreen(),
-        '/login': (context) => const TelaLogin(),
+        TelaLoginUnificada.route: (context) => const TelaLoginUnificada(),
         TelaCadastroResponsavel.route: (context) =>
             const TelaCadastroResponsavel(),
         TelaCadastroIdoso.route: (context) => const TelaCadastroIdoso(),
         TelaSucesso.route: (context) => const TelaSucesso(),
+        TelaTermosCondicoes.route: (context) => const TelaTermosCondicoes(),
         '/criar-vaga': (context) => const CriarVagaPage(),
       },
     );
