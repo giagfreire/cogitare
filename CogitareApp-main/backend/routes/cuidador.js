@@ -30,6 +30,7 @@ router.post('/cadastro', async (req, res) => {
       biografia,
       valorHora,
       fotoUrl,
+      sexo,
     } = req.body;
 
     if (!nome || !email || !senha || !telefone || !cpf) {
@@ -55,8 +56,8 @@ router.post('/cadastro', async (req, res) => {
 
     const result = await db.query(
       `INSERT INTO cuidador
-      (IdEndereco, Nome, Email, Senha, Telefone, Cpf, DataNascimento, FotoUrl, Biografia, Fumante, TemFilhos, PossuiCNH, TemCarro, ValorHora, UsosPlano)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+      (IdEndereco, Nome, Email, Senha, Telefone, Cpf, DataNascimento, FotoUrl, Biografia, Fumante, TemFilhos, PossuiCNH, TemCarro, ValorHora, UsosPlano, Sexo)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
       [
         idEndereco,
         nome,
@@ -72,6 +73,7 @@ router.post('/cadastro', async (req, res) => {
         possuiCnh || 'Não',
         temCarro || 'Não',
         valorHora || null,
+        sexo || null,
       ]
     );
 
@@ -167,22 +169,104 @@ router.post('/aceitar-vaga', authenticateToken, async (req, res) => {
       });
     }
 
+    // Verifica se existe assinatura ativa
+    const assinaturaAtiva = await db.query(
+      `SELECT
+        a.IdAssinatura,
+        a.IdPlano,
+        COALESCE(a.ContatosUsados, 0) AS ContatosUsados,
+        p.Nome AS PlanoAtual,
+        COALESCE(p.LimiteContatos, 20) AS LimitePlano
+       FROM assinaturacuidador a
+       LEFT JOIN plano p ON p.IdPlano = a.IdPlano
+       WHERE a.IdCuidador = ?
+         AND a.Status = 'Ativa'
+       ORDER BY a.IdAssinatura DESC
+       LIMIT 1`,
+      [idCuidador]
+    );
+
+    let planoAtual = 'Basico';
+    let usosPlano = 0;
+    let limitePlano = 5;
+    let usaAssinatura = false;
+    let idAssinatura = null;
+
+    if (assinaturaAtiva && assinaturaAtiva.length > 0) {
+      usaAssinatura = true;
+      idAssinatura = assinaturaAtiva[0].IdAssinatura;
+      planoAtual = assinaturaAtiva[0].PlanoAtual || 'Premium';
+      usosPlano = Number(assinaturaAtiva[0].ContatosUsados) || 0;
+      limitePlano = Number(assinaturaAtiva[0].LimitePlano) || 20;
+    } else {
+      // Plano básico usa UsosPlano do cuidador
+      const cuidador = await db.query(
+        `SELECT
+          IdCuidador,
+          COALESCE(UsosPlano, 0) AS UsosPlano
+         FROM cuidador
+         WHERE IdCuidador = ?
+         LIMIT 1`,
+        [idCuidador]
+      );
+
+      if (!cuidador || cuidador.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Cuidador não encontrado',
+        });
+      }
+
+      planoAtual = 'Basico';
+      usosPlano = Number(cuidador[0].UsosPlano) || 0;
+      limitePlano = 5;
+    }
+
+    if (usosPlano >= limitePlano) {
+      return res.status(403).json({
+        success: false,
+        message:
+          planoAtual.toLowerCase() === 'premium'
+            ? 'Você atingiu o limite do seu plano atual.'
+            : 'Você atingiu o limite do Plano Básico. Faça upgrade para Premium.',
+        data: {
+          PlanoAtual: planoAtual,
+          UsosPlano: usosPlano,
+          LimitePlano: limitePlano,
+        },
+      });
+    }
+
     await db.query(
       `INSERT INTO vagacuidador (IdVaga, IdCuidador, DataAceite)
        VALUES (?, ?, NOW())`,
       [idVaga, idCuidador]
     );
 
-    await db.query(
-      `UPDATE assinaturacuidador
-       SET ContatosUsados = COALESCE(ContatosUsados, 0) + 1
-       WHERE IdCuidador = ? AND Status = 'Ativa'`,
-      [idCuidador]
-    );
+    if (usaAssinatura && idAssinatura) {
+      await db.query(
+        `UPDATE assinaturacuidador
+         SET ContatosUsados = COALESCE(ContatosUsados, 0) + 1
+         WHERE IdAssinatura = ?`,
+        [idAssinatura]
+      );
+    } else {
+      await db.query(
+        `UPDATE cuidador
+         SET UsosPlano = COALESCE(UsosPlano, 0) + 1
+         WHERE IdCuidador = ?`,
+        [idCuidador]
+      );
+    }
 
     return res.status(200).json({
       success: true,
       message: 'Vaga aceita com sucesso',
+      data: {
+        PlanoAtual: planoAtual,
+        UsosPlano: usosPlano + 1,
+        LimitePlano: limitePlano,
+      },
     });
   } catch (error) {
     console.error('ERRO AO ACEITAR VAGA:', error);
@@ -246,42 +330,49 @@ router.get('/status-plano', authenticateToken, async (req, res) => {
   try {
     const idCuidador = req.user.id;
 
-    const rows = await db.query(
+    const assinaturaAtiva = await db.query(
       `SELECT
-        c.IdCuidador,
+        a.IdAssinatura,
         COALESCE(a.ContatosUsados, 0) AS UsosPlano,
-        COALESCE(p.Nome, 'Basico') AS PlanoAtual,
-        COALESCE(p.LimiteContatos, 5) AS LimitePlano
-      FROM cuidador c
-      LEFT JOIN assinaturacuidador a
-        ON a.IdCuidador = c.IdCuidador
-       AND a.Status = 'Ativa'
-      LEFT JOIN plano p
-        ON p.IdPlano = a.IdPlano
-      WHERE c.IdCuidador = ?
+        COALESCE(p.Nome, 'Premium') AS PlanoAtual,
+        COALESCE(p.LimiteContatos, 20) AS LimitePlano
+      FROM assinaturacuidador a
+      LEFT JOIN plano p ON p.IdPlano = a.IdPlano
+      WHERE a.IdCuidador = ?
+        AND a.Status = 'Ativa'
+      ORDER BY a.IdAssinatura DESC
       LIMIT 1`,
       [idCuidador]
     );
 
-    if (!rows || rows.length === 0 || !rows[0]) {
+    if (assinaturaAtiva && assinaturaAtiva.length > 0) {
+      const row = assinaturaAtiva[0];
+
       return res.status(200).json({
         success: true,
         data: {
-          PlanoAtual: 'Basico',
-          UsosPlano: 0,
-          LimitePlano: 5,
+          PlanoAtual: row.PlanoAtual || 'Premium',
+          UsosPlano: Number(row.UsosPlano) || 0,
+          LimitePlano: Number(row.LimitePlano) || 20,
         },
       });
     }
 
-    const row = rows[0];
+    const cuidador = await db.query(
+      `SELECT
+        COALESCE(UsosPlano, 0) AS UsosPlano
+       FROM cuidador
+       WHERE IdCuidador = ?
+       LIMIT 1`,
+      [idCuidador]
+    );
 
     return res.status(200).json({
       success: true,
       data: {
-        PlanoAtual: row.PlanoAtual || 'Basico',
-        UsosPlano: Number(row.UsosPlano) || 0,
-        LimitePlano: Number(row.LimitePlano) || 5,
+        PlanoAtual: 'Basico',
+        UsosPlano: Number(cuidador?.[0]?.UsosPlano) || 0,
+        LimitePlano: 5,
       },
     });
   } catch (error) {
@@ -304,47 +395,49 @@ router.get('/:id/plano', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const rows = await db.query(
+    const assinaturaAtiva = await db.query(
       `SELECT
-        c.IdCuidador,
-        COALESCE(c.UsosPlano, 0) AS UsosPlano,
-        p.Nome AS PlanoAtual,
-        p.LimiteContatos
-      FROM cuidador c
-      LEFT JOIN assinaturacuidador a
-        ON a.IdCuidador = c.IdCuidador
-       AND a.Status = 'Ativa'
-      LEFT JOIN plano p
-        ON p.IdPlano = a.IdPlano
-      WHERE c.IdCuidador = ?
+        a.IdAssinatura,
+        COALESCE(a.ContatosUsados, 0) AS UsosPlano,
+        COALESCE(p.Nome, 'Premium') AS PlanoAtual,
+        COALESCE(p.LimiteContatos, 20) AS LimitePlano
+      FROM assinaturacuidador a
+      LEFT JOIN plano p ON p.IdPlano = a.IdPlano
+      WHERE a.IdCuidador = ?
+        AND a.Status = 'Ativa'
+      ORDER BY a.IdAssinatura DESC
       LIMIT 1`,
       [id]
     );
 
-    if (!rows || rows.length === 0 || !rows[0]) {
+    if (assinaturaAtiva && assinaturaAtiva.length > 0) {
+      const row = assinaturaAtiva[0];
+
       return res.status(200).json({
         success: true,
         data: {
-          PlanoAtual: 'Basico',
-          UsosPlano: 0,
-          LimitePlano: 5,
+          PlanoAtual: row.PlanoAtual || 'Premium',
+          UsosPlano: Number(row.UsosPlano) || 0,
+          LimitePlano: Number(row.LimitePlano) || 20,
         },
       });
     }
 
-    const row = rows[0];
-    const plano = row.PlanoAtual || 'Basico';
-    const usos = Number(row.UsosPlano) || 0;
-    const limite =
-      Number(row.LimiteContatos) ||
-      (plano.toLowerCase() === 'premium' ? 20 : 5);
+    const cuidador = await db.query(
+      `SELECT
+        COALESCE(UsosPlano, 0) AS UsosPlano
+       FROM cuidador
+       WHERE IdCuidador = ?
+       LIMIT 1`,
+      [id]
+    );
 
     return res.status(200).json({
       success: true,
       data: {
-        PlanoAtual: plano,
-        UsosPlano: usos,
-        LimitePlano: limite,
+        PlanoAtual: 'Basico',
+        UsosPlano: Number(cuidador?.[0]?.UsosPlano) || 0,
+        LimitePlano: 5,
       },
     });
   } catch (error) {
@@ -383,6 +476,7 @@ router.get('/:id', async (req, res) => {
         c.TemCarro AS temCarro,
         c.ValorHora AS valorHora,
         c.IdEndereco AS idEndereco,
+        c.Sexo AS sexo,
         COALESCE(c.UsosPlano, 0) AS usosPlano,
         e.Cidade AS cidade,
         e.Bairro AS bairro,

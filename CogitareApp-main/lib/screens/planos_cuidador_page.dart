@@ -20,6 +20,12 @@ class _PlanosCuidadorPageState extends State<PlanosCuidadorPage> {
   static const Color verde = Color(0xFF8AFF00);
   static const Color fundo = Color(0xFFF6F4F8);
 
+  int? _parseInt(dynamic valor) {
+    if (valor == null) return null;
+    if (valor is int) return valor;
+    return int.tryParse(valor.toString());
+  }
+
   Future<void> selecionarPlano() async {
     if (planoSelecionado == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -36,6 +42,7 @@ class _PlanosCuidadorPageState extends State<PlanosCuidadorPage> {
       });
 
       final userData = await ServicoAutenticacao.getUserData();
+
       final dynamic idDinamico =
           userData?['IdCuidador'] ??
           userData?['idCuidador'] ??
@@ -47,6 +54,7 @@ class _PlanosCuidadorPageState extends State<PlanosCuidadorPage> {
 
       if (idCuidador == null) {
         if (!mounted) return;
+
         setState(() {
           _isSaving = false;
         });
@@ -64,9 +72,8 @@ class _PlanosCuidadorPageState extends State<PlanosCuidadorPage> {
       final response = await ApiPagamento.criarPreferencia(
         idCuidador: idCuidador,
         idPlano: premium ? 2 : 1,
-        titulo: premium
-            ? 'Plano Premium Cogitare'
-            : 'Plano Básico Cogitare',
+        titulo:
+            premium ? 'Plano Premium Cogitare' : 'Plano Básico Cogitare',
         preco: premium ? 59.90 : 29.90,
       );
 
@@ -128,12 +135,6 @@ class _PlanosCuidadorPageState extends State<PlanosCuidadorPage> {
     }
   }
 
-  int? _parseInt(dynamic valor) {
-    if (valor == null) return null;
-    if (valor is int) return valor;
-    return int.tryParse(valor.toString());
-  }
-
   Widget _planoCard({
     required String titulo,
     required String preco,
@@ -161,7 +162,7 @@ class _PlanosCuidadorPageState extends State<PlanosCuidadorPage> {
           color: corPrincipal,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: selecionado ? rosa : Colors.transparent,
+            color: selecionado ? Colors.white : Colors.transparent,
             width: 3,
           ),
           boxShadow: [
@@ -272,6 +273,32 @@ class _PlanosCuidadorPageState extends State<PlanosCuidadorPage> {
     );
   }
 
+  Widget _infoBox() {
+    return Container(
+      margin: const EdgeInsets.only(top: 4),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: verde.withOpacity(0.18),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.info_outline, color: roxo),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Após o pagamento aprovado, seu plano será atualizado no app.',
+              style: TextStyle(
+                color: roxo,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -333,29 +360,7 @@ class _PlanosCuidadorPageState extends State<PlanosCuidadorPage> {
                   valor: 'Premium',
                   corPrincipal: rosa,
                 ),
-                Container(
-                  margin: const EdgeInsets.only(top: 4),
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: verde.withOpacity(0.18),
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.info_outline, color: roxo),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Após o pagamento aprovado, seu plano será atualizado no app.',
-                          style: TextStyle(
-                            color: roxo,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                _infoBox(),
                 const SizedBox(height: 100),
               ],
             ),

@@ -18,7 +18,10 @@ class DashboardCuidador extends StatefulWidget {
 class _DashboardCuidadorState extends State<DashboardCuidador> {
   bool _isLoading = true;
   Map<String, dynamic>? _cuidador;
+
   String _planoAtual = 'Básico';
+  int _usosPlano = 0;
+  int _limitePlano = 5;
 
   static const Color roxo = Color(0xFF42124C);
   static const Color rosa = Color(0xFFFE0472);
@@ -40,7 +43,13 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
         ServicoApi.setToken(token);
       }
 
-      final id = userData?['id'];
+      final id = _parseInt(
+        userData?['IdCuidador'] ??
+            userData?['idCuidador'] ??
+            userData?['cuidadorId'] ??
+            userData?['id'] ??
+            userData?['Id'],
+      );
 
       if (id == null) {
         setState(() {
@@ -54,7 +63,13 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
 
       setState(() {
         _cuidador = response['data'];
-        _planoAtual = plano['data']?['PlanoAtual'] ?? 'Básico';
+
+        final planoData = plano['data'] ?? {};
+        _planoAtual = (planoData['PlanoAtual'] ?? 'Básico').toString();
+        _usosPlano = _parseInt(planoData['UsosPlano']) ?? 0;
+        _limitePlano = _parseInt(planoData['LimitePlano']) ??
+            (_planoAtual.toLowerCase() == 'premium' ? 20 : 5);
+
         _isLoading = false;
       });
     } catch (e) {
@@ -63,6 +78,12 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
         _isLoading = false;
       });
     }
+  }
+
+  int? _parseInt(dynamic valor) {
+    if (valor == null) return null;
+    if (valor is int) return valor;
+    return int.tryParse(valor.toString());
   }
 
   String getSaudacao() {
@@ -119,6 +140,39 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
     return ((preenchidos / total) * 100).round();
   }
 
+  int getContatosRestantes() {
+    final restante = _limitePlano - _usosPlano;
+    return restante < 0 ? 0 : restante;
+  }
+
+  double getUsoPercentual() {
+    if (_limitePlano <= 0) return 0;
+    final valor = _usosPlano / _limitePlano;
+    if (valor > 1) return 1;
+    if (valor < 0) return 0;
+    return valor;
+  }
+
+  Future<void> _abrirPerfil() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const PerfilCuidadorPage(),
+      ),
+    );
+    _carregarDados();
+  }
+
+  Future<void> _abrirPlanos() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const PlanosCuidadorPage(),
+      ),
+    );
+    _carregarDados();
+  }
+
   @override
   Widget build(BuildContext context) {
     final nome = getNome();
@@ -150,15 +204,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
         ),
         actions: [
           GestureDetector(
-            onTap: () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const PerfilCuidadorPage(),
-                ),
-              );
-              _carregarDados();
-            },
+            onTap: _abrirPerfil,
             child: Padding(
               padding: const EdgeInsets.only(right: 16),
               child: CircleAvatar(
@@ -243,31 +289,27 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                           icon: Icons.workspace_premium_outlined,
                           cor: verde,
                           textoEscuro: true,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const PlanosCuidadorPage(),
-                              ),
-                            );
-                          },
+                          onTap: _abrirPlanos,
                         ),
                         _buildActionBox(
                           titulo: 'Configurações',
                           icon: Icons.settings_outlined,
                           cor: rosa,
-                          onTap: () async {
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const PerfilCuidadorPage(),
-                              ),
-                            );
-                            _carregarDados();
-                          },
+                          onTap: _abrirPerfil,
                         ),
                       ],
                     ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Meu plano',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: roxo,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildPlanoStatusCard(),
                     const SizedBox(height: 24),
                     const Text(
                       'Próximo atendimento',
@@ -324,13 +366,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
           }
 
           if (index == 2) {
-            await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const PerfilCuidadorPage(),
-              ),
-            );
-            _carregarDados();
+            await _abrirPerfil();
           }
         },
         items: const [
@@ -390,24 +426,155 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
             ),
           ),
           const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 8,
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: _planoAtual.toLowerCase() == 'premium'
+                      ? verde
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: Text(
+                  _planoAtual,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: _planoAtual.toLowerCase() == 'premium'
+                        ? Colors.black
+                        : roxo,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: Text(
+                  '$_usosPlano / $_limitePlano contatos',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlanoStatusCard() {
+    final restante = getContatosRestantes();
+    final premium = _planoAtual.toLowerCase() == 'premium';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: roxo.withOpacity(0.08),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: roxo.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: premium
+                    ? verde.withOpacity(0.22)
+                    : rosa.withOpacity(0.12),
+                child: Icon(
+                  premium
+                      ? Icons.workspace_premium_rounded
+                      : Icons.star_border_rounded,
+                  color: premium ? Colors.black : roxo,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  premium ? 'Premium ativo' : 'Plano básico ativo',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: roxo,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _miniResumoItem('Usados', '$_usosPlano'),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _miniResumoItem('Limite', '$_limitePlano'),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _miniResumoItem('Restantes', '$restante'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          LinearProgressIndicator(
+            value: getUsoPercentual(),
+            minHeight: 8,
+            backgroundColor: roxo.withOpacity(0.08),
+            valueColor: AlwaysStoppedAnimation(
+              premium ? verde : rosa,
             ),
-            decoration: BoxDecoration(
-              color: _planoAtual.toLowerCase() == 'premium'
-                  ? verde
-                  : Colors.white,
-              borderRadius: BorderRadius.circular(30),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            premium
+                ? 'Seu plano Premium aumenta seu alcance e libera mais contatos.'
+                : 'Quer acessar mais contatos? Atualize para Premium.',
+            style: TextStyle(
+              fontSize: 14,
+              color: roxo.withOpacity(0.76),
+              height: 1.4,
             ),
-            child: Text(
-              _planoAtual,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: _planoAtual.toLowerCase() == 'premium'
-                    ? Colors.black
-                    : roxo,
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _abrirPlanos,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: premium ? roxo : rosa,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: Text(
+                premium ? 'Gerenciar plano' : 'Atualizar plano',
               ),
             ),
           ),
@@ -609,15 +776,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton(
-              onPressed: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const PerfilCuidadorPage(),
-                  ),
-                );
-                _carregarDados();
-              },
+              onPressed: _abrirPerfil,
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: roxo),
                 foregroundColor: roxo,
@@ -704,15 +863,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
           ),
           const SizedBox(height: 14),
           TextButton(
-            onPressed: () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const PerfilCuidadorPage(),
-                ),
-              );
-              _carregarDados();
-            },
+            onPressed: _abrirPerfil,
             child: const Text('Ver perfil completo'),
           ),
         ],
@@ -787,15 +938,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                 ),
                 const SizedBox(height: 12),
                 ElevatedButton(
-                  onPressed: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const PerfilCuidadorPage(),
-                      ),
-                    );
-                    _carregarDados();
-                  },
+                  onPressed: _abrirPerfil,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: rosa,
                     foregroundColor: Colors.white,

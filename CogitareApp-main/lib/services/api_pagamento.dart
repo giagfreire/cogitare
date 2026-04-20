@@ -18,7 +18,14 @@ class ApiPagamento {
         },
       );
 
-      return response;
+      if (response is Map<String, dynamic>) {
+        return response;
+      }
+
+      return {
+        'success': false,
+        'message': 'Resposta inválida do servidor.',
+      };
     } catch (e) {
       return {
         'success': false,
