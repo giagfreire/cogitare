@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+
 import '../services/api_service.dart';
-import '../services/session_service.dart';
-import 'tela_editar_perfil_cuidador.dart';
+import '../services/servico_autenticacao.dart';
 import 'tela_configuracoes_cuidador.dart';
+import 'tela_editar_perfil_cuidador.dart';
 
 class PerfilCuidadorPage extends StatefulWidget {
   static const route = '/perfil-cuidador';
@@ -17,7 +18,12 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
   bool _isLoading = true;
   String? _errorMessage;
   Map<String, dynamic>? _cuidador;
-  String _planoAtual = 'Basico';
+  String _planoAtual = 'Básico';
+
+  static const Color roxo = Color(0xFF42124C);
+  static const Color rosa = Color(0xFFFE0472);
+  static const Color verde = Color(0xFF8AFF00);
+  static const Color fundo = Color(0xFFF6F4F8);
 
   @override
   void initState() {
@@ -53,11 +59,34 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
     });
 
     try {
-      final cuidadorId = await SessionService.getCuidadorId();
+      final token = await ServicoAutenticacao.getToken();
+      final userData = await ServicoAutenticacao.getUserData();
+      final userType = await ServicoAutenticacao.getUserType();
+
+      if (token != null && token.isNotEmpty) {
+        ServicoApi.setToken(token);
+      }
+
+      if (userType != 'cuidador' || userData == null) {
+        setState(() {
+          _errorMessage = 'Não foi possível identificar o cuidador logado.';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      final dynamic cuidadorIdDinamico =
+          userData['IdCuidador'] ??
+          userData['idCuidador'] ??
+          userData['cuidadorId'] ??
+          userData['id'] ??
+          userData['Id'];
+
+      final int? cuidadorId = _parseInt(cuidadorIdDinamico);
 
       if (cuidadorId == null) {
         setState(() {
-          _errorMessage = 'Não foi possível identificar o cuidador logado.';
+          _errorMessage = 'ID do cuidador não encontrado.';
           _isLoading = false;
         });
         return;
@@ -77,17 +106,17 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
         final responsePlano =
             await ServicoApi.get('/api/cuidador/$cuidadorId/plano');
 
-        if (responsePlano['success'] == true && responsePlano['data'] != null) {
+        if (responsePlano['success'] == true &&
+            responsePlano['data'] != null) {
           _planoAtual =
-              (responsePlano['data']['PlanoAtual'] ?? 'Basico').toString();
+              (responsePlano['data']['PlanoAtual'] ?? 'Básico').toString();
         }
       } catch (_) {}
 
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
     } catch (e) {
       if (!mounted) return;
 
@@ -98,10 +127,18 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
     }
   }
 
+  int? _parseInt(dynamic valor) {
+    if (valor == null) return null;
+    if (valor is int) return valor;
+    return int.tryParse(valor.toString());
+  }
+
   Future<void> _irParaEditarPerfil() async {
-    final resultado = await Navigator.pushNamed(
+    final resultado = await Navigator.push(
       context,
-      TelaEditarPerfilCuidador.route,
+      MaterialPageRoute(
+        builder: (_) => const TelaEditarPerfilCuidador(),
+      ),
     );
 
     if (resultado == true) {
@@ -110,10 +147,13 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
   }
 
   Future<void> _irParaConfiguracoes() async {
-    await Navigator.pushNamed(
+    await Navigator.push(
       context,
-      TelaConfiguracoesCuidador.route,
+      MaterialPageRoute(
+        builder: (_) => const TelaConfiguracoesCuidador(),
+      ),
     );
+
     await _carregarDados();
   }
 
@@ -126,13 +166,20 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: roxo.withOpacity(0.08)),
+        boxShadow: [
+          BoxShadow(
+            color: roxo.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: const Color(0xFF35064E)),
+          Icon(icon, color: roxo),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -140,9 +187,9 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
               children: [
                 Text(
                   titulo,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
-                    color: Colors.black54,
+                    color: roxo.withOpacity(0.7),
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -150,7 +197,8 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
                   valor,
                   style: const TextStyle(
                     fontSize: 15,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
+                    color: roxo,
                   ),
                 ),
               ],
@@ -163,23 +211,33 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
 
   @override
   Widget build(BuildContext context) {
-   final nome = _textoSeguro(_cuidador?['nome'], fallback: 'Cuidador');
-final email = _textoSeguro(_cuidador?['email']);
-final telefone = _textoSeguro(_cuidador?['telefone']);
-final cpf = _textoSeguro(_cuidador?['cpf']);
-final cidade = _textoSeguro(_cuidador?['cidade']);
-final valorHora = _textoSeguro(_cuidador?['valorHora'], fallback: 'A definir');
-final biografia = _textoSeguro(
-  _cuidador?['biografia'],
-  fallback: 'Você ainda não cadastrou uma biografia.',
-);
-final dataNascimento = _formatarData(_cuidador?['dataNascimento']);
+    final nome = _textoSeguro(
+      _cuidador?['Nome'] ?? _cuidador?['nome'],
+      fallback: 'Cuidador',
+    );
+    final email = _textoSeguro(_cuidador?['Email'] ?? _cuidador?['email']);
+    final telefone = _textoSeguro(
+      _cuidador?['Telefone'] ?? _cuidador?['telefone'],
+    );
+    final cpf = _textoSeguro(_cuidador?['CPF'] ?? _cuidador?['cpf']);
+    final cidade = _textoSeguro(_cuidador?['Cidade'] ?? _cuidador?['cidade']);
+    final valorHora = _textoSeguro(
+      _cuidador?['ValorHora'] ?? _cuidador?['valorHora'],
+      fallback: 'A definir',
+    );
+    final biografia = _textoSeguro(
+      _cuidador?['Biografia'] ?? _cuidador?['biografia'],
+      fallback: 'Você ainda não cadastrou uma biografia.',
+    );
+    final dataNascimento = _formatarData(
+      _cuidador?['DataNascimento'] ?? _cuidador?['dataNascimento'],
+    );
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F7FB),
+      backgroundColor: fundo,
       appBar: AppBar(
         title: const Text('Meu perfil'),
-        backgroundColor: const Color(0xFF35064E),
+        backgroundColor: roxo,
         foregroundColor: Colors.white,
       ),
       body: _isLoading
@@ -221,19 +279,42 @@ final dataNascimento = _formatarData(_cuidador?['dataNascimento']);
                         width: double.infinity,
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF35064E),
-                          borderRadius: BorderRadius.circular(22),
+                          gradient: const LinearGradient(
+                            colors: [roxo, rosa],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(24),
                         ),
                         child: Column(
                           children: [
-                            const CircleAvatar(
+                            CircleAvatar(
                               radius: 42,
                               backgroundColor: Colors.white24,
-                              child: Icon(
-                                Icons.person,
-                                size: 42,
-                                color: Colors.white,
-                              ),
+                              child: (_cuidador?['fotoUrl'] != null &&
+                                      _cuidador!['fotoUrl']
+                                          .toString()
+                                          .isNotEmpty)
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(50),
+                                      child: Image.network(
+                                        _cuidador!['fotoUrl'].toString(),
+                                        width: 84,
+                                        height: 84,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) =>
+                                            const Icon(
+                                          Icons.person,
+                                          size: 42,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    )
+                                  : const Icon(
+                                      Icons.person,
+                                      size: 42,
+                                      color: Colors.white,
+                                    ),
                             ),
                             const SizedBox(height: 14),
                             Text(
@@ -262,23 +343,21 @@ final dataNascimento = _formatarData(_cuidador?['dataNascimento']);
                               ),
                               decoration: BoxDecoration(
                                 color: _planoAtual.toLowerCase() == 'premium'
-                                    ? Colors.white
-                                    : Colors.white24,
+                                    ? verde
+                                    : Colors.white,
                                 borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: Colors.white30,
-                                ),
                               ),
                               child: Text(
                                 _planoAtual.toLowerCase() == 'premium'
                                     ? 'Plano Premium'
                                     : 'Plano Básico',
                                 style: TextStyle(
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.w700,
                                   fontSize: 12,
-                                  color: _planoAtual.toLowerCase() == 'premium'
-                                      ? const Color(0xFF35064E)
-                                      : Colors.white,
+                                  color:
+                                      _planoAtual.toLowerCase() == 'premium'
+                                          ? Colors.black
+                                          : roxo,
                                 ),
                               ),
                             ),
@@ -307,7 +386,7 @@ final dataNascimento = _formatarData(_cuidador?['dataNascimento']);
                                     onPressed: _irParaConfiguracoes,
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: Colors.white,
-                                      foregroundColor: const Color(0xFF35064E),
+                                      foregroundColor: roxo,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),
@@ -327,6 +406,7 @@ final dataNascimento = _formatarData(_cuidador?['dataNascimento']);
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
+                          color: roxo,
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -365,6 +445,7 @@ final dataNascimento = _formatarData(_cuidador?['dataNascimento']);
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
+                          color: roxo,
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -374,13 +455,14 @@ final dataNascimento = _formatarData(_cuidador?['dataNascimento']);
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.grey.shade200),
+                          border: Border.all(color: roxo.withOpacity(0.08)),
                         ),
                         child: Text(
                           biografia,
                           style: const TextStyle(
                             fontSize: 15,
                             height: 1.5,
+                            color: roxo,
                           ),
                         ),
                       ),

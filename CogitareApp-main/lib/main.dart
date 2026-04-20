@@ -135,6 +135,7 @@ elevatedButtonTheme: ElevatedButtonThemeData(
         TelaCadastroIdoso.route: (context) => const TelaCadastroIdoso(),
         TelaSucesso.route: (context) => const TelaSucesso(),
         '/criar-vaga': (context) => const CriarVagaPage(),
+        DashboardCuidador.route: (context) => const DashboardCuidador(),
       },
     );
   }

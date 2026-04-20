@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+
 import '../services/api_service.dart';
-import '../services/session_service.dart';
 import '../services/servico_autenticacao.dart';
 import 'onboarding.dart';
 import 'perfil_cuidador_page.dart';
@@ -12,10 +12,13 @@ class TelaConfiguracoesCuidador extends StatelessWidget {
 
   const TelaConfiguracoesCuidador({super.key});
 
+  static const Color roxo = Color(0xFF42124C);
+  static const Color rosa = Color(0xFFFE0472);
+  static const Color fundo = Color(0xFFF6F4F8);
+
   Future<void> _logout(BuildContext context) async {
     try {
       ServicoApi.clearToken();
-      await SessionService.clear();
       await ServicoAutenticacao.clearLoginData();
 
       if (!context.mounted) return;
@@ -27,7 +30,6 @@ class TelaConfiguracoesCuidador extends StatelessWidget {
       );
     } catch (e) {
       if (!context.mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erro ao sair da conta: $e')),
       );
@@ -69,13 +71,13 @@ class TelaConfiguracoesCuidador extends StatelessWidget {
     return ListTile(
       leading: Icon(
         icon,
-        color: iconColor ?? const Color(0xFF35064E),
+        color: iconColor ?? roxo,
       ),
       title: Text(
         titulo,
         style: TextStyle(
-          fontWeight: FontWeight.w500,
-          color: textColor,
+          fontWeight: FontWeight.w600,
+          color: textColor ?? roxo,
         ),
       ),
       subtitle: subtitulo != null ? Text(subtitulo) : null,
@@ -87,8 +89,11 @@ class TelaConfiguracoesCuidador extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: fundo,
       appBar: AppBar(
         title: const Text('Configurações'),
+        backgroundColor: roxo,
+        foregroundColor: Colors.white,
       ),
       body: ListView(
         children: [
@@ -113,9 +118,11 @@ class TelaConfiguracoesCuidador extends StatelessWidget {
             titulo: 'Editar perfil',
             subtitulo: 'Atualize seus dados pessoais',
             onTap: () async {
-              await Navigator.pushNamed(
+              await Navigator.push(
                 context,
-                TelaEditarPerfilCuidador.route,
+                MaterialPageRoute(
+                  builder: (_) => const TelaEditarPerfilCuidador(),
+                ),
               );
             },
           ),
@@ -126,9 +133,11 @@ class TelaConfiguracoesCuidador extends StatelessWidget {
             titulo: 'Termos e condições',
             subtitulo: 'Leia os termos de uso do aplicativo',
             onTap: () {
-              Navigator.pushNamed(
+              Navigator.push(
                 context,
-                TelaTermosCondicoes.route,
+                MaterialPageRoute(
+                  builder: (_) => const TelaTermosCondicoes(),
+                ),
               );
             },
           ),
