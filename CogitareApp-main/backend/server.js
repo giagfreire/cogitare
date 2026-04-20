@@ -10,6 +10,7 @@ const enderecoRoutes = require('./routes/endereco');
 const nearbyCaregiversRoutes = require('./routes/nearby_caregivers');
 const planosRoutes = require('./routes/planos');
 const responsavelRoutes = require('./routes/responsavel');
+const mercadoPagoRoutes = require('./routes/mercadopago');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -94,6 +95,8 @@ app.use('/api/', (req, res, next) => {
   if (req.method === 'OPTIONS') return next();
   return limiter(req, res, next);
 });
+
+app.use('/api/mercadopago', mercadoPagoRoutes);
 
 // =========================
 // HEALTH CHECK
