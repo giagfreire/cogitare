@@ -296,70 +296,71 @@ class _TelaLoginUnificadaState extends State<TelaLoginUnificada> {
       ),
     );
   }
+Future<void> _handleLogin() async {
+  final validationError = LoginController.validateFields(
+    email: emailController.text,
+    senha: passwordController.text,
+    userType: selectedUserType,
+  );
 
-  Future<void> _handleLogin() async {
-    final validationError = LoginController.validateFields(
-      email: emailController.text,
+  if (validationError != null) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(validationError),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
+
+  setState(() {
+    isLoading = true;
+  });
+
+  try {
+    final result = await LoginController.performLogin(
+      email: emailController.text.trim(),
       senha: passwordController.text,
-      userType: selectedUserType,
+      userType: selectedUserType!,
     );
 
-    if (validationError != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(validationError),
-          backgroundColor: Colors.red,
-        ),
+    if (!mounted) return;
+
+    if (result['success'] == true) {
+      HapticFeedback.lightImpact();
+
+      // NÃO mostra snackbar aqui antes/depois usando o contexto antigo.
+      // Só navega para o dashboard.
+      LoginController.navigateToDashboard(
+        context,
+        result['userType'],
       );
       return;
     }
 
-    setState(() {
-      isLoading = true;
-    });
-
-    try {
-      final result = await LoginController.performLogin(
-        email: emailController.text,
-        senha: passwordController.text,
-        userType: selectedUserType!,
-      );
-
-      if (result['success']) {
-        HapticFeedback.lightImpact();
-
-        LoginController.navigateToDashboard(context, result['userType']);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Bem-vindo(a), ${result['userName']}!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['message'] ?? 'Erro no login'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro de conexão: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
-      }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result['message'] ?? 'Erro no login'),
+        backgroundColor: Colors.red,
+      ),
+    );
+  } catch (e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Erro de conexão: $e'),
+        backgroundColor: Colors.red,
+      ),
+    );
+  } finally {
+    if (mounted) {
+      setState(() {
+        isLoading = false;
+      });
     }
   }
-
+}
   @override
   void dispose() {
     emailController.dispose();

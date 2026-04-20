@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
-import 'screens/criar_vaga_page.dart';
 import 'screens/onboarding.dart';
-import 'screens/tela_cadastro_idoso.dart';
 import 'screens/tela_cadastro_responsavel.dart';
-import 'screens/tela_login_unificada.dart';
+import 'screens/tela_cadastro_idoso.dart';
 import 'screens/tela_sucesso.dart';
-import 'screens/tela_termos_condicoes.dart';
+import 'screens/criar_vaga_page.dart';
+import 'screens/tela_login_unificada.dart';
+import 'screens/dashboard_cuidador.dart';
+import 'screens/tela_dashboard_responsavel.dart';
 
 void main() {
   runApp(const CogitareApp());
@@ -117,51 +118,22 @@ class CogitareApp extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
           ),
         ),
-        checkboxTheme: CheckboxThemeData(
-          fillColor: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.selected)) {
-              return const Color(0xFFFE0472);
-            }
-            return Colors.white;
-          }),
-          checkColor: WidgetStateProperty.all(Colors.white),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(4),
-          ),
-        ),
         progressIndicatorTheme: const ProgressIndicatorThemeData(
           color: Color(0xFFFE0472),
-        ),
-        textTheme: const TextTheme(
-          headlineLarge: TextStyle(
-            color: Color(0xFF42124C),
-            fontWeight: FontWeight.bold,
-          ),
-          headlineMedium: TextStyle(
-            color: Color(0xFF42124C),
-            fontWeight: FontWeight.bold,
-          ),
-          titleLarge: TextStyle(
-            color: Color(0xFF42124C),
-            fontWeight: FontWeight.w700,
-          ),
-          bodyLarge: TextStyle(
-            color: Color(0xFF42124C),
-          ),
-          bodyMedium: TextStyle(
-            color: Color(0xFF42124C),
-          ),
         ),
       ),
       initialRoute: '/',
       routes: {
         '/': (context) => const OnboardingScreen(),
+        '/login': (context) => const TelaLoginUnificada(),
         TelaLoginUnificada.route: (context) => const TelaLoginUnificada(),
+        DashboardCuidador.route: (context) => const DashboardCuidador(),
+        TelaDashboardResponsavel.route: (context) =>
+            const TelaDashboardResponsavel(),
         TelaCadastroResponsavel.route: (context) =>
             const TelaCadastroResponsavel(),
         TelaCadastroIdoso.route: (context) => const TelaCadastroIdoso(),
         TelaSucesso.route: (context) => const TelaSucesso(),
-        TelaTermosCondicoes.route: (context) => const TelaTermosCondicoes(),
         '/criar-vaga': (context) => const CriarVagaPage(),
       },
     );
