@@ -23,9 +23,7 @@ class _PerfilResponsavelPageState extends State<PerfilResponsavelPage> {
   }
 
   Future<void> carregarPerfil() async {
-    setState(() {
-      isLoading = true;
-    });
+    setState(() => isLoading = true);
 
     try {
       final response = await ApiClient.get('/api/responsavel/perfil');
@@ -41,9 +39,7 @@ class _PerfilResponsavelPageState extends State<PerfilResponsavelPage> {
     }
 
     if (!mounted) return;
-    setState(() {
-      isLoading = false;
-    });
+    setState(() => isLoading = false);
   }
 
   String textoSeguro(dynamic valor, {String fallback = 'Não informado'}) {
@@ -52,6 +48,22 @@ class _PerfilResponsavelPageState extends State<PerfilResponsavelPage> {
     final texto = valor.toString().trim();
     if (texto.isEmpty || texto.toLowerCase() == 'null') {
       return fallback;
+    }
+
+    return texto;
+  }
+
+  String fotoSegura(dynamic valor) {
+    if (valor == null) return '';
+
+    final texto = valor.toString().trim();
+
+    if (texto.isEmpty || texto.toLowerCase() == 'null') {
+      return '';
+    }
+
+    if (!texto.startsWith('http://') && !texto.startsWith('https://')) {
+      return '';
     }
 
     return texto;
@@ -225,6 +237,23 @@ Cogitare © 2026
     );
   }
 
+  Widget buildAvatar(String fotoUrl) {
+    final temFoto = fotoUrl.isNotEmpty;
+
+    return CircleAvatar(
+      radius: 38,
+      backgroundColor: const Color(0xFFE8DDF8),
+      backgroundImage: temFoto ? NetworkImage(fotoUrl) : null,
+      child: !temFoto
+          ? const Icon(
+              Icons.person,
+              size: 38,
+              color: Color(0xFF6A4C93),
+            )
+          : null,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final nome = textoSeguro(
@@ -248,9 +277,8 @@ Cogitare © 2026
       responsavel?['DataNascimento'] ?? responsavel?['dataNascimento'],
     );
 
-    final fotoUrl = textoSeguro(
+    final fotoUrl = fotoSegura(
       responsavel?['FotoUrl'] ?? responsavel?['fotoUrl'],
-      fallback: '',
     );
 
     return Scaffold(
@@ -279,15 +307,7 @@ Cogitare © 2026
                     ),
                     child: Column(
                       children: [
-                        CircleAvatar(
-                          radius: 38,
-                          backgroundImage:
-                              fotoUrl.isNotEmpty ? NetworkImage(fotoUrl) : null,
-                          onBackgroundImageError: (_, __) {},
-                          child: fotoUrl.isEmpty
-                              ? const Icon(Icons.person, size: 38)
-                              : null,
-                        ),
+                        buildAvatar(fotoUrl),
                         const SizedBox(height: 12),
                         Text(
                           nome,
