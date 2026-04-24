@@ -1,8 +1,12 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../services/api_service.dart';
 import '../services/servico_autenticacao.dart';
-import 'tela_configuracoes_cuidador.dart';
+import 'tela_configuracoes.dart';
 import 'tela_editar_perfil_cuidador.dart';
 
 class PerfilCuidadorPage extends StatefulWidget {
@@ -16,9 +20,12 @@ class PerfilCuidadorPage extends StatefulWidget {
 
 class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
   bool _isLoading = true;
+  bool _isUploadingFoto = false;
   String? _errorMessage;
   Map<String, dynamic>? _cuidador;
   String _planoAtual = 'Básico';
+
+  Uint8List? _fotoSelecionada;
 
   static const Color roxo = Color(0xFF42124C);
   static const Color rosa = Color(0xFFFE0472);
@@ -50,6 +57,35 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
     }
 
     return texto;
+  }
+
+  int? _parseInt(dynamic valor) {
+    if (valor == null) return null;
+    if (valor is int) return valor;
+    return int.tryParse(valor.toString());
+  }
+
+  ImageProvider? _fotoProvider() {
+    if (_fotoSelecionada != null) {
+      return MemoryImage(_fotoSelecionada!);
+    }
+
+    final fotoUrl = _cuidador?['fotoUrl']?.toString();
+
+    if (fotoUrl != null && fotoUrl.isNotEmpty) {
+      if (fotoUrl.startsWith('data:image')) {
+        final base64String = fotoUrl.split(',').last;
+        try {
+          return MemoryImage(base64Decode(base64String));
+        } catch (_) {
+          return null;
+        }
+      }
+
+      return NetworkImage(fotoUrl);
+    }
+
+    return null;
   }
 
   Future<void> _carregarDados() async {
@@ -127,10 +163,74 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
     }
   }
 
-  int? _parseInt(dynamic valor) {
-    if (valor == null) return null;
-    if (valor is int) return valor;
-    return int.tryParse(valor.toString());
+  Future<void> _selecionarESalvarFoto() async {
+    try {
+      final picker = ImagePicker();
+
+      final XFile? imagem = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 65,
+        maxWidth: 800,
+      );
+
+      if (imagem == null) return;
+
+      final bytes = await imagem.readAsBytes();
+
+      setState(() {
+        _fotoSelecionada = bytes;
+        _isUploadingFoto = true;
+      });
+
+      final base64Foto = base64Encode(bytes);
+      final fotoUrl = 'data:image/jpeg;base64,$base64Foto';
+
+      final response = await ServicoApi.put('/api/cuidador/foto', {
+        'fotoUrl': fotoUrl,
+      });
+
+      if (!mounted) return;
+
+      if (response['success'] == true) {
+        setState(() {
+          _cuidador = {
+            ...?_cuidador,
+            'fotoUrl': fotoUrl,
+          };
+          _isUploadingFoto = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Foto atualizada com sucesso!'),
+          ),
+        );
+      } else {
+        setState(() {
+          _isUploadingFoto = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              response['message'] ?? 'Erro ao salvar foto.',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _isUploadingFoto = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao selecionar/salvar foto: $e'),
+        ),
+      );
+    }
   }
 
   Future<void> _irParaEditarPerfil() async {
@@ -150,7 +250,7 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => const TelaConfiguracoesCuidador(),
+        builder: (_) => const TelaConfiguracoes(),
       ),
     );
 
@@ -206,6 +306,66 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _fotoPerfil() {
+    final provider = _fotoProvider();
+
+    return Column(
+      children: [
+        GestureDetector(
+          onTap: _isUploadingFoto ? null : _selecionarESalvarFoto,
+          child: Stack(
+            alignment: Alignment.bottomRight,
+            children: [
+              CircleAvatar(
+                radius: 46,
+                backgroundColor: Colors.white24,
+                backgroundImage: provider,
+                child: provider == null
+                    ? const Icon(
+                        Icons.camera_alt,
+                        size: 38,
+                        color: Colors.white,
+                      )
+                    : null,
+              ),
+              Container(
+                height: 30,
+                width: 30,
+                decoration: BoxDecoration(
+                  color: rosa,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+                child: _isUploadingFoto
+                    ? const Padding(
+                        padding: EdgeInsets.all(7),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(
+                        Icons.edit,
+                        size: 15,
+                        color: Colors.white,
+                      ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextButton.icon(
+          onPressed: _isUploadingFoto ? null : _selecionarESalvarFoto,
+          icon: const Icon(Icons.photo_library_outlined, size: 18),
+          label: const Text('Alterar foto'),
+          style: TextButton.styleFrom(
+            foregroundColor: Colors.white,
+          ),
+        ),
+      ],
     );
   }
 
@@ -288,35 +448,8 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
                         ),
                         child: Column(
                           children: [
-                            CircleAvatar(
-                              radius: 42,
-                              backgroundColor: Colors.white24,
-                              child: (_cuidador?['fotoUrl'] != null &&
-                                      _cuidador!['fotoUrl']
-                                          .toString()
-                                          .isNotEmpty)
-                                  ? ClipRRect(
-                                      borderRadius: BorderRadius.circular(50),
-                                      child: Image.network(
-                                        _cuidador!['fotoUrl'].toString(),
-                                        width: 84,
-                                        height: 84,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) =>
-                                            const Icon(
-                                          Icons.person,
-                                          size: 42,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    )
-                                  : const Icon(
-                                      Icons.person,
-                                      size: 42,
-                                      color: Colors.white,
-                                    ),
-                            ),
-                            const SizedBox(height: 14),
+                            _fotoPerfil(),
+                            const SizedBox(height: 8),
                             Text(
                               nome,
                               textAlign: TextAlign.center,
@@ -354,10 +487,9 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
                                 style: TextStyle(
                                   fontWeight: FontWeight.w700,
                                   fontSize: 12,
-                                  color:
-                                      _planoAtual.toLowerCase() == 'premium'
-                                          ? Colors.black
-                                          : roxo,
+                                  color: _planoAtual.toLowerCase() == 'premium'
+                                      ? Colors.black
+                                      : roxo,
                                 ),
                               ),
                             ),

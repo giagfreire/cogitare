@@ -57,7 +57,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Foto selecionada! Depois vamos salvar no perfil.'),
+          content: Text('Foto selecionada! Para salvar, altere pelo perfil.'),
         ),
       );
     }
@@ -245,23 +245,29 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
             color: Colors.white,
           ),
         ),
-        actions: [
-          GestureDetector(
-            onTap: selecionarImagem,
-            onLongPress: _abrirPerfil,
-            child: Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: CircleAvatar(
-                radius: 18,
-                backgroundColor: Colors.white,
-                backgroundImage: _fotoProvider(),
-                child: _fotoProvider() == null
-                    ? const Icon(Icons.person, color: Colors.grey)
-                    : null,
-              ),
-            ),
-          ),
-        ],
+      actions: [
+  IconButton(
+    tooltip: 'Configurações',
+    icon: const Icon(Icons.settings_outlined, color: Colors.white),
+    onPressed: () {
+      Navigator.pushNamed(context, '/configuracoes-cuidador');
+    },
+  ),
+  GestureDetector(
+    onTap: _abrirPerfil,
+    child: Padding(
+      padding: const EdgeInsets.only(right: 16),
+      child: CircleAvatar(
+        radius: 18,
+        backgroundColor: Colors.white,
+        backgroundImage: _fotoProvider(),
+        child: _fotoProvider() == null
+            ? const Icon(Icons.person, color: Colors.grey)
+            : null,
+      ),
+    ),
+  ),
+],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -326,8 +332,8 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                           onTap: _abrirPlanos,
                         ),
                         _buildActionBox(
-                          titulo: 'Configurações',
-                          icon: Icons.settings_outlined,
+                          titulo: 'Meu perfil',
+                          icon: Icons.person_outline,
                           cor: rosa,
                           onTap: _abrirPerfil,
                         ),
@@ -383,41 +389,6 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                 ),
               ),
             ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0,
-        selectedItemColor: rosa,
-        unselectedItemColor: roxo.withOpacity(0.55),
-        backgroundColor: Colors.white,
-        type: BottomNavigationBarType.fixed,
-        onTap: (index) async {
-          if (index == 1) {
-            await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const AgendaCuidadorPage(),
-              ),
-            );
-          }
-
-          if (index == 2) {
-            await _abrirPerfil();
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_rounded),
-            label: 'Início',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_month_rounded),
-            label: 'Agenda',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings_rounded),
-            label: 'Config',
-          ),
-        ],
-      ),
     );
   }
 

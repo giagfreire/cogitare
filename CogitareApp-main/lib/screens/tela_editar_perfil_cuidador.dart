@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
 import '../services/api_service.dart';
-import '../services/session_service.dart';
+import '../services/servico_autenticacao.dart';
 
 class TelaEditarPerfilCuidador extends StatefulWidget {
   static const route = '/editar-perfil-cuidador';
@@ -27,6 +28,10 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
   bool _isSaving = false;
   int? _cuidadorId;
 
+  static const Color roxo = Color(0xFF42124C);
+  static const Color rosa = Color(0xFFFE0472);
+  static const Color fundo = Color(0xFFF6F4F8);
+
   @override
   void initState() {
     super.initState();
@@ -45,6 +50,12 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
     super.dispose();
   }
 
+  int? _parseInt(dynamic valor) {
+    if (valor == null) return null;
+    if (valor is int) return valor;
+    return int.tryParse(valor.toString());
+  }
+
   String _textoSeguro(dynamic valor) {
     if (valor == null) return '';
     final texto = valor.toString().trim();
@@ -54,6 +65,28 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
 
   String _apenasNumeros(String valor) {
     return valor.replaceAll(RegExp(r'[^0-9]'), '');
+  }
+
+  Future<int?> _getCuidadorIdLogado() async {
+    final token = await ServicoAutenticacao.getToken();
+    final userData = await ServicoAutenticacao.getUserData();
+    final userType = await ServicoAutenticacao.getUserType();
+
+    if (token != null && token.isNotEmpty) {
+      ServicoApi.setToken(token);
+    }
+
+    if (userType != 'cuidador' || userData == null) {
+      return null;
+    }
+
+    return _parseInt(
+      userData['IdCuidador'] ??
+          userData['idCuidador'] ??
+          userData['cuidadorId'] ??
+          userData['id'] ??
+          userData['Id'],
+    );
   }
 
   Future<void> _selecionarDataNascimento() async {
@@ -78,7 +111,7 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
     });
 
     try {
-      final cuidadorId = await SessionService.getCuidadorId();
+      final cuidadorId = await _getCuidadorIdLogado();
 
       if (cuidadorId == null) {
         throw Exception('Não foi possível identificar o cuidador logado.');
@@ -89,15 +122,20 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
       if (response['success'] == true && response['data'] != null) {
         final data = Map<String, dynamic>.from(response['data']);
 
-   nomeController.text = _textoSeguro(data['nome']);
-emailController.text = _textoSeguro(data['email']);
-telefoneController.text = _textoSeguro(data['telefone']);
-cpfController.text = _textoSeguro(data['cpf']);
-cidadeController.text = _textoSeguro(data['cidade']);
-biografiaController.text = _textoSeguro(data['biografia']);
-valorHoraController.text = _textoSeguro(data['valorHora']);
+        nomeController.text = _textoSeguro(data['nome'] ?? data['Nome']);
+        emailController.text = _textoSeguro(data['email'] ?? data['Email']);
+        telefoneController.text =
+            _textoSeguro(data['telefone'] ?? data['Telefone']);
+        cpfController.text = _textoSeguro(data['cpf'] ?? data['Cpf']);
+        cidadeController.text = _textoSeguro(data['cidade'] ?? data['Cidade']);
+        biografiaController.text =
+            _textoSeguro(data['biografia'] ?? data['Biografia']);
+        valorHoraController.text =
+            _textoSeguro(data['valorHora'] ?? data['ValorHora']);
 
-final dataNascimentoTexto = _textoSeguro(data['dataNascimento']);
+        final dataNascimentoTexto =
+            _textoSeguro(data['dataNascimento'] ?? data['DataNascimento']);
+
         if (dataNascimentoTexto.isNotEmpty) {
           try {
             dataNascimento = DateTime.parse(dataNascimentoTexto);
@@ -110,9 +148,11 @@ final dataNascimentoTexto = _textoSeguro(data['dataNascimento']);
       }
     } catch (e) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erro ao carregar perfil: $e')),
       );
+
       Navigator.pop(context);
     } finally {
       if (mounted) {
@@ -153,8 +193,6 @@ final dataNascimentoTexto = _textoSeguro(data['dataNascimento']);
         'telefone': _apenasNumeros(telefoneController.text.trim()),
         'cpf': _apenasNumeros(cpfController.text.trim()),
         'dataNascimento': dataNascimento!.toIso8601String().split('T')[0],
-
-        // campos extras
         'cidade': cidadeController.text.trim(),
         'biografia': biografiaController.text.trim(),
         'valorHora': valorHoraController.text.trim(),
@@ -172,14 +210,13 @@ final dataNascimentoTexto = _textoSeguro(data['dataNascimento']);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              response['message'] ?? 'Erro ao atualizar perfil.',
-            ),
+            content: Text(response['message'] ?? 'Erro ao atualizar perfil.'),
           ),
         );
       }
     } catch (e) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erro ao salvar perfil: $e')),
       );
@@ -215,8 +252,11 @@ final dataNascimentoTexto = _textoSeguro(data['dataNascimento']);
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: fundo,
       appBar: AppBar(
         title: const Text('Editar perfil'),
+        backgroundColor: roxo,
+        foregroundColor: Colors.white,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -226,17 +266,16 @@ final dataNascimentoTexto = _textoSeguro(data['dataNascimento']);
                 children: [
                   const CircleAvatar(
                     radius: 36,
-                    child: Icon(Icons.person, size: 36),
+                    backgroundColor: roxo,
+                    child: Icon(Icons.person, size: 36, color: Colors.white),
                   ),
                   const SizedBox(height: 20),
-
                   _campo(
                     controller: nomeController,
                     label: 'Nome completo',
                     hint: 'Digite seu nome',
                   ),
                   const SizedBox(height: 12),
-
                   _campo(
                     controller: emailController,
                     label: 'E-mail',
@@ -245,7 +284,6 @@ final dataNascimentoTexto = _textoSeguro(data['dataNascimento']);
                     enabled: false,
                   ),
                   const SizedBox(height: 12),
-
                   _campo(
                     controller: telefoneController,
                     label: 'Telefone',
@@ -253,7 +291,6 @@ final dataNascimentoTexto = _textoSeguro(data['dataNascimento']);
                     keyboard: TextInputType.phone,
                   ),
                   const SizedBox(height: 12),
-
                   _campo(
                     controller: cpfController,
                     label: 'CPF',
@@ -261,7 +298,6 @@ final dataNascimentoTexto = _textoSeguro(data['dataNascimento']);
                     keyboard: TextInputType.number,
                   ),
                   const SizedBox(height: 12),
-
                   InkWell(
                     onTap: _selecionarDataNascimento,
                     child: InputDecorator(
@@ -277,14 +313,12 @@ final dataNascimentoTexto = _textoSeguro(data['dataNascimento']);
                     ),
                   ),
                   const SizedBox(height: 12),
-
                   _campo(
                     controller: cidadeController,
                     label: 'Cidade',
                     hint: 'Digite sua cidade',
                   ),
                   const SizedBox(height: 12),
-
                   _campo(
                     controller: valorHoraController,
                     label: 'Valor por hora',
@@ -292,7 +326,6 @@ final dataNascimentoTexto = _textoSeguro(data['dataNascimento']);
                     keyboard: TextInputType.number,
                   ),
                   const SizedBox(height: 12),
-
                   _campo(
                     controller: biografiaController,
                     label: 'Biografia',
@@ -300,7 +333,6 @@ final dataNascimentoTexto = _textoSeguro(data['dataNascimento']);
                     maxLines: 4,
                   ),
                   const SizedBox(height: 24),
-
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -309,7 +341,10 @@ final dataNascimentoTexto = _textoSeguro(data['dataNascimento']);
                           ? const SizedBox(
                               width: 20,
                               height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
                             )
                           : const Text('Salvar alterações'),
                     ),

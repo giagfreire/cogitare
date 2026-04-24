@@ -8,6 +8,10 @@ import 'screens/criar_vaga_page.dart';
 import 'screens/tela_login_unificada.dart';
 import 'screens/dashboard_cuidador.dart';
 import 'screens/tela_dashboard_responsavel.dart';
+import 'screens/perfil_cuidador_page.dart';
+import 'screens/tela_configuracoes.dart';
+import 'screens/tela_editar_perfil_cuidador.dart';
+import 'screens/tela_termos_condicoes.dart';
 
 void main() {
   runApp(const CogitareApp());
@@ -16,6 +20,11 @@ void main() {
 class CogitareApp extends StatelessWidget {
   const CogitareApp({super.key});
 
+  static const Color roxo = Color(0xFF42124C);
+  static const Color rosa = Color(0xFFFE0472);
+  static const Color verde = Color(0xFF8AFF00);
+  static const Color fundo = Color(0xFFF7F8FC);
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -23,48 +32,47 @@ class CogitareApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        primaryColor: const Color(0xFF42124C),
-        scaffoldBackgroundColor: const Color(0xFFF7F8FC),
+        primaryColor: roxo,
+        scaffoldBackgroundColor: fundo,
         colorScheme: const ColorScheme(
           brightness: Brightness.light,
-          primary: Color(0xFF42124C),
+          primary: roxo,
           onPrimary: Colors.white,
-          secondary: Color(0xFFFE0472),
+          secondary: rosa,
           onSecondary: Colors.white,
+          tertiary: verde,
+          onTertiary: Colors.black,
           error: Colors.red,
           onError: Colors.white,
           surface: Colors.white,
-          onSurface: Color(0xFF42124C),
+          onSurface: roxo,
         ),
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF42124C),
+          backgroundColor: roxo,
           foregroundColor: Colors.white,
           elevation: 0,
           centerTitle: true,
         ),
-elevatedButtonTheme: ElevatedButtonThemeData(
-  style: ElevatedButton.styleFrom(
-    backgroundColor: const Color(0xFFFE0472),
-    foregroundColor: Colors.white,
-    minimumSize: const Size(0, 52),
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(16),
-    ),
-    textStyle: const TextStyle(
-      fontSize: 16,
-      fontWeight: FontWeight.w600,
-    ),
-  ),
-),        inputDecorationTheme: InputDecorationTheme(
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: rosa,
+            foregroundColor: Colors.white,
+            minimumSize: const Size(0, 52),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            textStyle: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: Colors.white,
-          labelStyle: const TextStyle(
-            color: Color(0xFF42124C),
-          ),
-          hintStyle: TextStyle(
-            color: Colors.grey.shade500,
-          ),
+          labelStyle: const TextStyle(color: roxo),
+          hintStyle: TextStyle(color: Colors.grey.shade500),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 16,
             vertical: 16,
@@ -80,7 +88,7 @@ elevatedButtonTheme: ElevatedButtonThemeData(
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
             borderSide: const BorderSide(
-              color: Color(0xFFFE0472),
+              color: rosa,
               width: 1.5,
             ),
           ),
@@ -109,7 +117,7 @@ elevatedButtonTheme: ElevatedButtonThemeData(
         ),
         snackBarTheme: SnackBarThemeData(
           behavior: SnackBarBehavior.floating,
-          backgroundColor: const Color(0xFF42124C),
+          backgroundColor: roxo,
           contentTextStyle: const TextStyle(
             color: Colors.white,
             fontSize: 14,
@@ -119,23 +127,32 @@ elevatedButtonTheme: ElevatedButtonThemeData(
           ),
         ),
         progressIndicatorTheme: const ProgressIndicatorThemeData(
-          color: Color(0xFFFE0472),
+          color: rosa,
         ),
       ),
       initialRoute: '/',
       routes: {
         '/': (context) => const OnboardingScreen(),
+
         '/login': (context) => const TelaLoginUnificada(),
         TelaLoginUnificada.route: (context) => const TelaLoginUnificada(),
+
         DashboardCuidador.route: (context) => const DashboardCuidador(),
         TelaDashboardResponsavel.route: (context) =>
             const TelaDashboardResponsavel(),
+
         TelaCadastroResponsavel.route: (context) =>
             const TelaCadastroResponsavel(),
         TelaCadastroIdoso.route: (context) => const TelaCadastroIdoso(),
         TelaSucesso.route: (context) => const TelaSucesso(),
+
+        PerfilCuidadorPage.route: (context) => const PerfilCuidadorPage(),
+        '/configuracoes': (context) => const TelaConfiguracoes(),
+        TelaEditarPerfilCuidador.route: (context) =>
+            const TelaEditarPerfilCuidador(),
+        TelaTermosCondicoes.route: (context) => const TelaTermosCondicoes(),
+
         '/criar-vaga': (context) => const CriarVagaPage(),
-        DashboardCuidador.route: (context) => const DashboardCuidador(),
       },
     );
   }

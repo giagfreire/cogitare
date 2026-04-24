@@ -389,6 +389,45 @@ router.get('/status-plano', authenticateToken, async (req, res) => {
 });
 
 /**
+ * ATUALIZAR FOTO DO CUIDADOR
+ */
+router.put('/foto', authenticateToken, async (req, res) => {
+  try {
+    const idCuidador = req.user.id;
+    const { fotoUrl } = req.body;
+
+    if (!fotoUrl || fotoUrl.toString().trim().isEmpty) {
+      return res.status(400).json({
+        success: false,
+        message: 'Foto é obrigatória',
+      });
+    }
+
+    await db.query(
+      `UPDATE cuidador
+       SET FotoUrl = ?
+       WHERE IdCuidador = ?`,
+      [fotoUrl, idCuidador]
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Foto atualizada com sucesso',
+      data: {
+        fotoUrl,
+      },
+    });
+  } catch (error) {
+    console.error('ERRO AO ATUALIZAR FOTO DO CUIDADOR:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erro ao atualizar foto',
+      error: error.message,
+    });
+  }
+});
+
+/**
  * PLANO DO CUIDADOR POR ID
  */
 router.get('/:id/plano', async (req, res) => {
