@@ -30,8 +30,6 @@ router.post('/criar-preferencia', async (req, res) => {
       });
     }
 
-    const preference = new Preference(client);
-
     const body = {
       items: [
         {
@@ -53,16 +51,33 @@ router.post('/criar-preferencia', async (req, res) => {
       }),
     };
 
-    // Só adiciona notification_url se você tiver uma URL pública real
-    if (
-      process.env.MP_WEBHOOK_URL &&
-      process.env.MP_WEBHOOK_URL.trim() !== ''
-    ) {
+    if (process.env.MP_WEBHOOK_URL && process.env.MP_WEBHOOK_URL.trim() !== '') {
       body.notification_url = process.env.MP_WEBHOOK_URL.trim();
     }
 
     const preferenceInstance = new Preference(client);
     const result = await preferenceInstance.create({ body });
+
+    // Salva histórico como pendente
+    try {
+      await db.query(
+        `
+        INSERT INTO pagamento
+        (IdCuidador, IdPlano, PaymentId, PreferenceId, Status, Valor)
+        VALUES (?, ?, ?, ?, ?, ?)
+        `,
+        [
+          idCuidador,
+          idPlano,
+          null,
+          result.id ? String(result.id) : null,
+          'pending',
+          precoNumero,
+        ]
+      );
+    } catch (e) {
+      console.log('ℹ️ Não foi possível salvar pagamento pendente:', e.message);
+    }
 
     return res.status(200).json({
       success: true,
@@ -71,6 +86,7 @@ router.post('/criar-preferencia', async (req, res) => {
         id: result.id,
         init_point: result.init_point,
         sandbox_init_point: result.sandbox_init_point,
+        status: 'pending',
       },
     });
   } catch (error) {
@@ -79,16 +95,13 @@ router.post('/criar-preferencia', async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Erro ao criar pagamento',
-      error:
-        process.env.NODE_ENV === 'development'
-          ? error.message
-          : undefined,
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 });
 
 // =========================
-// WEBHOOK
+// WEBHOOK MERCADO PAGO
 // =========================
 router.post('/webhook', async (req, res) => {
   try {
@@ -98,7 +111,6 @@ router.post('/webhook', async (req, res) => {
     const topic = req.query.type || req.body?.type;
     const paymentId = req.query['data.id'] || req.body?.data?.id;
 
-    // Mercado Pago pode mandar outros eventos também
     if (topic !== 'payment' || !paymentId) {
       return res.sendStatus(200);
     }
@@ -110,7 +122,10 @@ router.post('/webhook', async (req, res) => {
 
     const status = paymentData.status;
     const externalReference = paymentData.external_reference;
-    const transactionAmount = paymentData.transaction_amount || 0;
+    const transactionAmount = Number(paymentData.transaction_amount || 0);
+    const preferenceId = paymentData.preference_id
+      ? String(paymentData.preference_id)
+      : null;
 
     let idCuidador = null;
     let idPlano = null;
@@ -128,10 +143,62 @@ router.post('/webhook', async (req, res) => {
       return res.sendStatus(200);
     }
 
-    // Só ativa plano se o pagamento foi aprovado
+    // Atualiza/salva histórico do pagamento
+    try {
+      const pagamentos = await db.query(
+        `
+        SELECT *
+        FROM pagamento
+        WHERE PreferenceId = ?
+        ORDER BY IdPagamento DESC
+        LIMIT 1
+        `,
+        [preferenceId]
+      );
+
+      if (pagamentos && pagamentos.length > 0) {
+        await db.query(
+          `
+          UPDATE pagamento
+          SET
+            PaymentId = ?,
+            Status = ?,
+            Valor = ?
+          WHERE IdPagamento = ?
+          `,
+          [
+            String(paymentId),
+            status,
+            transactionAmount,
+            pagamentos[0].IdPagamento,
+          ]
+        );
+      } else {
+        await db.query(
+          `
+          INSERT INTO pagamento
+          (IdCuidador, IdPlano, PaymentId, PreferenceId, Status, Valor)
+          VALUES (?, ?, ?, ?, ?, ?)
+          `,
+          [
+            idCuidador,
+            idPlano,
+            String(paymentId),
+            preferenceId,
+            status,
+            transactionAmount,
+          ]
+        );
+      }
+
+      console.log('✅ Histórico de pagamento atualizado:', status);
+    } catch (e) {
+      console.log('ℹ️ Erro ao salvar histórico de pagamento:', e.message);
+    }
+
+    // Só ativa plano se pagamento aprovado
     if (status === 'approved') {
-      // Verifica se o plano existe
-      const [planos] = await db.query(
+      const planos = await db.query(
         'SELECT * FROM plano WHERE IdPlano = ? LIMIT 1',
         [idPlano]
       );
@@ -141,8 +208,7 @@ router.post('/webhook', async (req, res) => {
         return res.sendStatus(200);
       }
 
-      // Verifica se já existe assinatura do cuidador
-      const [assinaturas] = await db.query(
+      const assinaturas = await db.query(
         `
         SELECT *
         FROM assinaturacuidador
@@ -154,7 +220,6 @@ router.post('/webhook', async (req, res) => {
       );
 
       if (assinaturas && assinaturas.length > 0) {
-        // Atualiza assinatura existente
         await db.query(
           `
           UPDATE assinaturacuidador
@@ -170,10 +235,9 @@ router.post('/webhook', async (req, res) => {
         );
 
         console.log(
-          `✅ Assinatura atualizada para cuidador ${idCuidador}, plano ${idPlano}`
+          `✅ Assinatura atualizada: cuidador ${idCuidador}, plano ${idPlano}`
         );
       } else {
-        // Cria nova assinatura
         await db.query(
           `
           INSERT INTO assinaturacuidador
@@ -184,42 +248,58 @@ router.post('/webhook', async (req, res) => {
         );
 
         console.log(
-          `✅ Nova assinatura criada para cuidador ${idCuidador}, plano ${idPlano}`
-        );
-      }
-
-      // Histórico opcional, só se existir tabela pagamento
-      try {
-        await db.query(
-          `
-          INSERT INTO pagamento
-          (IdCuidador, IdPlano, PaymentId, PreferenceId, Status, Valor)
-          VALUES (?, ?, ?, ?, ?, ?)
-          `,
-          [
-            idCuidador,
-            idPlano,
-            String(paymentId),
-            paymentData.order?.id ? String(paymentData.order.id) : null,
-            status,
-            Number(transactionAmount),
-          ]
-        );
-
-        console.log('✅ Histórico de pagamento salvo');
-      } catch (e) {
-        console.log(
-          'ℹ️ Tabela pagamento não encontrada ou insert falhou, seguindo normalmente.'
+          `✅ Nova assinatura criada: cuidador ${idCuidador}, plano ${idPlano}`
         );
       }
     } else {
-      console.log(`Pagamento ainda não aprovado. Status: ${status}`);
+      console.log(`Pagamento recebido, mas ainda não aprovado. Status: ${status}`);
     }
 
     return res.sendStatus(200);
   } catch (err) {
     console.error('ERRO WEBHOOK:', err);
     return res.sendStatus(500);
+  }
+});
+
+// =========================
+// CONSULTAR ÚLTIMO PAGAMENTO DO CUIDADOR
+// =========================
+router.get('/status-pagamento/:idCuidador', async (req, res) => {
+  try {
+    const { idCuidador } = req.params;
+
+    const pagamentos = await db.query(
+      `
+      SELECT *
+      FROM pagamento
+      WHERE IdCuidador = ?
+      ORDER BY IdPagamento DESC
+      LIMIT 1
+      `,
+      [idCuidador]
+    );
+
+    if (!pagamentos || pagamentos.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: null,
+        message: 'Nenhum pagamento encontrado',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: pagamentos[0],
+    });
+  } catch (error) {
+    console.error('ERRO STATUS PAGAMENTO:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Erro ao consultar status do pagamento',
+      error: error.message,
+    });
   }
 });
 

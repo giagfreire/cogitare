@@ -19,6 +19,7 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
 
   bool _isLoadingPlano = true;
   bool _isLoadingVagas = true;
+  int? _vagaSendoAceita;
 
   static const Color roxo = Color(0xFF42124C);
   static const Color rosa = Color(0xFFFE0472);
@@ -28,8 +29,7 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
   @override
   void initState() {
     super.initState();
-    _loadPlano();
-    _loadVagas();
+    _recarregarTudo();
   }
 
   Future<void> _loadPlano() async {
@@ -50,14 +50,21 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
             _limitePlano =
                 _planoAtual.toLowerCase() == 'premium' ? 20 : 5;
           }
+        } else {
+          _planoAtual = 'Básico';
+          _usosPlano = 0;
+          _limitePlano = 5;
         }
 
         _isLoadingPlano = false;
       });
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
 
       setState(() {
+        _planoAtual = 'Básico';
+        _usosPlano = 0;
+        _limitePlano = 5;
         _isLoadingPlano = false;
       });
     }
@@ -71,18 +78,24 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
 
       setState(() {
         vagas = response.map((e) => Map<String, dynamic>.from(e)).toList();
-              _isLoadingVagas = false;
+        _isLoadingVagas = false;
       });
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
 
       setState(() {
+        vagas = [];
         _isLoadingVagas = false;
       });
     }
   }
 
   Future<void> _recarregarTudo() async {
+    setState(() {
+      _isLoadingPlano = true;
+      _isLoadingVagas = true;
+    });
+
     await Future.wait([
       _loadPlano(),
       _loadVagas(),
@@ -174,9 +187,17 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
 
     Navigator.pop(sheetContext);
 
+    setState(() {
+      _vagaSendoAceita = idVaga;
+    });
+
     final response = await ApiCuidador.aceitarVaga(idVaga);
 
     if (!mounted) return;
+
+    setState(() {
+      _vagaSendoAceita = null;
+    });
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -200,7 +221,8 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
     if (data == null) return '-';
 
     final texto = data.toString();
-    if (texto.length >= 10) {
+
+    if (texto.length >= 10 && texto.contains('-')) {
       final partes = texto.substring(0, 10).split('-');
       if (partes.length == 3) {
         return '${partes[2]}/${partes[1]}/${partes[0]}';
@@ -247,6 +269,8 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
   }
 
   void _verDetalhes(Map<String, dynamic> vaga) {
+    final idVaga = int.tryParse('${vaga['IdVaga'] ?? 0}') ?? 0;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
@@ -274,7 +298,7 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
                 children: [
                   Expanded(
                     child: Text(
-                      vaga['NomeResponsavel']?.toString() ?? '',
+                      vaga['NomeResponsavel']?.toString() ?? 'Responsável',
                       style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
@@ -403,23 +427,35 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: () => _aceitarVaga(sheetContext, vaga),
+                  onPressed: _vagaSendoAceita != null
+                      ? null
+                      : () => _aceitarVaga(sheetContext, vaga),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _bloqueadoPorPlano ? rosa : roxo,
+                    disabledBackgroundColor: roxo.withOpacity(0.5),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
-                  child: Text(
-                    _bloqueadoPorPlano
-                        ? 'Desbloquear com Premium'
-                        : 'Aceitar vaga',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
+                  child: _vagaSendoAceita == idVaga
+                      ? const SizedBox(
+                          height: 22,
+                          width: 22,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : Text(
+                          _bloqueadoPorPlano
+                              ? 'Desbloquear com Premium'
+                              : 'Aceitar vaga',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
                 ),
               ),
             ],
@@ -568,9 +604,7 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
                   color: premium ? verde : Colors.white.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: premium
-                        ? verde
-                        : Colors.white.withOpacity(0.35),
+                    color: premium ? verde : Colors.white.withOpacity(0.35),
                   ),
                 ),
                 child: Text(
@@ -651,8 +685,7 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
                       : RefreshIndicator(
                           onRefresh: _recarregarTudo,
                           child: ListView.builder(
-                            physics:
-                                const AlwaysScrollableScrollPhysics(),
+                            physics: const AlwaysScrollableScrollPhysics(),
                             padding: const EdgeInsets.all(16),
                             itemCount: vagas.length,
                             itemBuilder: (context, index) =>
