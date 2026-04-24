@@ -5,6 +5,8 @@ import 'agenda_cuidador_page.dart';
 import 'perfil_cuidador_page.dart';
 import 'planos_cuidador_page.dart';
 import 'vagas_cuidador_page.dart';
+import 'dart:typed_data';
+import 'package:image_picker/image_picker.dart';
 
 class DashboardCuidador extends StatefulWidget {
   static const route = '/dashboard-cuidador';
