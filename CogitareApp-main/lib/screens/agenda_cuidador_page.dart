@@ -22,7 +22,7 @@ class _AgendaCuidadorPageState extends State<AgendaCuidadorPage> {
 
   List<Map<String, dynamic>> servicos = [];
 
-  bool _isSaving = false;
+  final bool _isSaving = false;
   bool _isLoading = true;
 
   static const Color roxo = Color(0xFF42124C);
@@ -196,7 +196,7 @@ class _AgendaCuidadorPageState extends State<AgendaCuidadorPage> {
                           : const Text("Indisponível"),
                     ),
                   );
-                }).toList(),
+                }),
               ],
             ),
     );

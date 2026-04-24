@@ -1,12 +1,14 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+
 import '../services/api_service.dart';
 import '../services/servico_autenticacao.dart';
 import 'agenda_cuidador_page.dart';
 import 'perfil_cuidador_page.dart';
 import 'planos_cuidador_page.dart';
 import 'vagas_cuidador_page.dart';
-import 'dart:typed_data';
-import 'package:image_picker/image_picker.dart';
 
 class DashboardCuidador extends StatefulWidget {
   static const route = '/dashboard-cuidador';
@@ -25,6 +27,8 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
   int _usosPlano = 0;
   int _limitePlano = 5;
 
+  Uint8List? _fotoSelecionada;
+
   static const Color roxo = Color(0xFF42124C);
   static const Color rosa = Color(0xFFFE0472);
   static const Color verde = Color(0xFF8AFF00);
@@ -34,6 +38,29 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
   void initState() {
     super.initState();
     _carregarDados();
+  }
+
+  Future<void> selecionarImagem() async {
+    final picker = ImagePicker();
+
+    final XFile? imagem = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 70,
+    );
+
+    if (imagem != null) {
+      final bytes = await imagem.readAsBytes();
+
+      setState(() {
+        _fotoSelecionada = bytes;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Foto selecionada! Depois vamos salvar no perfil.'),
+        ),
+      );
+    }
   }
 
   Future<void> _carregarDados() async {
@@ -127,7 +154,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
     final valorHora = _cuidador?['valorHora'];
     final telefone = _cuidador?['telefone'];
     final bio = _cuidador?['biografia'];
-    final foto = _cuidador?['fotoUrl'];
+    final foto = _fotoSelecionada ?? _cuidador?['fotoUrl'];
 
     if (cidade != null && cidade.toString().trim().isNotEmpty) preenchidos++;
     if (valorHora != null && valorHora.toString().trim().isNotEmpty) {
@@ -153,6 +180,20 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
     if (valor > 1) return 1;
     if (valor < 0) return 0;
     return valor;
+  }
+
+  ImageProvider? _fotoProvider() {
+    if (_fotoSelecionada != null) {
+      return MemoryImage(_fotoSelecionada!);
+    }
+
+    final fotoUrl = _cuidador?['fotoUrl']?.toString();
+
+    if (fotoUrl != null && fotoUrl.isNotEmpty) {
+      return NetworkImage(fotoUrl);
+    }
+
+    return null;
   }
 
   Future<void> _abrirPerfil() async {
@@ -206,26 +247,17 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
         ),
         actions: [
           GestureDetector(
-            onTap: _abrirPerfil,
+            onTap: selecionarImagem,
+            onLongPress: _abrirPerfil,
             child: Padding(
               padding: const EdgeInsets.only(right: 16),
               child: CircleAvatar(
                 radius: 18,
                 backgroundColor: Colors.white,
-                child: (_cuidador?['fotoUrl'] != null &&
-                        _cuidador!['fotoUrl'].toString().isNotEmpty)
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
-                        child: Image.network(
-                          _cuidador!['fotoUrl'].toString(),
-                          width: 36,
-                          height: 36,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              const Icon(Icons.person, color: Colors.grey),
-                        ),
-                      )
-                    : const Icon(Icons.person, color: Colors.grey),
+                backgroundImage: _fotoProvider(),
+                child: _fotoProvider() == null
+                    ? const Icon(Icons.person, color: Colors.grey)
+                    : null,
               ),
             ),
           ),

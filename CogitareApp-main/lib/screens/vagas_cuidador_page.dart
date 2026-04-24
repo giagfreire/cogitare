@@ -70,12 +70,8 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
       if (!mounted) return;
 
       setState(() {
-        if (response is List) {
-          vagas = response.map((e) => Map<String, dynamic>.from(e)).toList();
-        } else {
-          vagas = [];
-        }
-        _isLoadingVagas = false;
+        vagas = response.map((e) => Map<String, dynamic>.from(e)).toList();
+              _isLoadingVagas = false;
       });
     } catch (e) {
       if (!mounted) return;

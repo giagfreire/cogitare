@@ -306,7 +306,7 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
                       ),
                       const SizedBox(height: 14),
                       DropdownButtonFormField<String>(
-                        value: gender,
+                        initialValue: gender,
                         decoration: _inputDecoration(label: "Sexo *"),
                         items: const [
                           DropdownMenuItem(
@@ -326,7 +326,7 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
                       ),
                       const SizedBox(height: 14),
                       DropdownButtonFormField<int>(
-                        value: mobilityId,
+                        initialValue: mobilityId,
                         decoration: _inputDecoration(label: "Nível de mobilidade"),
                         items: const [
                           DropdownMenuItem(value: 1, child: Text("Independente")),
@@ -343,7 +343,7 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
                       ),
                       const SizedBox(height: 14),
                       DropdownButtonFormField<int>(
-                        value: autonomyLevelId,
+                        initialValue: autonomyLevelId,
                         decoration: _inputDecoration(label: "Nível de autonomia"),
                         items: const [
                           DropdownMenuItem(value: 1, child: Text("Totalmente independente")),
