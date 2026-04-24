@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../services/api_cuidador.dart';
 import '../services/api_pagamento.dart';
 import '../services/servico_autenticacao.dart';
 
@@ -13,12 +14,27 @@ class PlanosCuidadorPage extends StatefulWidget {
 
 class _PlanosCuidadorPageState extends State<PlanosCuidadorPage> {
   String? planoSelecionado;
+
+  bool _isLoading = true;
   bool _isSaving = false;
+
+  String planoAtual = 'Básico';
+  int limitePlano = 5;
+  int usosPlano = 0;
+
+  String statusPagamento = '';
+  double valorPagamento = 0;
 
   static const Color roxo = Color(0xFF42124C);
   static const Color rosa = Color(0xFFFE0472);
   static const Color verde = Color(0xFF8AFF00);
   static const Color fundo = Color(0xFFF6F4F8);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTudo();
+  }
 
   int? _parseInt(dynamic valor) {
     if (valor == null) return null;
@@ -26,39 +42,89 @@ class _PlanosCuidadorPageState extends State<PlanosCuidadorPage> {
     return int.tryParse(valor.toString());
   }
 
+  double _parseDouble(dynamic valor) {
+    if (valor == null) return 0;
+    if (valor is num) return valor.toDouble();
+    return double.tryParse(valor.toString()) ?? 0;
+  }
+
+  Future<int?> _getCuidadorId() async {
+    final userData = await ServicoAutenticacao.getUserData();
+
+    return _parseInt(
+      userData?['IdCuidador'] ??
+          userData?['idCuidador'] ??
+          userData?['cuidadorId'] ??
+          userData?['id'] ??
+          userData?['Id'],
+    );
+  }
+
+  Future<void> _loadTudo() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final idCuidador = await _getCuidadorId();
+
+      final planoResponse = await ApiCuidador.getStatusPlano();
+
+      if (planoResponse['success'] == true && planoResponse['data'] != null) {
+        final data = Map<String, dynamic>.from(planoResponse['data']);
+
+        planoAtual = (data['PlanoAtual'] ?? 'Básico').toString();
+        usosPlano = _parseInt(data['UsosPlano']) ?? 0;
+        limitePlano = _parseInt(data['LimitePlano']) ??
+            (planoAtual.toLowerCase() == 'premium' ? 20 : 5);
+      }
+
+      if (idCuidador != null) {
+        final pagamentoResponse = await ApiPagamento.buscarStatusPagamento(
+          idCuidador: idCuidador,
+        );
+
+        if (pagamentoResponse['success'] == true &&
+            pagamentoResponse['data'] != null) {
+          final pagamento = Map<String, dynamic>.from(
+            pagamentoResponse['data'],
+          );
+
+          statusPagamento = (pagamento['Status'] ?? '').toString();
+          valorPagamento = _parseDouble(pagamento['Valor']);
+        }
+      }
+    } catch (e) {
+      debugPrint('Erro ao carregar plano/pagamento: $e');
+    }
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+  }
+
   Future<void> selecionarPlano() async {
     if (planoSelecionado == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Selecione um plano para continuar.'),
-        ),
+        const SnackBar(content: Text('Selecione um plano para continuar.')),
+      );
+      return;
+    }
+
+    final bool premiumEscolhido = planoSelecionado == 'Premium';
+    final bool premiumAtivo = planoAtual.toLowerCase() == 'premium';
+
+    if (premiumEscolhido && premiumAtivo) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Você já está no Plano Premium.')),
       );
       return;
     }
 
     try {
-      setState(() {
-        _isSaving = true;
-      });
+      setState(() => _isSaving = true);
 
-      final userData = await ServicoAutenticacao.getUserData();
-
-      final dynamic idDinamico =
-          userData?['IdCuidador'] ??
-          userData?['idCuidador'] ??
-          userData?['cuidadorId'] ??
-          userData?['id'] ??
-          userData?['Id'];
-
-      final int? idCuidador = _parseInt(idDinamico);
+      final idCuidador = await _getCuidadorId();
 
       if (idCuidador == null) {
-        if (!mounted) return;
-
-        setState(() {
-          _isSaving = false;
-        });
-
+        setState(() => _isSaving = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Não foi possível identificar o cuidador logado.'),
@@ -67,46 +133,48 @@ class _PlanosCuidadorPageState extends State<PlanosCuidadorPage> {
         return;
       }
 
-      final bool premium = planoSelecionado == 'Premium';
-
       final response = await ApiPagamento.criarPreferencia(
         idCuidador: idCuidador,
-        idPlano: premium ? 2 : 1,
-        titulo:
-            premium ? 'Plano Premium Cogitare' : 'Plano Básico Cogitare',
-        preco: premium ? 59.90 : 29.90,
+        idPlano: premiumEscolhido ? 2 : 1,
+        titulo: premiumEscolhido
+            ? 'Plano Premium Cogitare'
+            : 'Plano Básico Cogitare',
+        preco: premiumEscolhido ? 59.90 : 29.90,
       );
 
       if (!mounted) return;
-
-      setState(() {
-        _isSaving = false;
-      });
+      setState(() => _isSaving = false);
 
       if (response['success'] == true) {
-        final String? url =
-            response['data']?['init_point']?.toString() ??
+        await _loadTudo();
+
+        final url = response['data']?['init_point']?.toString() ??
             response['data']?['sandbox_init_point']?.toString();
 
         if (url == null || url.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Link de pagamento não encontrado.'),
-            ),
+            const SnackBar(content: Text('Link de pagamento não encontrado.')),
           );
           return;
         }
 
-        final uri = Uri.parse(url);
         final abriu = await launchUrl(
-          uri,
+          Uri.parse(url),
           mode: LaunchMode.externalApplication,
         );
 
         if (!abriu && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Não foi possível abrir o Mercado Pago.')),
+          );
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Não foi possível abrir o Mercado Pago.'),
+              content: Text(
+                'Depois do pagamento, volte para esta tela e toque em atualizar.',
+              ),
             ),
           );
         }
@@ -114,52 +182,146 @@ class _PlanosCuidadorPageState extends State<PlanosCuidadorPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              response['message']?.toString() ??
-                  'Erro ao iniciar o pagamento.',
+              response['message']?.toString() ?? 'Erro ao iniciar pagamento.',
             ),
           ),
         );
       }
     } catch (e) {
       if (!mounted) return;
-
-      setState(() {
-        _isSaving = false;
-      });
+      setState(() => _isSaving = false);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro ao processar pagamento: $e'),
-        ),
+        SnackBar(content: Text('Erro ao processar pagamento: $e')),
       );
     }
+  }
+
+  Widget _statusPagamentoBox() {
+    if (statusPagamento.isEmpty) return const SizedBox.shrink();
+
+    Color cor = Colors.orange;
+    IconData icon = Icons.schedule;
+    String texto = 'Pagamento pendente';
+
+    if (statusPagamento == 'approved') {
+      cor = Colors.green;
+      icon = Icons.check_circle_outline;
+      texto = 'Pagamento aprovado';
+    } else if (statusPagamento == 'rejected' ||
+        statusPagamento == 'cancelled' ||
+        statusPagamento == 'refunded') {
+      cor = Colors.redAccent;
+      icon = Icons.error_outline;
+      texto = 'Pagamento não aprovado';
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: cor.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: cor.withOpacity(0.25)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: cor),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              valorPagamento > 0
+                  ? '$texto • R\$ ${valorPagamento.toStringAsFixed(2).replaceAll('.', ',')}'
+                  : texto,
+              style: TextStyle(
+                color: cor,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _planoAtualBox() {
+    final bool premium = planoAtual.toLowerCase() == 'premium';
+    final int restantes = (limitePlano - usosPlano) < 0 ? 0 : limitePlano - usosPlano;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: premium ? verde : roxo,
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Seu plano atual',
+            style: TextStyle(
+              color: premium ? Colors.black87 : Colors.white70,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            premium ? 'Premium' : 'Básico',
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w900,
+              color: premium ? Colors.black : Colors.white,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Uso: $usosPlano de $limitePlano contatos',
+            style: TextStyle(
+              color: premium ? Colors.black87 : Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 10),
+          LinearProgressIndicator(
+            value: limitePlano <= 0 ? 0 : (usosPlano / limitePlano).clamp(0, 1),
+            minHeight: 8,
+            backgroundColor: premium ? Colors.black12 : Colors.white24,
+            valueColor: AlwaysStoppedAnimation(premium ? Colors.black : rosa),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Restantes: $restantes contato(s)',
+            style: TextStyle(
+              color: premium ? Colors.black87 : Colors.white70,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _planoCard({
     required String titulo,
     required String preco,
-    required String descricao,
-    required List<String> beneficios,
-    required bool destaque,
     required String valor,
-    required Color corPrincipal,
-    bool textoEscuro = false,
+    required Color cor,
+    required List<String> beneficios,
+    bool destaque = false,
   }) {
     final bool selecionado = planoSelecionado == valor;
-    final textColor = textoEscuro ? Colors.black : Colors.white;
+    final bool ativo = planoAtual.toLowerCase() == valor.toLowerCase();
 
     return GestureDetector(
-      onTap: () {
-        setState(() {
-          planoSelecionado = valor;
-        });
-      },
+      onTap: () => setState(() => planoSelecionado = valor),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
+        duration: const Duration(milliseconds: 220),
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: corPrincipal,
+          color: cor,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
             color: selecionado ? Colors.white : Colors.transparent,
@@ -167,7 +329,7 @@ class _PlanosCuidadorPageState extends State<PlanosCuidadorPage> {
           ),
           boxShadow: [
             BoxShadow(
-              color: corPrincipal.withOpacity(0.18),
+              color: cor.withOpacity(0.18),
               blurRadius: 14,
               offset: const Offset(0, 5),
             ),
@@ -176,35 +338,32 @@ class _PlanosCuidadorPageState extends State<PlanosCuidadorPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (destaque)
+            if (ativo || destaque)
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Text(
-                  'Mais escolhido',
-                  style: TextStyle(
+                child: Text(
+                  ativo ? 'Plano ativo' : 'Mais escolhido',
+                  style: const TextStyle(
                     color: roxo,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
-            if (destaque) const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
                   child: Text(
                     titulo,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
-                      color: textColor,
+                      color: Colors.white,
                     ),
                   ),
                 ),
@@ -212,33 +371,19 @@ class _PlanosCuidadorPageState extends State<PlanosCuidadorPage> {
                   value: valor,
                   groupValue: planoSelecionado,
                   activeColor: Colors.white,
-                  fillColor: WidgetStateProperty.resolveWith((states) {
-                    if (selecionado) return Colors.white;
-                    return textColor.withOpacity(0.8);
-                  }),
+                  fillColor: WidgetStateProperty.all(Colors.white),
                   onChanged: (value) {
-                    setState(() {
-                      planoSelecionado = value;
-                    });
+                    setState(() => planoSelecionado = value);
                   },
                 ),
               ],
             ),
-            const SizedBox(height: 4),
             Text(
               preco,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.w800,
-                color: textColor,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              descricao,
-              style: TextStyle(
-                fontSize: 14,
-                color: textColor.withOpacity(0.85),
+                color: Colors.white,
               ),
             ),
             const SizedBox(height: 14),
@@ -248,19 +393,12 @@ class _PlanosCuidadorPageState extends State<PlanosCuidadorPage> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      Icons.check_circle,
-                      size: 18,
-                      color: textColor,
-                    ),
+                    const Icon(Icons.check_circle, size: 18, color: Colors.white),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         item,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: textColor,
-                        ),
+                        style: const TextStyle(color: Colors.white),
                       ),
                     ),
                   ],
@@ -273,100 +411,84 @@ class _PlanosCuidadorPageState extends State<PlanosCuidadorPage> {
     );
   }
 
-  Widget _infoBox() {
-    return Container(
-      margin: const EdgeInsets.only(top: 4),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: verde.withOpacity(0.18),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: const Row(
-        children: [
-          Icon(Icons.info_outline, color: roxo),
-          SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Após o pagamento aprovado, seu plano será atualizado no app.',
-              style: TextStyle(
-                color: roxo,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    final bool premiumAtivo = planoAtual.toLowerCase() == 'premium';
+    final bool premiumSelecionado = planoSelecionado == 'Premium';
+
     return Scaffold(
       backgroundColor: fundo,
       appBar: AppBar(
         title: const Text('Meu plano'),
         backgroundColor: roxo,
         foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
-            decoration: const BoxDecoration(
-              color: roxo,
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(24),
-                bottomRight: Radius.circular(24),
-              ),
-            ),
-            child: const Text(
-              'Escolha o plano ideal para acessar oportunidades no app e ampliar sua visibilidade.',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                height: 1.4,
-              ),
-            ),
-          ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                _planoCard(
-                  titulo: 'Plano Básico',
-                  preco: 'R\$ 29,90',
-                  descricao: 'Ideal para começar no app.',
-                  beneficios: const [
-                    'Até 5 contatos liberados',
-                    'Acesso às vagas',
-                    'Perfil ativo no app',
-                  ],
-                  destaque: false,
-                  valor: 'Basico',
-                  corPrincipal: roxo,
-                ),
-                _planoCard(
-                  titulo: 'Plano Premium',
-                  preco: 'R\$ 59,90',
-                  descricao: 'Mais visibilidade e mais oportunidades.',
-                  beneficios: const [
-                    'Até 20 contatos liberados',
-                    'Destaque no app',
-                    'Maior chance de ser encontrado',
-                  ],
-                  destaque: true,
-                  valor: 'Premium',
-                  corPrincipal: rosa,
-                ),
-                _infoBox(),
-                const SizedBox(height: 100),
-              ],
-            ),
+        actions: [
+          IconButton(
+            tooltip: 'Atualizar',
+            onPressed: _loadTudo,
+            icon: const Icon(Icons.refresh),
           ),
         ],
       ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _loadTudo,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                children: [
+                  _statusPagamentoBox(),
+                  _planoAtualBox(),
+                  _planoCard(
+                    titulo: 'Plano Básico',
+                    preco: 'R\$ 29,90',
+                    valor: 'Basico',
+                    cor: roxo,
+                    beneficios: const [
+                      'Até 5 contatos liberados',
+                      'Acesso às vagas disponíveis',
+                      'Perfil ativo no app',
+                    ],
+                  ),
+                  _planoCard(
+                    titulo: 'Plano Premium',
+                    preco: 'R\$ 59,90',
+                    valor: 'Premium',
+                    cor: rosa,
+                    destaque: true,
+                    beneficios: const [
+                      'Até 20 contatos liberados',
+                      'Destaque no app',
+                      'Maior chance de ser encontrado',
+                    ],
+                  ),
+                  Container(
+                    margin: const EdgeInsets.only(top: 4, bottom: 100),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: verde.withOpacity(0.18),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.info_outline, color: roxo),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Após o pagamento aprovado, toque no ícone de atualizar para sincronizar seu plano.',
+                            style: TextStyle(
+                              color: roxo,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
       bottomSheet: Container(
         color: Colors.white,
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
@@ -376,10 +498,12 @@ class _PlanosCuidadorPageState extends State<PlanosCuidadorPage> {
             width: double.infinity,
             height: 54,
             child: ElevatedButton(
-              onPressed: _isSaving ? null : selecionarPlano,
+              onPressed: _isSaving || (premiumAtivo && premiumSelecionado)
+                  ? null
+                  : selecionarPlano,
               style: ElevatedButton.styleFrom(
                 backgroundColor: rosa,
-                disabledBackgroundColor: rosa.withOpacity(0.6),
+                disabledBackgroundColor: rosa.withOpacity(0.45),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
@@ -393,9 +517,11 @@ class _PlanosCuidadorPageState extends State<PlanosCuidadorPage> {
                         color: Colors.white,
                       ),
                     )
-                  : const Text(
-                      'Ir para pagamento',
-                      style: TextStyle(
+                  : Text(
+                      premiumAtivo && premiumSelecionado
+                          ? 'Plano Premium ativo'
+                          : 'Ir para pagamento',
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,

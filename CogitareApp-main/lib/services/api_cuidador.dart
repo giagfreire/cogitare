@@ -1,9 +1,27 @@
 import '../models/cuidador.dart';
 import '../models/endereco.dart';
 import 'api_client.dart';
+import 'servico_autenticacao.dart';
 
 class ApiCuidador {
-  /// Cadastro completo do cuidador + endereço
+  static int? _parseInt(dynamic valor) {
+    if (valor == null) return null;
+    if (valor is int) return valor;
+    return int.tryParse(valor.toString());
+  }
+
+  static Future<int?> _getCuidadorIdLogado() async {
+    final userData = await ServicoAutenticacao.getUserData();
+
+    return _parseInt(
+      userData?['IdCuidador'] ??
+          userData?['idCuidador'] ??
+          userData?['cuidadorId'] ??
+          userData?['id'] ??
+          userData?['Id'],
+    );
+  }
+
   static Future<Map<String, dynamic>> createComplete({
     required Endereco address,
     required Cuidador caregiver,
@@ -15,18 +33,13 @@ class ApiCuidador {
         'senha': caregiver.password,
         'telefone': caregiver.phone,
         'cpf': caregiver.cpf,
-        'dataNascimento':
-            caregiver.birthDate?.toIso8601String().split('T')[0],
-
-        // endereço
+        'dataNascimento': caregiver.birthDate?.toIso8601String().split('T')[0],
         'cidade': address.city,
         'bairro': address.neighborhood,
         'rua': address.street,
         'numero': address.number,
         'complemento': address.complement,
         'cep': address.zipCode,
-
-        // extras do cuidador
         'fumante': caregiver.smokingStatus,
         'temFilhos': caregiver.hasChildren,
         'possuiCnh': caregiver.hasLicense,
@@ -45,7 +58,6 @@ class ApiCuidador {
     }
   }
 
-  /// Buscar cuidador por ID
   static Future<Map<String, dynamic>> getById(int idCuidador) async {
     try {
       final response = await ApiClient.get('/api/cuidador/$idCuidador');
@@ -58,7 +70,6 @@ class ApiCuidador {
     }
   }
 
-  /// Salvar disponibilidade do cuidador
   static Future<Map<String, dynamic>> salvarDisponibilidade({
     required int idCuidador,
     required List<Map<String, dynamic>> disponibilidades,
@@ -66,9 +77,7 @@ class ApiCuidador {
     try {
       final response = await ApiClient.post(
         '/api/cuidador/$idCuidador/disponibilidade',
-        {
-          'disponibilidade': disponibilidades,
-        },
+        {'disponibilidade': disponibilidades},
       );
 
       return Map<String, dynamic>.from(response);
@@ -80,7 +89,6 @@ class ApiCuidador {
     }
   }
 
-  /// Buscar disponibilidade do cuidador
   static Future<Map<String, dynamic>> getDisponibilidade(int idCuidador) async {
     try {
       final response =
@@ -95,7 +103,6 @@ class ApiCuidador {
     }
   }
 
-  /// Buscar especialidades do cuidador
   static Future<Map<String, dynamic>> getEspecialidades() async {
     try {
       final response = await ApiClient.get('/api/cuidador/especialidades');
@@ -108,7 +115,6 @@ class ApiCuidador {
     }
   }
 
-  /// Buscar serviços do cuidador
   static Future<Map<String, dynamic>> getServicos() async {
     try {
       final response = await ApiClient.get('/api/cuidador/servicos');
@@ -121,7 +127,6 @@ class ApiCuidador {
     }
   }
 
-  /// Buscar vagas abertas
   static Future<List<Map<String, dynamic>>> getVagasAbertas() async {
     try {
       final response = await ApiClient.get('/api/cuidador/vagas-abertas');
@@ -136,12 +141,11 @@ class ApiCuidador {
       }
 
       return [];
-    } catch (e) {
+    } catch (_) {
       return [];
     }
   }
 
-  /// Aceitar vaga
   static Future<Map<String, dynamic>> aceitarVaga(int idVaga) async {
     try {
       final response = await ApiClient.post(
@@ -162,23 +166,48 @@ class ApiCuidador {
     }
   }
 
-  /// Buscar status do plano do cuidador logado
-  static Future<Map<String, dynamic>> getStatusPlano() async {
+  static Future<Map<String, dynamic>> getStatusPlano([int? idCuidador]) async {
     try {
-      final response = await ApiClient.get('/api/cuidador/status-plano');
+      final id = idCuidador ?? await _getCuidadorIdLogado();
+
+      if (id == null) {
+        return {
+          'success': false,
+          'message': 'Não foi possível identificar o cuidador logado.',
+          'data': {
+            'PlanoAtual': 'Básico',
+            'UsosPlano': 0,
+            'LimitePlano': 5,
+            'Restantes': 5,
+            'Destaque': false,
+          },
+        };
+      }
+
+      final response = await ApiClient.get('/api/cuidador/$id/plano');
 
       if (response['success'] == true && response['data'] is Map) {
         final data = Map<String, dynamic>.from(response['data']);
 
+        final planoAtual =
+            (data['PlanoAtual'] ?? data['plano'] ?? 'Básico').toString();
+
+        final usosPlano = _parseInt(data['UsosPlano'] ?? data['usosPlano']) ?? 0;
+
+        final limitePlano =
+            _parseInt(data['LimitePlano'] ?? data['limiteContatos']) ??
+                (planoAtual.toLowerCase() == 'premium' ? 20 : 5);
+
+        final restantes = limitePlano - usosPlano;
+
         return {
           'success': true,
           'data': {
-            'PlanoAtual': data['PlanoAtual'] ?? data['plano'] ?? 'Basico',
-            'UsosPlano': data['UsosPlano'] ?? data['usosPlano'] ?? 0,
-            'LimitePlano':
-                data['LimitePlano'] ?? data['limiteContatos'] ?? 5,
-            'Restantes': data['Restantes'] ?? data['restantes'] ?? 0,
-            'Destaque': data['Destaque'] ?? data['destaque'] ?? false,
+            'PlanoAtual': planoAtual,
+            'UsosPlano': usosPlano,
+            'LimitePlano': limitePlano,
+            'Restantes': restantes < 0 ? 0 : restantes,
+            'Destaque': planoAtual.toLowerCase() == 'premium',
           },
         };
       }
@@ -186,21 +215,33 @@ class ApiCuidador {
       return {
         'success': false,
         'message': response['message'] ?? 'Erro ao buscar status do plano.',
+        'data': {
+          'PlanoAtual': 'Básico',
+          'UsosPlano': 0,
+          'LimitePlano': 5,
+          'Restantes': 5,
+          'Destaque': false,
+        },
       };
     } catch (e) {
       return {
         'success': false,
         'message': 'Erro ao buscar status do plano: $e',
+        'data': {
+          'PlanoAtual': 'Básico',
+          'UsosPlano': 0,
+          'LimitePlano': 5,
+          'Restantes': 5,
+          'Destaque': false,
+        },
       };
     }
   }
 
-  /// Compatibilidade com telas antigas
-  static Future<Map<String, dynamic>> getPlanoStatus([int? _]) async {
-    return getStatusPlano();
+  static Future<Map<String, dynamic>> getPlanoStatus([int? idCuidador]) async {
+    return getStatusPlano(idCuidador);
   }
 
-  /// Buscar vagas aceitas pelo cuidador logado
   static Future<List<Map<String, dynamic>>> getMinhasVagasAceitas() async {
     try {
       final response = await ApiClient.get('/api/cuidador/minhas-vagas');
@@ -215,7 +256,7 @@ class ApiCuidador {
       }
 
       return [];
-    } catch (e) {
+    } catch (_) {
       return [];
     }
   }

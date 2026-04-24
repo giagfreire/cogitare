@@ -33,4 +33,28 @@ class ApiPagamento {
       };
     }
   }
+
+  static Future<Map<String, dynamic>> buscarStatusPagamento({
+    required int idCuidador,
+  }) async {
+    try {
+      final response = await ApiClient.get(
+        '/api/mercadopago/status-pagamento/$idCuidador',
+      );
+
+      if (response is Map<String, dynamic>) {
+        return response;
+      }
+
+      return {
+        'success': false,
+        'message': 'Resposta inválida do servidor.',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Erro ao buscar status do pagamento: $e',
+      };
+    }
+  }
 }
