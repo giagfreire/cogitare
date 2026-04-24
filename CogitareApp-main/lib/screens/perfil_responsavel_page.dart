@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+
 import '../services/api_client.dart';
 import '../services/servico_autenticacao.dart';
-import 'tela_login_unificada.dart';
 import 'editar_perfil_responsavel_page.dart';
-import 'configuracoes_responsavel_page.dart';
+import 'tela_configuracoes.dart';
 
 class PerfilResponsavelPage extends StatefulWidget {
   const PerfilResponsavelPage({super.key});
@@ -16,6 +16,10 @@ class _PerfilResponsavelPageState extends State<PerfilResponsavelPage> {
   bool isLoading = true;
   Map<String, dynamic>? responsavel;
 
+  static const Color roxo = Color(0xFF42124C);
+  static const Color rosa = Color(0xFFFE0472);
+  static const Color fundo = Color(0xFFF6F4F8);
+
   @override
   void initState() {
     super.initState();
@@ -26,6 +30,12 @@ class _PerfilResponsavelPageState extends State<PerfilResponsavelPage> {
     setState(() => isLoading = true);
 
     try {
+      final token = await ServicoAutenticacao.getToken();
+
+      if (token != null && token.isNotEmpty) {
+        ApiClient.setToken(token);
+      }
+
       final response = await ApiClient.get('/api/responsavel/perfil');
 
       if (response['success'] == true && response['data'] != null) {
@@ -34,7 +44,7 @@ class _PerfilResponsavelPageState extends State<PerfilResponsavelPage> {
         responsavel = {};
       }
     } catch (e) {
-      print('ERRO AO CARREGAR PERFIL RESPONSAVEL: $e');
+      debugPrint('ERRO AO CARREGAR PERFIL RESPONSAVEL: $e');
       responsavel = {};
     }
 
@@ -69,46 +79,23 @@ class _PerfilResponsavelPageState extends State<PerfilResponsavelPage> {
     return texto;
   }
 
-  Future<void> sairDaConta() async {
-    await ServicoAutenticacao.clearLoginData();
-    ApiClient.clearToken();
+  String formatarData(dynamic data) {
+    if (data == null) return 'Não informado';
 
-    if (!mounted) return;
+    final texto = data.toString();
 
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const TelaLoginUnificada()),
-      (route) => false,
-    );
+    if (texto.length >= 10 && texto.contains('-')) {
+      final partes = texto.substring(0, 10).split('-');
+
+      if (partes.length == 3) {
+        return '${partes[2]}/${partes[1]}/${partes[0]}';
+      }
+    }
+
+    return textoSeguro(data);
   }
 
-  void confirmarSair() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Sair da conta'),
-        content: const Text('Tem certeza que deseja sair da sua conta?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              sairDaConta();
-            },
-            child: const Text(
-              'Sair',
-              style: TextStyle(color: Colors.red),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void abrirEditarPerfil() async {
+  Future<void> abrirEditarPerfil() async {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
@@ -118,85 +105,18 @@ class _PerfilResponsavelPageState extends State<PerfilResponsavelPage> {
 
     if (result == true) {
       await carregarPerfil();
-      if (!mounted) return;
-      Navigator.pop(context, true);
     }
   }
 
-  void abrirConfiguracoes() async {
-    final result = await Navigator.push(
+  Future<void> abrirConfiguracoes() async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => const ConfiguracoesResponsavelPage(),
+        builder: (_) => const TelaConfiguracoes(),
       ),
     );
 
-    if (result == true) {
-      await carregarPerfil();
-      if (!mounted) return;
-      Navigator.pop(context, true);
-    }
-  }
-
-  void abrirTermos() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Termos e Condições'),
-        content: const SingleChildScrollView(
-          child: Text(
-            '''
-TERMOS E CONDIÇÕES DE USO – COGITARE
-
-1. OBJETIVO DA PLATAFORMA
-A plataforma Cogitare tem como objetivo conectar responsáveis e cuidadores, facilitando a divulgação e a busca por oportunidades de cuidado.
-
-2. CADASTRO E RESPONSABILIDADE
-O usuário declara que todas as informações fornecidas são verdadeiras e atualizadas. O usuário é responsável pela veracidade dos dados inseridos no sistema.
-
-3. USO DA PLATAFORMA
-É proibido:
-- Utilizar dados falsos ou de terceiros sem autorização
-- Praticar qualquer tipo de fraude ou tentativa de golpe
-- Utilizar a plataforma para fins ilegais ou indevidos
-
-4. RELAÇÃO ENTRE USUÁRIOS
-A Cogitare atua apenas como intermediadora entre responsáveis e cuidadores.
-A plataforma não se responsabiliza por:
-- Conduta dos usuários
-- Acordos realizados fora da plataforma
-- Serviços prestados
-
-5. PRIVACIDADE
-Os dados dos usuários são utilizados exclusivamente para funcionamento da plataforma, não sendo compartilhados com terceiros sem consentimento, exceto quando exigido por lei.
-
-6. SEGURANÇA
-O usuário é responsável por manter a confidencialidade de sua conta e senha.
-
-7. EXCLUSÃO DE CONTA
-O usuário pode solicitar a exclusão de sua conta a qualquer momento.
-A exclusão poderá resultar na remoção permanente de seus dados.
-
-8. ALTERAÇÕES NOS TERMOS
-A Cogitare pode alterar estes termos a qualquer momento, sendo responsabilidade do usuário revisá-los periodicamente.
-
-9. ACEITE
-Ao utilizar a plataforma, o usuário declara estar de acordo com todos os termos acima.
-
----
-Cogitare © 2026
-            ''',
-            style: TextStyle(fontSize: 14),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fechar'),
-          ),
-        ],
-      ),
-    );
+    await carregarPerfil();
   }
 
   Widget buildInfoCard({
@@ -204,31 +124,86 @@ Cogitare © 2026
     required String titulo,
     required String valor,
   }) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      child: ListTile(
-        leading: Icon(icon),
-        title: Text(titulo),
-        subtitle: Text(valor),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: roxo.withOpacity(0.08)),
+        boxShadow: [
+          BoxShadow(
+            color: roxo.withOpacity(0.035),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: roxo),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  titulo,
+                  style: TextStyle(
+                    color: roxo.withOpacity(0.65),
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  valor,
+                  style: const TextStyle(
+                    color: roxo,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget buildMenuCard({
+  Widget buildMenuButton({
     required IconData icon,
     required String titulo,
     required String subtitulo,
     required VoidCallback onTap,
-    Color? iconColor,
-    Color? textColor,
+    Color color = roxo,
   }) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 6),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: roxo.withOpacity(0.08)),
+        boxShadow: [
+          BoxShadow(
+            color: roxo.withOpacity(0.035),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: ListTile(
-        leading: Icon(icon, color: iconColor),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: CircleAvatar(
+          backgroundColor: color.withOpacity(0.12),
+          child: Icon(icon, color: color),
+        ),
         title: Text(
           titulo,
-          style: TextStyle(color: textColor),
+          style: TextStyle(
+            color: color,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         subtitle: Text(subtitulo),
         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
@@ -241,14 +216,14 @@ Cogitare © 2026
     final temFoto = fotoUrl.isNotEmpty;
 
     return CircleAvatar(
-      radius: 38,
-      backgroundColor: const Color(0xFFE8DDF8),
+      radius: 44,
+      backgroundColor: Colors.white24,
       backgroundImage: temFoto ? NetworkImage(fotoUrl) : null,
       child: !temFoto
           ? const Icon(
               Icons.person,
-              size: 38,
-              color: Color(0xFF6A4C93),
+              size: 42,
+              color: Colors.white,
             )
           : null,
     );
@@ -273,7 +248,7 @@ Cogitare © 2026
       responsavel?['Cpf'] ?? responsavel?['cpf'],
     );
 
-    final dataNascimento = textoSeguro(
+    final dataNascimento = formatarData(
       responsavel?['DataNascimento'] ?? responsavel?['dataNascimento'],
     );
 
@@ -282,45 +257,72 @@ Cogitare © 2026
     );
 
     return Scaffold(
+      backgroundColor: fundo,
       appBar: AppBar(
-        title: const Text('Meu Perfil'),
+        title: const Text('Meu perfil'),
+        backgroundColor: roxo,
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            tooltip: 'Configurações',
+            onPressed: abrirConfiguracoes,
+            icon: const Icon(Icons.settings_outlined),
+          ),
+        ],
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: carregarPerfil,
               child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(16),
                 children: [
                   Container(
+                    width: double.infinity,
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(18),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+                      gradient: const LinearGradient(
+                        colors: [roxo, rosa],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(24),
                     ),
                     child: Column(
                       children: [
                         buildAvatar(fotoUrl),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 14),
                         Text(
                           nome,
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
                         ),
                         const SizedBox(height: 6),
                         Text(
                           email,
                           textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        OutlinedButton.icon(
+                          onPressed: abrirEditarPerfil,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: Colors.white54),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          icon: const Icon(Icons.edit_outlined),
+                          label: const Text('Editar perfil'),
                         ),
                       ],
                     ),
@@ -331,9 +333,10 @@ Cogitare © 2026
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
+                      color: roxo,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   buildInfoCard(
                     icon: Icons.badge_outlined,
                     titulo: 'CPF',
@@ -355,33 +358,15 @@ Cogitare © 2026
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
+                      color: roxo,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  buildMenuCard(
-                    icon: Icons.edit_outlined,
-                    titulo: 'Editar perfil',
-                    subtitulo: 'Atualize seus dados pessoais',
-                    onTap: abrirEditarPerfil,
-                  ),
-                  buildMenuCard(
+                  const SizedBox(height: 12),
+                  buildMenuButton(
                     icon: Icons.settings_outlined,
                     titulo: 'Configurações',
-                    subtitulo: 'Perfil, termos, sair e apagar conta',
+                    subtitulo: 'Termos, suporte, sobre o app e segurança',
                     onTap: abrirConfiguracoes,
-                  ),
-                  buildMenuCard(
-                    icon: Icons.description_outlined,
-                    titulo: 'Termos e condições',
-                    subtitulo: 'Leia os termos de uso da plataforma',
-                    onTap: abrirTermos,
-                  ),
-                  buildMenuCard(
-                    icon: Icons.logout,
-                    titulo: 'Sair da conta',
-                    subtitulo: 'Encerrar sessão neste dispositivo',
-                    onTap: confirmarSair,
-                    iconColor: Colors.orange,
                   ),
                 ],
               ),

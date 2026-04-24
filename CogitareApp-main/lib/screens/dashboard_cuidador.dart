@@ -1,7 +1,7 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../services/api_service.dart';
 import '../services/servico_autenticacao.dart';
@@ -9,6 +9,7 @@ import 'agenda_cuidador_page.dart';
 import 'perfil_cuidador_page.dart';
 import 'planos_cuidador_page.dart';
 import 'vagas_cuidador_page.dart';
+import 'tela_configuracoes.dart';
 
 class DashboardCuidador extends StatefulWidget {
   static const route = '/dashboard-cuidador';
@@ -22,12 +23,11 @@ class DashboardCuidador extends StatefulWidget {
 class _DashboardCuidadorState extends State<DashboardCuidador> {
   bool _isLoading = true;
   Map<String, dynamic>? _cuidador;
+  List<Map<String, dynamic>> _servicosAceitos = [];
 
   String _planoAtual = 'Básico';
   int _usosPlano = 0;
   int _limitePlano = 5;
-
-  Uint8List? _fotoSelecionada;
 
   static const Color roxo = Color(0xFF42124C);
   static const Color rosa = Color(0xFFFE0472);
@@ -40,30 +40,76 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
     _carregarDados();
   }
 
-  Future<void> selecionarImagem() async {
-    final picker = ImagePicker();
+  int? _parseInt(dynamic valor) {
+    if (valor == null) return null;
+    if (valor is int) return valor;
+    return int.tryParse(valor.toString());
+  }
 
-    final XFile? imagem = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 70,
+  String valorOuPadrao(dynamic valor, {String padrao = 'Não informado'}) {
+    if (valor == null) return padrao;
+    final texto = valor.toString().trim();
+    if (texto.isEmpty || texto.toLowerCase() == 'null') return padrao;
+    return texto;
+  }
+
+  String getNome() {
+    return _cuidador?['nome']?.toString() ??
+        _cuidador?['Nome']?.toString() ??
+        'Cuidador';
+  }
+
+  String getSaudacao() {
+    final sexo = (_cuidador?['sexo'] ?? _cuidador?['Sexo'] ?? '')
+        .toString()
+        .toLowerCase();
+
+    if (sexo == 'feminino') return 'Bem-vinda';
+    if (sexo == 'masculino') return 'Bem-vindo';
+    return 'Bem-vindo';
+  }
+
+  String getBiografiaCurta() {
+    final bio = valorOuPadrao(
+      _cuidador?['biografia'] ?? _cuidador?['Biografia'],
+      padrao: 'Você ainda não cadastrou uma biografia.',
     );
 
-    if (imagem != null) {
-      final bytes = await imagem.readAsBytes();
+    if (bio.length <= 120) return bio;
+    return '${bio.substring(0, 120)}...';
+  }
 
-      setState(() {
-        _fotoSelecionada = bytes;
-      });
+  ImageProvider? _fotoProvider() {
+    final fotoUrl = (_cuidador?['fotoUrl'] ?? _cuidador?['FotoUrl'])
+        ?.toString()
+        .trim();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Foto selecionada! Para salvar, altere pelo perfil.'),
-        ),
-      );
+    if (fotoUrl == null || fotoUrl.isEmpty || fotoUrl.toLowerCase() == 'null') {
+      return null;
     }
+
+    if (fotoUrl.startsWith('data:image')) {
+      try {
+        final base64String = fotoUrl.split(',').last;
+        final Uint8List bytes = base64Decode(base64String);
+        return MemoryImage(bytes);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    if (fotoUrl.startsWith('http://') || fotoUrl.startsWith('https://')) {
+      return NetworkImage(fotoUrl);
+    }
+
+    return null;
   }
 
   Future<void> _carregarDados() async {
+    setState(() {
+      _isLoading = true;
+    });
+
     try {
       final token = await ServicoAutenticacao.getToken();
       final userData = await ServicoAutenticacao.getUserData();
@@ -81,19 +127,34 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
       );
 
       if (id == null) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
         return;
       }
 
-      final response = await ServicoApi.get('/api/cuidador/$id');
-      final plano = await ServicoApi.get('/api/cuidador/$id/plano');
+      final responseCuidador = await ServicoApi.get('/api/cuidador/$id');
+      final responsePlano = await ServicoApi.get('/api/cuidador/$id/plano');
+
+      try {
+        final responseServicos = await ServicoApi.get('/api/cuidador/minhas-vagas');
+
+        if (responseServicos['success'] == true &&
+            responseServicos['data'] != null) {
+          _servicosAceitos =
+              List<Map<String, dynamic>>.from(responseServicos['data']);
+        }
+      } catch (_) {
+        _servicosAceitos = [];
+      }
+
+      if (!mounted) return;
 
       setState(() {
-        _cuidador = response['data'];
+        if (responseCuidador['success'] == true &&
+            responseCuidador['data'] != null) {
+          _cuidador = Map<String, dynamic>.from(responseCuidador['data']);
+        }
 
-        final planoData = plano['data'] ?? {};
+        final planoData = responsePlano['data'] ?? {};
         _planoAtual = (planoData['PlanoAtual'] ?? 'Básico').toString();
         _usosPlano = _parseInt(planoData['UsosPlano']) ?? 0;
         _limitePlano = _parseInt(planoData['LimitePlano']) ??
@@ -103,70 +164,10 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
       });
     } catch (e) {
       debugPrint('Erro ao carregar dashboard cuidador: $e');
-      setState(() {
-        _isLoading = false;
-      });
+
+      if (!mounted) return;
+      setState(() => _isLoading = false);
     }
-  }
-
-  int? _parseInt(dynamic valor) {
-    if (valor == null) return null;
-    if (valor is int) return valor;
-    return int.tryParse(valor.toString());
-  }
-
-  String getSaudacao() {
-    final sexo = (_cuidador?['sexo'] ?? '').toString().toLowerCase();
-
-    if (sexo == 'feminino') return 'Bem-vinda';
-    if (sexo == 'masculino') return 'Bem-vindo';
-    return 'Bem-vindo';
-  }
-
-  String getNome() {
-    return _cuidador?['nome']?.toString() ??
-        _cuidador?['Nome']?.toString() ??
-        'Cuidador';
-  }
-
-  String valorOuPadrao(dynamic valor, {String padrao = 'Não informado'}) {
-    if (valor == null) return padrao;
-    final texto = valor.toString().trim();
-    if (texto.isEmpty || texto.toLowerCase() == 'null') return padrao;
-    return texto;
-  }
-
-  String getBiografiaCurta() {
-    final bio = valorOuPadrao(
-      _cuidador?['biografia'],
-      padrao: 'Você ainda não cadastrou uma biografia.',
-    );
-
-    if (bio.length <= 120) return bio;
-    return '${bio.substring(0, 120)}...';
-  }
-
-  int getPerfilCompletoPercentual() {
-    int preenchidos = 0;
-    int total = 5;
-
-    final cidade = _cuidador?['cidade'];
-    final valorHora = _cuidador?['valorHora'];
-    final telefone = _cuidador?['telefone'];
-    final bio = _cuidador?['biografia'];
-    final foto = _fotoSelecionada ?? _cuidador?['fotoUrl'];
-
-    if (cidade != null && cidade.toString().trim().isNotEmpty) preenchidos++;
-    if (valorHora != null && valorHora.toString().trim().isNotEmpty) {
-      preenchidos++;
-    }
-    if (telefone != null && telefone.toString().trim().isNotEmpty) {
-      preenchidos++;
-    }
-    if (bio != null && bio.toString().trim().isNotEmpty) preenchidos++;
-    if (foto != null && foto.toString().trim().isNotEmpty) preenchidos++;
-
-    return ((preenchidos / total) * 100).round();
   }
 
   int getContatosRestantes() {
@@ -182,38 +183,99 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
     return valor;
   }
 
-  ImageProvider? _fotoProvider() {
-    if (_fotoSelecionada != null) {
-      return MemoryImage(_fotoSelecionada!);
+  int getPerfilCompletoPercentual() {
+    int preenchidos = 0;
+    const int total = 5;
+
+    final cidade = _cuidador?['cidade'] ?? _cuidador?['Cidade'];
+    final valorHora = _cuidador?['valorHora'] ?? _cuidador?['ValorHora'];
+    final telefone = _cuidador?['telefone'] ?? _cuidador?['Telefone'];
+    final bio = _cuidador?['biografia'] ?? _cuidador?['Biografia'];
+    final foto = _cuidador?['fotoUrl'] ?? _cuidador?['FotoUrl'];
+
+    if (cidade != null && cidade.toString().trim().isNotEmpty) preenchidos++;
+    if (valorHora != null && valorHora.toString().trim().isNotEmpty) {
+      preenchidos++;
+    }
+    if (telefone != null && telefone.toString().trim().isNotEmpty) {
+      preenchidos++;
+    }
+    if (bio != null && bio.toString().trim().isNotEmpty) preenchidos++;
+    if (foto != null && foto.toString().trim().isNotEmpty) preenchidos++;
+
+    return ((preenchidos / total) * 100).round();
+  }
+
+  String _formatarData(dynamic data) {
+    if (data == null) return '-';
+
+    final texto = data.toString();
+    if (texto.length >= 10 && texto.contains('-')) {
+      final partes = texto.substring(0, 10).split('-');
+      if (partes.length == 3) {
+        return '${partes[2]}/${partes[1]}/${partes[0]}';
+      }
     }
 
-    final fotoUrl = _cuidador?['fotoUrl']?.toString();
+    return texto;
+  }
 
-    if (fotoUrl != null && fotoUrl.isNotEmpty) {
-      return NetworkImage(fotoUrl);
-    }
+  String _formatarHorario(Map<String, dynamic> vaga) {
+    final inicio = vaga['HoraInicio']?.toString() ?? '';
+    final fim = vaga['HoraFim']?.toString() ?? '';
 
-    return null;
+    if (inicio.isEmpty && fim.isEmpty) return '-';
+    if (fim.isEmpty) return inicio;
+    if (inicio.isEmpty) return fim;
+
+    return '$inicio às $fim';
+  }
+
+  String _formatarValor(dynamic valor) {
+    if (valor == null) return 'R\$ 0,00';
+
+    final numero = double.tryParse(valor.toString()) ?? 0;
+    return 'R\$ ${numero.toStringAsFixed(2).replaceAll('.', ',')}';
   }
 
   Future<void> _abrirPerfil() async {
     await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => const PerfilCuidadorPage(),
-      ),
+      MaterialPageRoute(builder: (_) => const PerfilCuidadorPage()),
     );
-    _carregarDados();
+    await _carregarDados();
+  }
+
+  Future<void> _abrirConfiguracoes() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const TelaConfiguracoes()),
+    );
+    await _carregarDados();
   }
 
   Future<void> _abrirPlanos() async {
     await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => const PlanosCuidadorPage(),
-      ),
+      MaterialPageRoute(builder: (_) => const PlanosCuidadorPage()),
     );
-    _carregarDados();
+    await _carregarDados();
+  }
+
+  Future<void> _abrirAgenda() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const AgendaCuidadorPage()),
+    );
+    await _carregarDados();
+  }
+
+  Future<void> _abrirVagas() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const VagasCuidadorPage()),
+    );
+    await _carregarDados();
   }
 
   @override
@@ -245,29 +307,27 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
             color: Colors.white,
           ),
         ),
-      actions: [
-  IconButton(
-    tooltip: 'Configurações',
-    icon: const Icon(Icons.settings_outlined, color: Colors.white),
-    onPressed: () {
-      Navigator.pushNamed(context, '/configuracoes-cuidador');
-    },
-  ),
-  GestureDetector(
-    onTap: _abrirPerfil,
-    child: Padding(
-      padding: const EdgeInsets.only(right: 16),
-      child: CircleAvatar(
-        radius: 18,
-        backgroundColor: Colors.white,
-        backgroundImage: _fotoProvider(),
-        child: _fotoProvider() == null
-            ? const Icon(Icons.person, color: Colors.grey)
-            : null,
-      ),
-    ),
-  ),
-],
+        actions: [
+          IconButton(
+            tooltip: 'Configurações',
+            icon: const Icon(Icons.settings_outlined, color: Colors.white),
+            onPressed: _abrirConfiguracoes,
+          ),
+          GestureDetector(
+            onTap: _abrirPerfil,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: CircleAvatar(
+                radius: 18,
+                backgroundColor: Colors.white,
+                backgroundImage: _fotoProvider(),
+                child: _fotoProvider() == null
+                    ? const Icon(Icons.person, color: Colors.grey)
+                    : null,
+              ),
+            ),
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -302,27 +362,13 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                           titulo: 'Vagas disponíveis',
                           icon: Icons.work_outline,
                           cor: roxo,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const VagasCuidadorPage(),
-                              ),
-                            );
-                          },
+                          onTap: _abrirVagas,
                         ),
                         _buildActionBox(
                           titulo: 'Agenda',
                           icon: Icons.calendar_month_outlined,
                           cor: rosa,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const AgendaCuidadorPage(),
-                              ),
-                            );
-                          },
+                          onTap: _abrirAgenda,
                         ),
                         _buildActionBox(
                           titulo: 'Meu plano',
@@ -401,7 +447,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF42124C), Color(0xFFFE0472)],
+          colors: [roxo, rosa],
         ),
         boxShadow: [
           BoxShadow(
@@ -431,7 +477,9 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
             ),
           ),
           const SizedBox(height: 14),
-          Row(
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(
@@ -454,7 +502,6 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
@@ -486,20 +533,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: roxo.withOpacity(0.08),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: roxo.withOpacity(0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+      decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -532,17 +566,11 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(
-                child: _miniResumoItem('Usados', '$_usosPlano'),
-              ),
+              Expanded(child: _miniResumoItem('Usados', '$_usosPlano')),
               const SizedBox(width: 10),
-              Expanded(
-                child: _miniResumoItem('Limite', '$_limitePlano'),
-              ),
+              Expanded(child: _miniResumoItem('Limite', '$_limitePlano')),
               const SizedBox(width: 10),
-              Expanded(
-                child: _miniResumoItem('Restantes', '$restante'),
-              ),
+              Expanded(child: _miniResumoItem('Restantes', '$restante')),
             ],
           ),
           const SizedBox(height: 16),
@@ -550,9 +578,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
             value: getUsoPercentual(),
             minHeight: 8,
             backgroundColor: roxo.withOpacity(0.08),
-            valueColor: AlwaysStoppedAnimation(
-              premium ? verde : rosa,
-            ),
+            valueColor: AlwaysStoppedAnimation(premium ? verde : rosa),
             borderRadius: BorderRadius.circular(20),
           ),
           const SizedBox(height: 12),
@@ -578,13 +604,149 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
-              child: Text(
-                premium ? 'Gerenciar plano' : 'Atualizar plano',
-              ),
+              child: Text(premium ? 'Gerenciar plano' : 'Atualizar plano'),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildNextServiceCard() {
+    if (_servicosAceitos.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: _cardDecoration(),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CircleAvatar(
+              backgroundColor: rosa.withOpacity(0.12),
+              child: const Icon(Icons.calendar_today, color: roxo),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Nenhum atendimento agendado',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: roxo,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Assim que você aceitar uma vaga, ela vai aparecer aqui.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: roxo.withOpacity(0.72),
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextButton(
+                    onPressed: _abrirVagas,
+                    child: const Text('Ver vagas disponíveis'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final servico = _servicosAceitos.first;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: verde.withOpacity(0.22),
+                child: const Icon(Icons.event_available, color: roxo),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  servico['Titulo']?.toString() ?? 'Atendimento agendado',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: roxo,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          _linhaServico(
+            Icons.person_outline,
+            'Responsável',
+            valorOuPadrao(servico['NomeResponsavel']),
+          ),
+          const SizedBox(height: 8),
+          _linhaServico(
+            Icons.calendar_today_outlined,
+            'Data',
+            _formatarData(servico['DataServico']),
+          ),
+          const SizedBox(height: 8),
+          _linhaServico(
+            Icons.access_time_outlined,
+            'Horário',
+            _formatarHorario(servico),
+          ),
+          const SizedBox(height: 8),
+          _linhaServico(
+            Icons.attach_money,
+            'Valor',
+            _formatarValor(servico['Valor']),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: _abrirAgenda,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: roxo,
+                side: const BorderSide(color: roxo),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: const Text('Ver agenda completa'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _linhaServico(IconData icon, String label, String valor) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: roxo),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            '$label: $valor',
+            style: TextStyle(
+              color: roxo.withOpacity(0.82),
+              fontSize: 14,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -645,93 +807,13 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
     );
   }
 
-  Widget _buildNextServiceCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: roxo.withOpacity(0.08),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: roxo.withOpacity(0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            backgroundColor: rosa.withOpacity(0.12),
-            child: const Icon(Icons.calendar_today, color: roxo),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Nenhum atendimento agendado',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: roxo,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Assim que você aceitar uma vaga ou agendar um serviço, ele vai aparecer aqui.',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: roxo.withOpacity(0.72),
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AgendaCuidadorPage(),
-                      ),
-                    );
-                  },
-                  child: const Text('Ver agenda'),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildResumoPerfilCard() {
     final percentual = getPerfilCompletoPercentual();
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: roxo.withOpacity(0.08),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: roxo.withOpacity(0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+      decoration: _cardDecoration(),
       child: Column(
         children: [
           Row(
@@ -739,14 +821,17 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
               Expanded(
                 child: _miniResumoItem(
                   'Cidade',
-                  valorOuPadrao(_cuidador?['cidade']),
+                  valorOuPadrao(_cuidador?['cidade'] ?? _cuidador?['Cidade']),
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: _miniResumoItem(
                   'Valor/hora',
-                  valorOuPadrao(_cuidador?['valorHora'], padrao: 'A definir'),
+                  valorOuPadrao(
+                    _cuidador?['valorHora'] ?? _cuidador?['ValorHora'],
+                    padrao: 'A definir',
+                  ),
                 ),
               ),
             ],
@@ -754,19 +839,9 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
           const SizedBox(height: 10),
           Row(
             children: [
-              Expanded(
-                child: _miniResumoItem(
-                  'Plano',
-                  _planoAtual,
-                ),
-              ),
+              Expanded(child: _miniResumoItem('Plano', _planoAtual)),
               const SizedBox(width: 10),
-              Expanded(
-                child: _miniResumoItem(
-                  'Perfil',
-                  '$percentual%',
-                ),
-              ),
+              Expanded(child: _miniResumoItem('Perfil', '$percentual%')),
             ],
           ),
           const SizedBox(height: 16),
@@ -832,20 +907,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: roxo.withOpacity(0.08),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: roxo.withOpacity(0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+      decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -911,9 +973,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
       decoration: BoxDecoration(
         color: rosa.withOpacity(0.10),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: rosa.withOpacity(0.18),
-        ),
+        border: Border.all(color: rosa.withOpacity(0.18)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -955,6 +1015,21 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
           ),
         ],
       ),
+    );
+  }
+
+  BoxDecoration _cardDecoration() {
+    return BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(22),
+      border: Border.all(color: roxo.withOpacity(0.08)),
+      boxShadow: [
+        BoxShadow(
+          color: roxo.withOpacity(0.04),
+          blurRadius: 12,
+          offset: const Offset(0, 4),
+        ),
+      ],
     );
   }
 }
