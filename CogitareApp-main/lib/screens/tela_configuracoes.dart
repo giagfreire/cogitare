@@ -5,6 +5,8 @@ import '../services/servico_autenticacao.dart';
 import 'onboarding.dart';
 import 'tela_termos_condicoes.dart';
 
+
+
 class TelaConfiguracoes extends StatelessWidget {
   static const route = '/configuracoes-cuidador';
 
