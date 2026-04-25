@@ -6,6 +6,7 @@ import 'criar_vaga_page.dart';
 import 'minhas_vagas_responsavel_page.dart';
 import 'perfil_responsavel_page.dart';
 import 'tela_configuracoes.dart';
+import 'perfil_idoso_page.dart';
 
 class TelaDashboardResponsavel extends StatefulWidget {
   static const route = '/responsavel-dashboard';
@@ -117,6 +118,15 @@ class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
     await _carregarDashboard();
   }
 
+Future<void> _abrirPerfilIdoso() async {
+  await Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => const PerfilIdosoPage()),
+  );
+
+  await _carregarDashboard();
+}
+
   Future<void> _abrirConfiguracoes() async {
     await Navigator.push(
       context,
@@ -143,8 +153,8 @@ class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
 
     final numero = double.tryParse(valor.toString());
 
-    if (numero == null) {
-      return 'R\$ ${valor.toString()}';
+    if (numero == null || numero == 0) {
+      return 'A combinar';
     }
 
     return 'R\$ ${numero.toStringAsFixed(2).replaceAll('.', ',')}';
@@ -463,7 +473,7 @@ class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
             const SizedBox(height: 8),
             _linhaVaga(Icons.calendar_today_outlined, dataServico),
             const SizedBox(height: 8),
-            _linhaVaga(Icons.attach_money, valor),
+            _linhaVaga(Icons.handshake_outlined, valor),
             const SizedBox(height: 12),
             Text(
               'Toque para gerenciar esta vaga',
@@ -549,13 +559,6 @@ class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _irParaCriarVaga,
-        backgroundColor: rosa,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: const Text('Nova vaga'),
-      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
@@ -629,10 +632,10 @@ class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
                             onTap: _abrirPerfil,
                           ),
                           _actionBox(
-                            titulo: 'Configurações',
-                            icon: Icons.settings_outlined,
+                            titulo: 'Perfil do idoso',
+                            icon: Icons.elderly_outlined,
                             cor: rosa,
-                            onTap: _abrirConfiguracoes,
+                            onTap: _abrirPerfilIdoso,
                           ),
                         ],
                       ),

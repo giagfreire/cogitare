@@ -1,579 +1,642 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/idoso.dart';
-import '../services/api_idoso.dart';
-import '../utils/form_validators.dart';
-import '../widgets/widgets_comuns.dart';
-import 'tela_sucesso.dart';
+import '../services/api_client.dart';
 
 class TelaCadastroIdoso extends StatefulWidget {
-  static const route = '/cadastro-idoso';
+  static const String route = '/cadastro-idoso';
 
-  const TelaCadastroIdoso({super.key});
+  final Idoso? idosoParaEditar;
+
+  const TelaCadastroIdoso({
+    super.key,
+    this.idosoParaEditar,
+  });
 
   @override
   State<TelaCadastroIdoso> createState() => _TelaCadastroIdosoState();
 }
 
 class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
-  final PageController page = PageController();
+  final _formKey = GlobalKey<FormState>();
 
-  int index = 0;
-  bool isLoading = false;
-  int? guardianId;
+  final TextEditingController _nomeController = TextEditingController();
+  final TextEditingController _dataNascimentoController =
+      TextEditingController();
+  final TextEditingController _cuidadosMedicosController =
+      TextEditingController();
+  final TextEditingController _descricaoExtraController =
+      TextEditingController();
 
-  final nameController = TextEditingController();
-  final medicalCareController = TextEditingController();
-  final extraDescriptionController = TextEditingController();
-  final photoUrlController = TextEditingController();
+  bool _loading = false;
 
-  DateTime? birthDate;
-  String? gender;
-  int? mobilityId = 1;
-  int? autonomyLevelId = 1;
+  String? _sexo;
+  int? _mobilidadeId;
+  int? _nivelAutonomiaId;
 
-  bool _termsAccepted = false;
+  bool _temCuidadosMedicos = false;
+  bool _temDescricaoExtra = false;
+  bool _querServicos = false;
+  bool _querDisponibilidade = false;
 
-  @override
-  void initState() {
-    super.initState();
+  final List<int> _servicosSelecionados = [];
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final args = ModalRoute.of(context)?.settings.arguments;
+  final Map<String, bool> _disponibilidade = {
+    'Segunda': false,
+    'Terça': false,
+    'Quarta': false,
+    'Quinta': false,
+    'Sexta': false,
+    'Sábado': false,
+    'Domingo': false,
+  };
 
-      if (args is int) {
-        setState(() {
-          guardianId = args;
-        });
-      } else if (args is String) {
-        final parsed = int.tryParse(args);
-        if (parsed != null) {
-          setState(() {
-            guardianId = parsed;
-          });
-        }
-      }
-    });
-  }
+  final List<Map<String, dynamic>> _mobilidades = [
+    {'id': 1, 'nome': 'Anda normalmente'},
+    {'id': 2, 'nome': 'Usa bengala'},
+    {'id': 3, 'nome': 'Usa andador'},
+    {'id': 4, 'nome': 'Usa cadeira de rodas'},
+    {'id': 5, 'nome': 'Acamado'},
+  ];
+
+  final List<Map<String, dynamic>> _autonomias = [
+    {'id': 1, 'nome': 'Independente'},
+    {'id': 2, 'nome': 'Precisa de pouca ajuda'},
+    {'id': 3, 'nome': 'Precisa de ajuda frequente'},
+    {'id': 4, 'nome': 'Totalmente dependente'},
+  ];
+
+  final List<Map<String, dynamic>> _servicos = [
+    {'id': 1, 'nome': 'Acompanhamento'},
+    {'id': 2, 'nome': 'Higiene pessoal'},
+    {'id': 3, 'nome': 'Alimentação'},
+    {'id': 4, 'nome': 'Administração de remédios'},
+    {'id': 5, 'nome': 'Passeios e atividades'},
+    {'id': 6, 'nome': 'Cuidados noturnos'},
+  ];
 
   @override
   void dispose() {
-    page.dispose();
-    nameController.dispose();
-    medicalCareController.dispose();
-    extraDescriptionController.dispose();
-    photoUrlController.dispose();
+    _nomeController.dispose();
+    _dataNascimentoController.dispose();
+    _cuidadosMedicosController.dispose();
+    _descricaoExtraController.dispose();
     super.dispose();
   }
 
-  String? _validateName(String? value) => FormValidators.validateName(value);
-
-  Future<void> _selectDate() async {
-    final now = DateTime.now();
-    final initialDate = birthDate ?? DateTime(now.year - 70, now.month, now.day);
-
-    final DateTime? picked = await showDatePicker(
+  Future<void> _selecionarData() async {
+    final DateTime? data = await showDatePicker(
       context: context,
-      initialDate: initialDate,
-      firstDate: DateTime(1920),
-      lastDate: now,
-      helpText: 'Selecione a data de nascimento',
+      initialDate: DateTime(1950),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+      locale: const Locale('pt', 'BR'),
     );
 
-    if (picked != null) {
+    if (data != null) {
       setState(() {
-        birthDate = picked;
+        _dataNascimentoController.text =
+            '${data.year.toString().padLeft(4, '0')}-${data.month.toString().padLeft(2, '0')}-${data.day.toString().padLeft(2, '0')}';
       });
     }
   }
 
-  bool _validateForm() {
-    if (index == 0) {
-      final nameValid = _validateName(nameController.text) == null;
-      final birthDateValid = birthDate != null;
-      final genderValid = gender != null;
+  Future<void> _salvarIdoso() async {
+    if (!_formKey.currentState!.validate()) return;
 
-      return nameValid && birthDateValid && genderValid;
-    } else {
-      return _termsAccepted;
-    }
-  }
-
-  void _showErrorDialog(String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Erro'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _finish() async {
-    if (!_validateForm()) {
-      _showErrorDialog(
-        'Por favor, preencha todos os campos obrigatórios corretamente.',
-      );
-      return;
-    }
-
-    final int finalGuardianId = guardianId ?? 22;
-
-    setState(() {
-      isLoading = true;
-    });
+    setState(() => _loading = true);
 
     try {
-      final elder = Idoso(
-        guardianId: finalGuardianId,
-        mobilityId: mobilityId,
-        autonomyLevelId: autonomyLevelId,
-        name: nameController.text.trim(),
-        birthDate: birthDate,
-        gender: gender,
-        medicalCare: medicalCareController.text.trim().isNotEmpty
-            ? medicalCareController.text.trim()
+      final prefs = await SharedPreferences.getInstance();
+
+      final token = prefs.getString('token');
+      final responsavelId =
+          prefs.getInt('responsavelId') ?? prefs.getInt('userId');
+
+      if (token == null || token.isEmpty) {
+        throw Exception('Token não encontrado. Faça login novamente.');
+      }
+
+      if (responsavelId == null) {
+        throw Exception('ID do responsável não encontrado.');
+      }
+
+      final idoso = Idoso(
+        guardianId: responsavelId,
+        name: _nomeController.text.trim(),
+        birthDate: DateTime.tryParse(_dataNascimentoController.text.trim()),
+        gender: _sexo,
+        mobilityId: _mobilidadeId,
+        autonomyLevelId: _nivelAutonomiaId,
+        medicalCare: _temCuidadosMedicos
+            ? _cuidadosMedicosController.text.trim()
             : null,
-        extraDescription: extraDescriptionController.text.trim().isNotEmpty
-            ? extraDescriptionController.text.trim()
+        extraDescription: _temDescricaoExtra
+            ? _descricaoExtraController.text.trim()
             : null,
-        photoUrl: photoUrlController.text.trim().isNotEmpty
-            ? photoUrlController.text.trim()
-            : null,
-        selectedServices: null,
-        availability: null,
+       
       );
 
-      final response = await ApiIdoso.create(elder);
+      final body = idoso.toJson();
+      body['IdResponsavel'] = responsavelId;
+      body['ServicosSelecionados'] =
+          _querServicos ? _servicosSelecionados : [];
+      body['Disponibilidade'] =
+          _querDisponibilidade ? _disponibilidade : {};
 
-      if (!mounted) return;
+      final response = await http.post(
+        Uri.parse('${ApiClient.baseUrl}/api/idoso/cadastro'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(body),
+      );
 
-      if (response['success'] == true) {
-        Navigator.pushReplacementNamed(
-          context,
-          TelaSucesso.route,
-          arguments: "Cadastro do idoso realizado com sucesso!",
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Idoso cadastrado com sucesso!'),
+            backgroundColor: Colors.green,
+          ),
         );
+
+        Navigator.pop(context, true);
       } else {
-        _showErrorDialog(
-          'Erro no cadastro: ${response['message'] ?? 'Erro desconhecido'}',
-        );
+        throw Exception(data['message'] ?? 'Erro ao cadastrar idoso.');
       }
     } catch (e) {
       if (!mounted) return;
-      _showErrorDialog('Erro no cadastro: $e');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: Colors.red,
+        ),
+      );
     } finally {
       if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
+        setState(() => _loading = false);
       }
     }
   }
 
-  void _next() {
-    page.nextPage(
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.ease,
+  Widget _tituloSecao(String titulo) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 22, bottom: 10),
+      child: Text(
+        titulo,
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF2E5E4E),
+        ),
+      ),
     );
   }
 
-  void _prev() {
-    page.previousPage(
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.ease,
-    );
-  }
-
-  InputDecoration _inputDecoration({
+  Widget _campoTexto({
+    required TextEditingController controller,
     required String label,
-    String? hint,
-    Widget? suffixIcon,
-    String? errorText,
+    required IconData icon,
+    int maxLines = 1,
+    bool readOnly = false,
+    VoidCallback? onTap,
+    String? Function(String?)? validator,
   }) {
-    return InputDecoration(
-      labelText: label,
-      hintText: hint,
-      suffixIcon: suffixIcon,
-      errorText: errorText,
-      filled: true,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: Colors.grey.shade300),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Colors.green),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: TextFormField(
+        controller: controller,
+        maxLines: maxLines,
+        readOnly: readOnly,
+        onTap: onTap,
+        validator: validator,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon),
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: Color(0xFF2E5E4E), width: 2),
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildCard({required Widget child}) {
+  Widget _dropdown<T>({
+    required String label,
+    required IconData icon,
+    required T? value,
+    required List<DropdownMenuItem<T>> items,
+    required void Function(T?) onChanged,
+    String? Function(T?)? validator,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: DropdownButtonFormField<T>(
+        value: value,
+        items: items,
+        onChanged: onChanged,
+        validator: validator,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon),
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: Color(0xFF2E5E4E), width: 2),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _simNao({
+    required String pergunta,
+    required bool valor,
+    required void Function(bool) onChanged,
+  }) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            blurRadius: 14,
-            offset: const Offset(0, 4),
-            color: Colors.black.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE0E0E0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            pergunta,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _botaoOpcao(
+                  texto: 'Sim',
+                  selecionado: valor == true,
+                  onTap: () => onChanged(true),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _botaoOpcao(
+                  texto: 'Não',
+                  selecionado: valor == false,
+                  onTap: () => onChanged(false),
+                ),
+              ),
+            ],
           ),
         ],
       ),
-      child: child,
+    );
+  }
+
+  Widget _botaoOpcao({
+    required String texto,
+    required bool selecionado,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: selecionado ? const Color(0xFF2E5E4E) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selecionado ? const Color(0xFF2E5E4E) : Colors.grey.shade300,
+          ),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          texto,
+          style: TextStyle(
+            color: selecionado ? Colors.white : Colors.black87,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _listaServicos() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE0E0E0)),
+      ),
+      child: Column(
+        children: _servicos.map((servico) {
+          final int id = servico['id'];
+          final String nome = servico['nome'];
+
+          return CheckboxListTile(
+            value: _servicosSelecionados.contains(id),
+            title: Text(nome),
+            activeColor: const Color(0xFF2E5E4E),
+            contentPadding: EdgeInsets.zero,
+            onChanged: (value) {
+              setState(() {
+                if (value == true) {
+                  _servicosSelecionados.add(id);
+                } else {
+                  _servicosSelecionados.remove(id);
+                }
+              });
+            },
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _listaDisponibilidade() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE0E0E0)),
+      ),
+      child: Column(
+        children: _disponibilidade.keys.map((dia) {
+          return SwitchListTile(
+            value: _disponibilidade[dia] ?? false,
+            title: Text(dia),
+            activeColor: const Color(0xFF2E5E4E),
+            contentPadding: EdgeInsets.zero,
+            onChanged: (value) {
+              setState(() {
+                _disponibilidade[dia] = value;
+              });
+            },
+          );
+        }).toList(),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xfff7f8fc),
+      backgroundColor: const Color(0xFFF4F7F5),
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            if (index == 0) {
-              Navigator.pop(context);
-            } else {
-              _prev();
-            }
-          },
-        ),
-        title: const Text("Dados do Idoso"),
-        centerTitle: true,
+        title: const Text('Cadastro do Idoso'),
+        backgroundColor: const Color(0xFF2E5E4E),
+        foregroundColor: Colors.white,
+        elevation: 0,
       ),
-      body: PageView(
-        controller: page,
-        physics: const NeverScrollableScrollPhysics(),
-        onPageChanged: (i) => setState(() => index = i),
-        children: [
-          _Step(
-            index: 0,
-            total: 2,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(18),
+          child: Form(
+            key: _formKey,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Informações principais',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                _tituloSecao('Dados principais'),
+
+                _campoTexto(
+                  controller: _nomeController,
+                  label: 'Nome completo do idoso',
+                  icon: Icons.person,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Informe o nome do idoso';
+                    }
+                    return null;
+                  },
                 ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Preencha os dados do idoso com atenção para criar um perfil mais completo.',
+
+                _campoTexto(
+                  controller: _dataNascimentoController,
+                  label: 'Data de nascimento',
+                  icon: Icons.calendar_today,
+                  readOnly: true,
+                  onTap: _selecionarData,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Informe a data de nascimento';
+                    }
+                    return null;
+                  },
                 ),
-                const SizedBox(height: 18),
-                _buildCard(
-                  child: Column(
-                    children: [
-                      TextFormField(
-                        controller: nameController,
-                        decoration: _inputDecoration(
-                          label: "Nome completo do idoso",
-                          hint: "Digite nome e sobrenome",
-                          errorText: _validateName(nameController.text) != null &&
-                                  nameController.text.isNotEmpty
-                              ? _validateName(nameController.text)
-                              : null,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      InkWell(
-                        onTap: _selectDate,
-                        borderRadius: BorderRadius.circular(16),
-                        child: InputDecorator(
-                          decoration: _inputDecoration(
-                            label: "Data de nascimento *",
-                            suffixIcon: const Icon(Icons.calendar_today),
-                          ),
-                          child: Text(
-                            birthDate != null
-                                ? DateFormat('dd/MM/yyyy').format(birthDate!)
-                                : "Selecione a data de nascimento",
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      DropdownButtonFormField<String>(
-                        initialValue: gender,
-                        decoration: _inputDecoration(label: "Sexo *"),
-                        items: const [
-                          DropdownMenuItem(
-                            value: "Masculino",
-                            child: Text("Masculino"),
-                          ),
-                          DropdownMenuItem(
-                            value: "Feminino",
-                            child: Text("Feminino"),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          setState(() {
-                            gender = value;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 14),
-                      DropdownButtonFormField<int>(
-                        initialValue: mobilityId,
-                        decoration: _inputDecoration(label: "Nível de mobilidade"),
-                        items: const [
-                          DropdownMenuItem(value: 1, child: Text("Independente")),
-                          DropdownMenuItem(value: 2, child: Text("Cadeira de rodas")),
-                          DropdownMenuItem(value: 3, child: Text("Andador")),
-                          DropdownMenuItem(value: 4, child: Text("Bengala")),
-                          DropdownMenuItem(value: 5, child: Text("Auxílio total")),
-                        ],
-                        onChanged: (value) {
-                          setState(() {
-                            mobilityId = value;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 14),
-                      DropdownButtonFormField<int>(
-                        initialValue: autonomyLevelId,
-                        decoration: _inputDecoration(label: "Nível de autonomia"),
-                        items: const [
-                          DropdownMenuItem(value: 1, child: Text("Totalmente independente")),
-                          DropdownMenuItem(value: 2, child: Text("Parcialmente independente")),
-                          DropdownMenuItem(value: 3, child: Text("Dependente de auxílio moderado")),
-                          DropdownMenuItem(value: 4, child: Text("Dependente de auxílio intensivo")),
-                          DropdownMenuItem(value: 5, child: Text("Totalmente dependente")),
-                        ],
-                        onChanged: (value) {
-                          setState(() {
-                            autonomyLevelId = value;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 14),
-                      TextFormField(
-                        controller: medicalCareController,
-                        maxLines: 3,
-                        decoration: _inputDecoration(
-                          label: "Cuidados médicos",
-                          hint: "Ex.: medicação, alimentação assistida, pressão, diabetes...",
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      TextFormField(
-                        controller: extraDescriptionController,
-                        maxLines: 4,
-                        decoration: _inputDecoration(
-                          label: "Descrição extra",
-                          hint: "Ex.: rotina, preferências, observações importantes, restrições ou cuidados especiais",
-                        ),
-                      ),
-                    ],
+
+                _dropdown<String>(
+                  label: 'Sexo',
+                  icon: Icons.wc,
+                  value: _sexo,
+                  items: const [
+                    DropdownMenuItem(value: 'Feminino', child: Text('Feminino')),
+                    DropdownMenuItem(value: 'Masculino', child: Text('Masculino')),
+                    DropdownMenuItem(value: 'Outro', child: Text('Outro')),
+                    DropdownMenuItem(
+                      value: 'Prefiro não informar',
+                      child: Text('Prefiro não informar'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    setState(() => _sexo = value);
+                  },
+                  validator: (value) {
+                    if (value == null) {
+                      return 'Selecione o sexo';
+                    }
+                    return null;
+                  },
+                ),
+
+                _dropdown<int>(
+                  label: 'Mobilidade',
+                  icon: Icons.accessible,
+                  value: _mobilidadeId,
+                  items: _mobilidades.map((item) {
+                    return DropdownMenuItem<int>(
+                      value: item['id'],
+                      child: Text(item['nome']),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() => _mobilidadeId = value);
+                  },
+                  validator: (value) {
+                    if (value == null) {
+                      return 'Selecione a mobilidade';
+                    }
+                    return null;
+                  },
+                ),
+
+                _dropdown<int>(
+                  label: 'Nível de autonomia',
+                  icon: Icons.elderly,
+                  value: _nivelAutonomiaId,
+                  items: _autonomias.map((item) {
+                    return DropdownMenuItem<int>(
+                      value: item['id'],
+                      child: Text(item['nome']),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() => _nivelAutonomiaId = value);
+                  },
+                  validator: (value) {
+                    if (value == null) {
+                      return 'Selecione o nível de autonomia';
+                    }
+                    return null;
+                  },
+                ),
+
+                _tituloSecao('Informações de cuidado'),
+
+                _simNao(
+                  pergunta: 'O idoso possui cuidados médicos específicos?',
+                  valor: _temCuidadosMedicos,
+                  onChanged: (value) {
+                    setState(() {
+                      _temCuidadosMedicos = value;
+                      if (!value) _cuidadosMedicosController.clear();
+                    });
+                  },
+                ),
+
+                if (_temCuidadosMedicos)
+                  _campoTexto(
+                    controller: _cuidadosMedicosController,
+                    label: 'Descreva os cuidados médicos',
+                    icon: Icons.medical_services,
+                    maxLines: 4,
+                    validator: (value) {
+                      if (_temCuidadosMedicos &&
+                          (value == null || value.trim().isEmpty)) {
+                        return 'Descreva os cuidados médicos';
+                      }
+                      return null;
+                    },
                   ),
+
+                _simNao(
+                  pergunta: 'Deseja adicionar uma descrição extra?',
+                  valor: _temDescricaoExtra,
+                  onChanged: (value) {
+                    setState(() {
+                      _temDescricaoExtra = value;
+                      if (!value) _descricaoExtraController.clear();
+                    });
+                  },
                 ),
+
+                if (_temDescricaoExtra)
+                  _campoTexto(
+                    controller: _descricaoExtraController,
+                    label: 'Descrição extra',
+                    icon: Icons.description,
+                    maxLines: 4,
+                  ),
+
+                _simNao(
+                  pergunta: 'Deseja selecionar serviços necessários?',
+                  valor: _querServicos,
+                  onChanged: (value) {
+                    setState(() {
+                      _querServicos = value;
+                      if (!value) _servicosSelecionados.clear();
+                    });
+                  },
+                ),
+
+                if (_querServicos) _listaServicos(),
+
+                _simNao(
+                  pergunta: 'Deseja informar disponibilidade preferencial?',
+                  valor: _querDisponibilidade,
+                  onChanged: (value) {
+                    setState(() {
+                      _querDisponibilidade = value;
+                      if (!value) {
+                        _disponibilidade.updateAll((key, value) => false);
+                      }
+                    });
+                  },
+                ),
+
+                if (_querDisponibilidade) _listaDisponibilidade(),
+
                 const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: _validateForm() ? _next : null,
-                    child: const Text("Continuar"),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          _Step(
-            index: 1,
-            total: 2,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Foto e finalização do cadastro',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Você pode colar o link de uma foto e confirmar os termos para concluir o cadastro.',
-                ),
-                const SizedBox(height: 18),
-                _buildCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SectionTitle("Foto do idoso"),
-                      const SizedBox(height: 8),
-                      TextFormField(
-                        controller: photoUrlController,
-                        decoration: _inputDecoration(
-                          label: "Link da foto (opcional)",
-                          hint: "https://...",
-                          suffixIcon: const Icon(Icons.image_outlined),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 18),
-                _buildCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SectionTitle("Termos de uso"),
-                      const SizedBox(height: 10),
-                      Card(
-                        elevation: 0,
-                        color: Colors.grey.shade50,
-                        child: ExpansionTile(
-                          title: const Text(
-                            "Termos de Uso e Política de Privacidade",
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Text(
-                            _termsAccepted
-                                ? "Termos aceitos"
-                                : "Clique para ler os termos",
-                            style: TextStyle(
-                              color: _termsAccepted
-                                  ? Colors.green[700]
-                                  : Colors.grey[600],
-                            ),
-                          ),
-                          leading: Icon(
-                            _termsAccepted ? Icons.check_circle : Icons.info_outline,
-                            color: _termsAccepted ? Colors.green : Colors.grey,
-                          ),
-                          children: const [
-                            Padding(
-                              padding: EdgeInsets.all(16.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    "1. Aceitação dos Termos",
-                                    style: TextStyle(fontWeight: FontWeight.bold),
-                                  ),
-                                  SizedBox(height: 8),
-                                  Text(
-                                    "Ao utilizar este aplicativo, você concorda em cumprir e estar sujeito a estes Termos de Uso.",
-                                  ),
-                                  SizedBox(height: 16),
-                                  Text(
-                                    "2. Uso dos Dados",
-                                    style: TextStyle(fontWeight: FontWeight.bold),
-                                  ),
-                                  SizedBox(height: 8),
-                                  Text(
-                                    "Seus dados pessoais serão utilizados exclusivamente para fornecer os serviços de cuidados ao idoso, respeitando as normas de privacidade e segurança.",
-                                  ),
-                                  SizedBox(height: 16),
-                                  Text(
-                                    "3. Responsabilidades",
-                                    style: TextStyle(fontWeight: FontWeight.bold),
-                                  ),
-                                  SizedBox(height: 8),
-                                  Text(
-                                    "Você é responsável por fornecer informações verdadeiras e atualizadas sobre o idoso sob sua responsabilidade.",
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Checkbox(
-                            value: _termsAccepted,
-                            onChanged: (value) {
-                              setState(() {
-                                _termsAccepted = value ?? false;
-                              });
-                            },
-                            activeColor: Colors.green,
-                          ),
-                          const Expanded(
-                            child: Text(
-                              "Li e aceito os Termos de Uso e Política de Privacidade",
-                              style: TextStyle(fontSize: 14),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
+
                 SizedBox(
                   width: double.infinity,
                   height: 54,
                   child: ElevatedButton(
-                    onPressed: _termsAccepted && !isLoading ? _finish : null,
+                    onPressed: _loading ? null : _salvarIdoso,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
+                      backgroundColor: const Color(0xFF2E5E4E),
                       foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                     ),
-                    child: isLoading
+                    child: _loading
                         ? const SizedBox(
-                            height: 22,
                             width: 22,
+                            height: 22,
                             child: CircularProgressIndicator(
+                              color: Colors.white,
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation(Colors.white),
                             ),
                           )
                         : const Text(
-                            "Cadastrar",
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            'Cadastrar idoso',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                   ),
                 ),
+
+                const SizedBox(height: 30),
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Step extends StatelessWidget {
-  final int index;
-  final int total;
-  final Widget child;
-
-  const _Step({
-    required this.index,
-    required this.total,
-    required this.child,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(
-          24,
-          24,
-          24,
-          MediaQuery.of(context).padding.bottom + 60,
-        ),
-        child: Column(
-          children: [
-            child,
-            const SizedBox(height: 24),
-            StepDots(total: total, index: index),
-          ],
         ),
       ),
     );

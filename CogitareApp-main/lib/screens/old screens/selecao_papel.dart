@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'tela_cadastro_cuidador.dart';
-import 'tela_cadastro_responsavel.dart';
-import '../utils/navigation_utils.dart';
-import '../services/servico_autenticacao.dart';
+import '../tela_cadastro_cuidador.dart';
+import '../tela_cadastro_responsavel.dart';
+import '../../utils/navigation_utils.dart';
+import '../../services/servico_autenticacao.dart';
 
 class SelecaoPapel extends StatelessWidget {
   static const route = '/selecao-papel';

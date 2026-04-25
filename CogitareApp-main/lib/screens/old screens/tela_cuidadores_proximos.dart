@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../widgets/widget_cuidadores_proximos.dart';
-import '../models/responsavel.dart';
-import '../services/api_cuidadores_proximos.dart';
-import '../models/cuidador_proximo.dart';
+import '../../widgets/widget_cuidadores_proximos.dart';
+import '../../models/responsavel.dart';
+import '../../services/api_cuidadores_proximos.dart';
+import '../../models/cuidador_proximo.dart';
 
 class TelaCuidadoresProximos extends StatefulWidget {
   static const route = '/cuidadores-proximos';

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
-import '../services/session_service.dart';
+import '../../services/api_service.dart';
+import '../../services/session_service.dart';
 
 class SucessoPagamentoPage extends StatefulWidget {
   final String nomePlano;

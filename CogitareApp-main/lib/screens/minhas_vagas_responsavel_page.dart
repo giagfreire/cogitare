@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../services/api_client.dart';
+import '../services/api_service.dart';
+import '../services/servico_autenticacao.dart';
 
 class MinhasVagasResponsavelPage extends StatefulWidget {
   const MinhasVagasResponsavelPage({super.key});
@@ -25,10 +26,12 @@ class _MinhasVagasResponsavelPageState
 
   Future<void> fetchVagas() async {
     setState(() => isLoading = true);
-
     try {
-      final response = await ApiClient.get('/api/responsavel/vagas/minhas');
-
+   final token = await ServicoAutenticacao.getToken();
+   if (token != null && token.isNotEmpty) {
+   ServicoApi.setToken(token);
+}
+final response = await ServicoApi.get('/api/responsavel/vagas/minhas');
       if (response != null && response['success'] == true) {
         vagas = response['data'] ?? [];
       } else {
@@ -65,12 +68,12 @@ class _MinhasVagasResponsavelPageState
   }
 
   Future<void> excluirVaga(int idVaga) async {
-    await ApiClient.delete('/api/responsavel/vagas/$idVaga');
+    await ServicoApi.delete('/api/responsavel/vagas/$idVaga');
     fetchVagas();
   }
 
   Future<void> alterarStatus(int idVaga, bool aberta) async {
-    await ApiClient.put(
+    await ServicoApi.put(
       '/api/responsavel/vagas/$idVaga/status',
       {'status': aberta ? 'Encerrada' : 'Aberta'},
     );
@@ -79,7 +82,7 @@ class _MinhasVagasResponsavelPageState
 
   Future<void> verInteressados(int idVaga) async {
     final response =
-        await ApiClient.get('/api/responsavel/vagas/$idVaga/interessados');
+        await ServicoApi.get('/api/responsavel/vagas/$idVaga/interessados');
 
     if (!mounted) return;
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../services/api_cuidador.dart';
-import 'planos_cuidador_page.dart';
+import '../../services/api_cuidador.dart';
+import '../planos_cuidador_page.dart';
 
 class DetalheVagaCuidadorPage extends StatefulWidget {
   final Map<String, dynamic> vaga;

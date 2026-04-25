@@ -8,9 +8,19 @@ class Idoso {
   final String? gender;
   final String? medicalCare;
   final String? extraDescription;
-  final String? photoUrl;
-  final List<int>? selectedServices;
-  final Map<String, bool>? availability;
+
+  // 🔥 NOVOS CAMPOS
+  final String? usaMedicacao;
+  final String? medicacaoDetalhes;
+
+  final String? precisaBanho;
+  final String? banhoDetalhes;
+
+  final String? precisaAlimentacao;
+  final String? alimentacaoDetalhes;
+
+  final String? precisaAcompanhamento;
+  final String? acompanhamentoDetalhes;
 
   Idoso({
     this.id,
@@ -22,14 +32,18 @@ class Idoso {
     this.gender,
     this.medicalCare,
     this.extraDescription,
-    this.photoUrl,
-    this.selectedServices,
-    this.availability,
+    this.usaMedicacao,
+    this.medicacaoDetalhes,
+    this.precisaBanho,
+    this.banhoDetalhes,
+    this.precisaAlimentacao,
+    this.alimentacaoDetalhes,
+    this.precisaAcompanhamento,
+    this.acompanhamentoDetalhes,
   });
 
   Map<String, dynamic> toJson() {
     return {
-      'IdResponsavel': guardianId,
       'IdMobilidade': mobilityId,
       'IdNivelAutonomia': autonomyLevelId,
       'Nome': name,
@@ -37,34 +51,42 @@ class Idoso {
       'Sexo': gender,
       'CuidadosMedicos': medicalCare,
       'DescricaoExtra': extraDescription,
-      'FotoUrl': photoUrl,
-      'SelectedServices': selectedServices,
-      'Availability': availability,
+
+      // 🔥 NOVOS CAMPOS
+      'UsaMedicacao': usaMedicacao,
+      'MedicacaoDetalhes': medicacaoDetalhes,
+      'PrecisaBanho': precisaBanho,
+      'BanhoDetalhes': banhoDetalhes,
+      'PrecisaAlimentacao': precisaAlimentacao,
+      'AlimentacaoDetalhes': alimentacaoDetalhes,
+      'PrecisaAcompanhamento': precisaAcompanhamento,
+      'AcompanhamentoDetalhes': acompanhamentoDetalhes,
     };
   }
 
   factory Idoso.fromJson(Map<String, dynamic> json) {
     return Idoso(
-      id: json['IdIdoso'] ?? json['id'],
-      guardianId: json['IdResponsavel'] ?? json['guardianId'],
-      mobilityId: json['IdMobilidade'] ?? json['mobilityId'],
-      autonomyLevelId: json['IdNivelAutonomia'] ?? json['autonomyLevelId'],
-      name: json['Nome'] ?? json['name'] ?? '',
+      id: json['IdIdoso'],
+      guardianId: json['IdResponsavel'],
+      mobilityId: json['IdMobilidade'],
+      autonomyLevelId: json['IdNivelAutonomia'],
+      name: json['Nome'] ?? '',
       birthDate: json['DataNascimento'] != null
           ? DateTime.tryParse(json['DataNascimento'].toString())
-          : (json['birthDate'] != null
-              ? DateTime.tryParse(json['birthDate'].toString())
-              : null),
-      gender: json['Sexo'] ?? json['gender'],
-      medicalCare: json['CuidadosMedicos'] ?? json['medicalCare'],
-      extraDescription: json['DescricaoExtra'] ?? json['extraDescription'],
-      photoUrl: json['FotoUrl'] ?? json['photoUrl'],
-      selectedServices: json['SelectedServices'] != null
-          ? List<int>.from(json['SelectedServices'])
           : null,
-      availability: json['Availability'] != null
-          ? Map<String, bool>.from(json['Availability'])
-          : null,
+      gender: json['Sexo'],
+      medicalCare: json['CuidadosMedicos'],
+      extraDescription: json['DescricaoExtra'],
+
+      // 🔥 NOVOS CAMPOS
+      usaMedicacao: json['UsaMedicacao'],
+      medicacaoDetalhes: json['MedicacaoDetalhes'],
+      precisaBanho: json['PrecisaBanho'],
+      banhoDetalhes: json['BanhoDetalhes'],
+      precisaAlimentacao: json['PrecisaAlimentacao'],
+      alimentacaoDetalhes: json['AlimentacaoDetalhes'],
+      precisaAcompanhamento: json['PrecisaAcompanhamento'],
+      acompanhamentoDetalhes: json['AcompanhamentoDetalhes'],
     );
   }
 }

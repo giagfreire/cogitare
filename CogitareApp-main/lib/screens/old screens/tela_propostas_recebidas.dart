@@ -1,4 +1,4 @@
-import 'package:cogitare_app/screens/tela_propostas_detalhadas.dart';
+import 'package:cogitare_app/screens/old%20screens/tela_propostas_detalhadas.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 

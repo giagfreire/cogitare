@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../services/servico_autenticacao.dart';
 import '../utils/navigation_utils.dart';
-import 'selecao_papel.dart';
+import 'old screens/selecao_papel.dart';
 
 class OnboardingScreen extends StatefulWidget {
   final bool skipToLastPage;
