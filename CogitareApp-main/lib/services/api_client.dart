@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiClient {
-  static String get baseUrl {
-  return 'https://stooge-pound-mowing.ngrok-free.dev';
+static String get baseUrl {
+  return 'http://127.0.0.1:3000';
 }
 
   static String? _token;

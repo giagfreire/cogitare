@@ -49,7 +49,7 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
     if (data == null) return 'Não informado';
 
     final texto = data.toString();
-    if (texto.length >= 10) {
+    if (texto.length >= 10 && texto.contains('-')) {
       final partes = texto.substring(0, 10).split('-');
       if (partes.length == 3) {
         return '${partes[2]}/${partes[1]}/${partes[0]}';
@@ -82,7 +82,9 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
         }
       }
 
-      return NetworkImage(fotoUrl);
+      if (fotoUrl.startsWith('http://') || fotoUrl.startsWith('https://')) {
+        return NetworkImage(fotoUrl);
+      }
     }
 
     return null;
@@ -111,8 +113,7 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
         return;
       }
 
-      final dynamic cuidadorIdDinamico =
-          userData['IdCuidador'] ??
+      final dynamic cuidadorIdDinamico = userData['IdCuidador'] ??
           userData['idCuidador'] ??
           userData['cuidadorId'] ??
           userData['id'] ??
@@ -201,34 +202,24 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Foto atualizada com sucesso!'),
-          ),
+          const SnackBar(content: Text('Foto atualizada com sucesso!')),
         );
       } else {
-        setState(() {
-          _isUploadingFoto = false;
-        });
+        setState(() => _isUploadingFoto = false);
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              response['message'] ?? 'Erro ao salvar foto.',
-            ),
+            content: Text(response['message'] ?? 'Erro ao salvar foto.'),
           ),
         );
       }
     } catch (e) {
       if (!mounted) return;
 
-      setState(() {
-        _isUploadingFoto = false;
-      });
+      setState(() => _isUploadingFoto = false);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro ao selecionar/salvar foto: $e'),
-        ),
+        SnackBar(content: Text('Erro ao selecionar/salvar foto: $e')),
       );
     }
   }
@@ -299,6 +290,62 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                     color: roxo,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _textoCard({
+    required String titulo,
+    required String valor,
+    required IconData icon,
+  }) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: roxo.withOpacity(0.08)),
+        boxShadow: [
+          BoxShadow(
+            color: roxo.withOpacity(0.035),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: roxo),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  titulo,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: roxo.withOpacity(0.75),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  valor,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    height: 1.5,
+                    color: roxo,
                   ),
                 ),
               ],
@@ -347,11 +394,7 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
                           color: Colors.white,
                         ),
                       )
-                    : const Icon(
-                        Icons.edit,
-                        size: 15,
-                        color: Colors.white,
-                      ),
+                    : const Icon(Icons.edit, size: 15, color: Colors.white),
               ),
             ],
           ),
@@ -361,9 +404,7 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
           onPressed: _isUploadingFoto ? null : _selecionarESalvarFoto,
           icon: const Icon(Icons.photo_library_outlined, size: 18),
           label: const Text('Alterar foto'),
-          style: TextButton.styleFrom(
-            foregroundColor: Colors.white,
-          ),
+          style: TextButton.styleFrom(foregroundColor: Colors.white),
         ),
       ],
     );
@@ -381,6 +422,9 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
     );
     final cpf = _textoSeguro(_cuidador?['CPF'] ?? _cuidador?['cpf']);
     final cidade = _textoSeguro(_cuidador?['Cidade'] ?? _cuidador?['cidade']);
+    final sexo = _textoSeguro(
+      _cuidador?['Sexo'] ?? _cuidador?['sexo'],
+    );
     final valorHora = _textoSeguro(
       _cuidador?['ValorHora'] ?? _cuidador?['valorHora'],
       fallback: 'A definir',
@@ -391,6 +435,25 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
     );
     final dataNascimento = _formatarData(
       _cuidador?['DataNascimento'] ?? _cuidador?['dataNascimento'],
+    );
+
+    final escolaridade = _textoSeguro(
+      _cuidador?['Escolaridade'] ?? _cuidador?['escolaridade'],
+      fallback: 'Escolaridade ainda não informada.',
+    );
+    final experienciaProfissional = _textoSeguro(
+      _cuidador?['ExperienciaProfissional'] ??
+          _cuidador?['experienciaProfissional'],
+      fallback: 'Experiência profissional ainda não informada.',
+    );
+    final trabalhosFeitos = _textoSeguro(
+      _cuidador?['TrabalhosFeitos'] ?? _cuidador?['trabalhosFeitos'],
+      fallback: 'Trabalhos anteriores ainda não informados.',
+    );
+    final diplomasCertificados = _textoSeguro(
+      _cuidador?['DiplomasCertificados'] ??
+          _cuidador?['diplomasCertificados'],
+      fallback: 'Diplomas e certificados ainda não informados.',
     );
 
     return Scaffold(
@@ -555,6 +618,12 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
                       ),
                       const SizedBox(height: 10),
                       _infoTile(
+                        icon: Icons.wc_outlined,
+                        titulo: 'Sexo',
+                        valor: sexo,
+                      ),
+                      const SizedBox(height: 10),
+                      _infoTile(
                         icon: Icons.cake_outlined,
                         titulo: 'Data de nascimento',
                         valor: dataNascimento,
@@ -573,6 +642,36 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
                       ),
                       const SizedBox(height: 18),
                       const Text(
+                        'Perfil profissional',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: roxo,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _textoCard(
+                        icon: Icons.school_outlined,
+                        titulo: 'Escolaridade',
+                        valor: escolaridade,
+                      ),
+                      _textoCard(
+                        icon: Icons.work_outline,
+                        titulo: 'Experiência profissional',
+                        valor: experienciaProfissional,
+                      ),
+                      _textoCard(
+                        icon: Icons.elderly_outlined,
+                        titulo: 'Trabalhos já feitos',
+                        valor: trabalhosFeitos,
+                      ),
+                      _textoCard(
+                        icon: Icons.workspace_premium_outlined,
+                        titulo: 'Diplomas e certificados',
+                        valor: diplomasCertificados,
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
                         'Sobre mim',
                         style: TextStyle(
                           fontSize: 18,
@@ -581,22 +680,10 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: roxo.withOpacity(0.08)),
-                        ),
-                        child: Text(
-                          biografia,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            height: 1.5,
-                            color: roxo,
-                          ),
-                        ),
+                      _textoCard(
+                        icon: Icons.person_outline,
+                        titulo: 'Biografia',
+                        valor: biografia,
                       ),
                       const SizedBox(height: 24),
                     ],

@@ -12,6 +12,7 @@ import 'screens/perfil_cuidador_page.dart';
 import 'screens/tela_configuracoes.dart';
 import 'screens/tela_editar_perfil_cuidador.dart';
 import 'screens/tela_termos_condicoes.dart';
+import 'screens/tela_cadastro_cuidador.dart';
 
 void main() {
   runApp(const CogitareApp());
@@ -132,6 +133,10 @@ class CogitareApp extends StatelessWidget {
       ),
       initialRoute: '/',
       routes: {
+
+TelaCadastroCuidador.route: (context) => const TelaCadastroCuidador(),
+'/cadastro-cuidador': (context) => const TelaCadastroCuidador(),
+
         '/': (context) => const OnboardingScreen(),
 
         '/login': (context) => const TelaLoginUnificada(),
