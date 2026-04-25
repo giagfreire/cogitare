@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/servico_autenticacao.dart';
@@ -5,6 +6,7 @@ import 'criar_vaga_page.dart';
 import 'minhas_vagas_responsavel_page.dart';
 import 'perfil_responsavel_page.dart';
 import 'tela_cadastro_idoso.dart';
+import 'configuracoes_page.dart';
 
 class TelaDashboardResponsavel extends StatefulWidget {
   static const String route = '/responsavel-dashboard';
@@ -20,6 +22,7 @@ class _TelaDashboardResponsavelState
     extends State<TelaDashboardResponsavel> {
   List<dynamic> _vagas = [];
   bool _loading = true;
+  Map<String, dynamic> _perfil = {};
 
   static const Color roxo = Color(0xFF42124C);
   static const Color rosa = Color(0xFFFE0472);
@@ -29,7 +32,13 @@ class _TelaDashboardResponsavelState
   @override
   void initState() {
     super.initState();
-    _carregarVagas();
+    _init();
+  }
+
+  Future<void> _init() async {
+    await _prepararToken();
+    await _carregarPerfil();
+    await _carregarVagas();
   }
 
   Future<void> _prepararToken() async {
@@ -39,12 +48,21 @@ class _TelaDashboardResponsavelState
     }
   }
 
+  Future<void> _carregarPerfil() async {
+    try {
+      final response =
+          await ServicoApi.get('/api/responsavel/perfil');
+
+      if (response['success'] == true) {
+        _perfil = response['data'];
+      }
+    } catch (_) {}
+  }
+
   Future<void> _carregarVagas() async {
     setState(() => _loading = true);
 
     try {
-      await _prepararToken();
-
       final response =
           await ServicoApi.get('/api/responsavel/minhas-vagas');
 
@@ -65,9 +83,12 @@ class _TelaDashboardResponsavelState
       .where((v) => (v['Status'] ?? '').toString().toLowerCase() == 'aberta')
       .length;
 
-  int get vagasEncerradas => _vagas.length - vagasAbertas;
+  int get vagasEncerradas => _vagas
+      .where((v) => (v['Status'] ?? '').toString().toLowerCase() == 'encerrada')
+      .length;
 
-  int get vagasAceitas => 0;
+  int get totalInteressados =>
+      _vagas.fold(0, (total, v) => total + ((v['interessados'] ?? 0) as int));
 
   void _irParaCriarVaga() {
     Navigator.push(
@@ -94,6 +115,15 @@ class _TelaDashboardResponsavelState
     );
   }
 
+  void _abrirConfiguracoes() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const ConfiguracoesPage(),
+      ),
+    );
+  }
+
   void _abrirPerfilIdoso() {
     Navigator.push(
       context,
@@ -103,56 +133,76 @@ class _TelaDashboardResponsavelState
     );
   }
 
-  Widget _headerCard() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [roxo, rosa],
-        ),
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: const Row(
-        children: [
-          Icon(Icons.person, color: Colors.white, size: 40),
-          SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'Bem-vindo ao Cogitare 💜\nGerencie seus idosos e vagas',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
+  Widget _avatar() {
+    final foto = _perfil['FotoUrl'];
+
+    if (foto != null && foto.toString().startsWith('data:image')) {
+      return CircleAvatar(
+        radius: 18,
+        backgroundImage:
+            MemoryImage(base64Decode(foto.split(',').last)),
+      );
+    }
+
+    return const CircleAvatar(
+      radius: 18,
+      child: Icon(Icons.person, size: 18),
     );
   }
 
-  Widget _actionBox({
+  Widget _topBar() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Image.asset(
+          'assets/logo.png',
+          height: 32,
+        ),
+        Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.settings_outlined),
+              onPressed: _abrirConfiguracoes,
+              color: roxo,
+            ),
+            GestureDetector(
+              onTap: _abrirPerfil,
+              child: _avatar(),
+            ),
+          ],
+        )
+      ],
+    );
+  }
+
+  Widget _cardRapido({
     required String titulo,
     required IconData icon,
     required Color cor,
     required VoidCallback onTap,
-    bool textoEscuro = false,
+    bool darkText = false,
   }) {
     return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
       child: Container(
         decoration: BoxDecoration(
           color: cor,
           borderRadius: BorderRadius.circular(20),
         ),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(18),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: textoEscuro ? roxo : Colors.white, size: 32),
+            Icon(icon,
+                color: darkText ? roxo : Colors.white, size: 30),
             const SizedBox(height: 8),
             Text(
               titulo,
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: textoEscuro ? roxo : Colors.white,
-                fontWeight: FontWeight.bold,
+                color: darkText ? roxo : Colors.white,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -161,11 +211,7 @@ class _TelaDashboardResponsavelState
     );
   }
 
-  Widget _resumoCard({
-    required IconData icon,
-    required String titulo,
-    required String valor,
-  }) {
+  Widget _resumoBox(String titulo, String valor) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(14),
@@ -175,13 +221,11 @@ class _TelaDashboardResponsavelState
         ),
         child: Column(
           children: [
-            Icon(icon, color: roxo),
-            const SizedBox(height: 6),
             Text(
               valor,
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 16,
+                fontSize: 18,
                 color: roxo,
               ),
             ),
@@ -199,27 +243,33 @@ class _TelaDashboardResponsavelState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: fundo,
-      appBar: AppBar(
-        title: const Text('Dashboard'),
-        backgroundColor: roxo,
-        foregroundColor: Colors.white,
-      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
-              onRefresh: _carregarVagas,
+              onRefresh: _init,
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  _headerCard(),
+                  _topBar(),
+
+                  const SizedBox(height: 20),
+
+                  const Text(
+                    'Painel do responsável',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: roxo,
+                    ),
+                  ),
 
                   const SizedBox(height: 20),
 
                   const Text(
                     'Acesso rápido',
                     style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
                       color: roxo,
                     ),
                   ),
@@ -230,44 +280,44 @@ class _TelaDashboardResponsavelState
                     crossAxisCount: 2,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    mainAxisSpacing: 12,
                     crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
                     children: [
-                      _actionBox(
+                      _cardRapido(
                         titulo: 'Criar vaga',
                         icon: Icons.add,
                         cor: rosa,
                         onTap: _irParaCriarVaga,
                       ),
-                      _actionBox(
+                      _cardRapido(
                         titulo: 'Minhas vagas',
-                        icon: Icons.work,
+                        icon: Icons.work_outline,
                         cor: roxo,
                         onTap: _abrirMinhasVagas,
                       ),
-                      _actionBox(
+                      _cardRapido(
                         titulo: 'Meu perfil',
-                        icon: Icons.person,
+                        icon: Icons.person_outline,
                         cor: verde,
-                        textoEscuro: true,
+                        darkText: true,
                         onTap: _abrirPerfil,
                       ),
-                      _actionBox(
+                      _cardRapido(
                         titulo: 'Perfil do idoso',
-                        icon: Icons.elderly,
+                        icon: Icons.elderly_outlined,
                         cor: rosa,
                         onTap: _abrirPerfilIdoso,
                       ),
                     ],
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
 
                   const Text(
-                    'Resumo',
+                    'Visão geral',
                     style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
                       color: roxo,
                     ),
                   ),
@@ -276,27 +326,29 @@ class _TelaDashboardResponsavelState
 
                   Row(
                     children: [
-                      _resumoCard(
-                        icon: Icons.work,
-                        titulo: 'Total',
-                        valor: _vagas.length.toString(),
+                      _resumoBox(
+                        'Total',
+                        _vagas.length.toString(),
                       ),
                       const SizedBox(width: 8),
-                      _resumoCard(
-                        icon: Icons.check,
-                        titulo: 'Abertas',
-                        valor: vagasAbertas.toString(),
+                      _resumoBox(
+                        'Abertas',
+                        vagasAbertas.toString(),
                       ),
                       const SizedBox(width: 8),
-                      _resumoCard(
-                        icon: Icons.lock,
-                        titulo: 'Encerradas',
-                        valor: vagasEncerradas.toString(),
+                      _resumoBox(
+                        'Encerradas',
+                        vagasEncerradas.toString(),
+                      ),
+                      const SizedBox(width: 8),
+                      _resumoBox(
+                        'Interessados',
+                        totalInteressados.toString(),
                       ),
                     ],
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 30),
                 ],
               ),
             ),
