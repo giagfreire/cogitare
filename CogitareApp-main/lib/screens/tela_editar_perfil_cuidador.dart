@@ -15,15 +15,22 @@ class TelaEditarPerfilCuidador extends StatefulWidget {
 }
 
 class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
-  final TextEditingController nomeController = TextEditingController();
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController telefoneController = TextEditingController();
-  final TextEditingController cpfController = TextEditingController();
-  final TextEditingController cidadeController = TextEditingController();
-  final TextEditingController biografiaController = TextEditingController();
-  final TextEditingController valorHoraController = TextEditingController();
+  final nomeController = TextEditingController();
+  final emailController = TextEditingController();
+  final telefoneController = TextEditingController();
+  final cpfController = TextEditingController();
+  final cidadeController = TextEditingController();
+  final biografiaController = TextEditingController();
+  final valorHoraController = TextEditingController();
 
+  final escolaridadeController = TextEditingController();
+  final experienciaController = TextEditingController();
+  final trabalhosController = TextEditingController();
+  final diplomasController = TextEditingController();
+
+  String? sexoSelecionado;
   DateTime? dataNascimento;
+
   bool _isLoading = true;
   bool _isSaving = false;
   int? _cuidadorId;
@@ -47,6 +54,10 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
     cidadeController.dispose();
     biografiaController.dispose();
     valorHoraController.dispose();
+    escolaridadeController.dispose();
+    experienciaController.dispose();
+    trabalhosController.dispose();
+    diplomasController.dispose();
     super.dispose();
   }
 
@@ -76,9 +87,7 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
       ServicoApi.setToken(token);
     }
 
-    if (userType != 'cuidador' || userData == null) {
-      return null;
-    }
+    if (userType != 'cuidador' || userData == null) return null;
 
     return _parseInt(
       userData['IdCuidador'] ??
@@ -99,16 +108,12 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
     );
 
     if (picked != null) {
-      setState(() {
-        dataNascimento = picked;
-      });
+      setState(() => dataNascimento = picked);
     }
   }
 
   Future<void> _carregarDados() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
       final cuidadorId = await _getCuidadorIdLogado();
@@ -124,14 +129,28 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
 
         nomeController.text = _textoSeguro(data['nome'] ?? data['Nome']);
         emailController.text = _textoSeguro(data['email'] ?? data['Email']);
-        telefoneController.text =
-            _textoSeguro(data['telefone'] ?? data['Telefone']);
+        telefoneController.text = _textoSeguro(data['telefone'] ?? data['Telefone']);
         cpfController.text = _textoSeguro(data['cpf'] ?? data['Cpf']);
         cidadeController.text = _textoSeguro(data['cidade'] ?? data['Cidade']);
         biografiaController.text =
             _textoSeguro(data['biografia'] ?? data['Biografia']);
         valorHoraController.text =
             _textoSeguro(data['valorHora'] ?? data['ValorHora']);
+
+        sexoSelecionado = _textoSeguro(data['sexo'] ?? data['Sexo']);
+        if (sexoSelecionado!.isEmpty) sexoSelecionado = null;
+
+        escolaridadeController.text =
+            _textoSeguro(data['escolaridade'] ?? data['Escolaridade']);
+        experienciaController.text = _textoSeguro(
+          data['experienciaProfissional'] ?? data['ExperienciaProfissional'],
+        );
+        trabalhosController.text = _textoSeguro(
+          data['trabalhosFeitos'] ?? data['TrabalhosFeitos'],
+        );
+        diplomasController.text = _textoSeguro(
+          data['diplomasCertificados'] ?? data['DiplomasCertificados'],
+        );
 
         final dataNascimentoTexto =
             _textoSeguro(data['dataNascimento'] ?? data['DataNascimento']);
@@ -148,18 +167,12 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
       }
     } catch (e) {
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erro ao carregar perfil: $e')),
       );
-
       Navigator.pop(context);
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -174,18 +187,17 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
     if (nomeController.text.trim().isEmpty ||
         telefoneController.text.trim().isEmpty ||
         cpfController.text.trim().isEmpty ||
-        dataNascimento == null) {
+        dataNascimento == null ||
+        sexoSelecionado == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Preencha nome, telefone, CPF e data de nascimento.'),
+          content: Text('Preencha nome, telefone, CPF, sexo e data de nascimento.'),
         ),
       );
       return;
     }
 
-    setState(() {
-      _isSaving = true;
-    });
+    setState(() => _isSaving = true);
 
     try {
       final body = {
@@ -193,9 +205,14 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
         'telefone': _apenasNumeros(telefoneController.text.trim()),
         'cpf': _apenasNumeros(cpfController.text.trim()),
         'dataNascimento': dataNascimento!.toIso8601String().split('T')[0],
+        'sexo': sexoSelecionado,
         'cidade': cidadeController.text.trim(),
         'biografia': biografiaController.text.trim(),
         'valorHora': valorHoraController.text.trim(),
+        'escolaridade': escolaridadeController.text.trim(),
+        'experienciaProfissional': experienciaController.text.trim(),
+        'trabalhosFeitos': trabalhosController.text.trim(),
+        'diplomasCertificados': diplomasController.text.trim(),
       };
 
       final response = await ServicoApi.put('/api/cuidador/$_cuidadorId', body);
@@ -209,24 +226,31 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
         Navigator.pop(context, true);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(response['message'] ?? 'Erro ao atualizar perfil.'),
-          ),
+          SnackBar(content: Text(response['message'] ?? 'Erro ao atualizar perfil.')),
         );
       }
     } catch (e) {
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erro ao salvar perfil: $e')),
       );
     } finally {
-      if (mounted) {
-        setState(() {
-          _isSaving = false;
-        });
-      }
+      if (mounted) setState(() => _isSaving = false);
     }
+  }
+
+  Widget _tituloSecao(String texto) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Text(
+        texto,
+        style: const TextStyle(
+          color: roxo,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
   }
 
   Widget _campo({
@@ -270,12 +294,17 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
                     child: Icon(Icons.person, size: 36, color: Colors.white),
                   ),
                   const SizedBox(height: 20),
+
+                  _tituloSecao('Dados pessoais'),
+                  const SizedBox(height: 12),
+
                   _campo(
                     controller: nomeController,
                     label: 'Nome completo',
                     hint: 'Digite seu nome',
                   ),
                   const SizedBox(height: 12),
+
                   _campo(
                     controller: emailController,
                     label: 'E-mail',
@@ -284,6 +313,7 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
                     enabled: false,
                   ),
                   const SizedBox(height: 12),
+
                   _campo(
                     controller: telefoneController,
                     label: 'Telefone',
@@ -291,6 +321,7 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
                     keyboard: TextInputType.phone,
                   ),
                   const SizedBox(height: 12),
+
                   _campo(
                     controller: cpfController,
                     label: 'CPF',
@@ -298,6 +329,20 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
                     keyboard: TextInputType.number,
                   ),
                   const SizedBox(height: 12),
+
+                  DropdownButtonFormField<String>(
+                    value: sexoSelecionado,
+                    decoration: const InputDecoration(labelText: 'Sexo'),
+                    items: const [
+                      DropdownMenuItem(value: 'feminino', child: Text('Feminino')),
+                      DropdownMenuItem(value: 'masculino', child: Text('Masculino')),
+                    ],
+                    onChanged: (value) {
+                      setState(() => sexoSelecionado = value);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
                   InkWell(
                     onTap: _selecionarDataNascimento,
                     child: InputDecorator(
@@ -313,26 +358,65 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
                     ),
                   ),
                   const SizedBox(height: 12),
+
                   _campo(
                     controller: cidadeController,
                     label: 'Cidade',
                     hint: 'Digite sua cidade',
                   ),
                   const SizedBox(height: 12),
+
                   _campo(
                     controller: valorHoraController,
                     label: 'Valor por hora',
                     hint: 'Ex: 50,00',
                     keyboard: TextInputType.number,
                   ),
+
+                  const SizedBox(height: 22),
+                  _tituloSecao('Perfil profissional'),
                   const SizedBox(height: 12),
+
+                  _campo(
+                    controller: escolaridadeController,
+                    label: 'Escolaridade',
+                    hint: 'Ex: Ensino médio completo, Técnico em Enfermagem...',
+                  ),
+                  const SizedBox(height: 12),
+
+                  _campo(
+                    controller: experienciaController,
+                    label: 'Experiência profissional',
+                    hint: 'Conte sua experiência como cuidador(a)',
+                    maxLines: 4,
+                  ),
+                  const SizedBox(height: 12),
+
+                  _campo(
+                    controller: trabalhosController,
+                    label: 'Trabalhos já feitos',
+                    hint: 'Ex: cuidados com idosos, acompanhamento hospitalar...',
+                    maxLines: 4,
+                  ),
+                  const SizedBox(height: 12),
+
+                  _campo(
+                    controller: diplomasController,
+                    label: 'Diplomas e certificados',
+                    hint: 'Ex: Cuidador de idosos, primeiros socorros...',
+                    maxLines: 4,
+                  ),
+                  const SizedBox(height: 12),
+
                   _campo(
                     controller: biografiaController,
                     label: 'Biografia',
                     hint: 'Fale um pouco sobre você',
                     maxLines: 4,
                   ),
+
                   const SizedBox(height: 24),
+
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
