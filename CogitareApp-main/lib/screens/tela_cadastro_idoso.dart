@@ -40,19 +40,6 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
   bool _temCuidadosMedicos = false;
   bool _temDescricaoExtra = false;
   bool _querServicos = false;
-  bool _querDisponibilidade = false;
-
-  final List<int> _servicosSelecionados = [];
-
-  final Map<String, bool> _disponibilidade = {
-    'Segunda': false,
-    'Terça': false,
-    'Quarta': false,
-    'Quinta': false,
-    'Sexta': false,
-    'Sábado': false,
-    'Domingo': false,
-  };
 
   final List<Map<String, dynamic>> _mobilidades = [
     {'id': 1, 'nome': 'Anda normalmente'},
@@ -251,7 +238,7 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: DropdownButtonFormField<T>(
-        value: value,
+        initialValue: value,
         items: items,
         onChanged: onChanged,
         validator: validator,
@@ -379,33 +366,6 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
                 } else {
                   _servicosSelecionados.remove(id);
                 }
-              });
-            },
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _listaDisponibilidade() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE0E0E0)),
-      ),
-      child: Column(
-        children: _disponibilidade.keys.map((dia) {
-          return SwitchListTile(
-            value: _disponibilidade[dia] ?? false,
-            title: Text(dia),
-            activeColor: const Color(0xFF2E5E4E),
-            contentPadding: EdgeInsets.zero,
-            onChanged: (value) {
-              setState(() {
-                _disponibilidade[dia] = value;
               });
             },
           );
@@ -584,19 +544,6 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
                 ),
 
                 if (_querServicos) _listaServicos(),
-
-                _simNao(
-                  pergunta: 'Deseja informar disponibilidade preferencial?',
-                  valor: _querDisponibilidade,
-                  onChanged: (value) {
-                    setState(() {
-                      _querDisponibilidade = value;
-                      if (!value) {
-                        _disponibilidade.updateAll((key, value) => false);
-                      }
-                    });
-                  },
-                ),
 
                 if (_querDisponibilidade) _listaDisponibilidade(),
 
