@@ -10,7 +10,12 @@ import '../services/servico_autenticacao.dart';
 import 'tela_cadastro_idoso.dart';
 
 class CriarVagaPage extends StatefulWidget {
-  const CriarVagaPage({super.key});
+  final Map<String, dynamic>? vagaParaEditar;
+
+  const CriarVagaPage({
+    super.key,
+    this.vagaParaEditar,
+  });
 
   @override
   State<CriarVagaPage> createState() => _CriarVagaPageState();
@@ -41,10 +46,47 @@ class _CriarVagaPageState extends State<CriarVagaPage> {
   static const Color verde = Color(0xFF8AFF00);
   static const Color fundo = Color(0xFFF6F4F8);
 
+  bool get editando => widget.vagaParaEditar != null;
+
   @override
   void initState() {
     super.initState();
+    _preencherDadosEdicao();
     _carregarIdosos();
+  }
+
+  void _preencherDadosEdicao() {
+    final vaga = widget.vagaParaEditar;
+    if (vaga == null) return;
+
+    _tituloController.text = vaga['Titulo']?.toString() ?? '';
+    _cepController.text = vaga['Cep']?.toString() ?? '';
+    _cidadeController.text = vaga['Cidade']?.toString() ?? '';
+    _bairroController.text = vaga['Bairro']?.toString() ?? '';
+    _ruaController.text = vaga['Rua']?.toString() ?? '';
+
+    if (vaga['DataServico'] != null) {
+      _dataSelecionada = DateTime.tryParse(vaga['DataServico'].toString());
+    }
+
+    _horaInicio = _parseHora(vaga['HoraInicio']);
+    _horaFim = _parseHora(vaga['HoraFim']);
+  }
+
+  TimeOfDay? _parseHora(dynamic valor) {
+    if (valor == null) return null;
+
+    final texto = valor.toString();
+    final partes = texto.split(':');
+
+    if (partes.length < 2) return null;
+
+    final hora = int.tryParse(partes[0]);
+    final minuto = int.tryParse(partes[1]);
+
+    if (hora == null || minuto == null) return null;
+
+    return TimeOfDay(hour: hora, minute: minuto);
   }
 
   @override
@@ -61,25 +103,41 @@ class _CriarVagaPageState extends State<CriarVagaPage> {
     return value.replaceAll(RegExp(r'[^0-9]'), '');
   }
 
+  Future<void> _prepararToken() async {
+    final token = await ServicoAutenticacao.getToken();
+
+    if (token != null && token.isNotEmpty) {
+      ServicoApi.setToken(token);
+    }
+  }
+
   Future<void> _carregarIdosos() async {
     setState(() => _carregandoIdosos = true);
 
     try {
-      final token = await ServicoAutenticacao.getToken();
-
-      if (token != null && token.isNotEmpty) {
-        ServicoApi.setToken(token);
-      }
+      await _prepararToken();
 
       final lista = await ApiIdoso.listMeus();
 
       if (!mounted) return;
 
+      Idoso? selecionado;
+
+      if (editando && widget.vagaParaEditar?['IdIdoso'] != null) {
+        final idVagaIdoso =
+            int.tryParse(widget.vagaParaEditar!['IdIdoso'].toString());
+
+        for (final idoso in lista) {
+          if (idoso.id == idVagaIdoso) {
+            selecionado = idoso;
+            break;
+          }
+        }
+      }
+
       setState(() {
         _idosos = lista;
-        if (_idosos.isNotEmpty) {
-          _idosoSelecionado ??= _idosos.first;
-        }
+        _idosoSelecionado = selecionado ?? (_idosos.isNotEmpty ? _idosos.first : null);
         _carregandoIdosos = false;
       });
     } catch (_) {
@@ -175,7 +233,7 @@ class _CriarVagaPageState extends State<CriarVagaPage> {
     return _minutos(_horaFim!) > _minutos(_horaInicio!);
   }
 
-  Future<void> _criarVaga() async {
+  Future<void> _salvarVaga() async {
     if (!_formKey.currentState!.validate()) return;
 
     if (_idosoSelecionado == null) {
@@ -201,41 +259,57 @@ class _CriarVagaPageState extends State<CriarVagaPage> {
     setState(() => _carregando = true);
 
     try {
-      final token = await ServicoAutenticacao.getToken();
+      await _prepararToken();
 
-      if (token != null && token.isNotEmpty) {
-        ServicoApi.setToken(token);
+      final body = {
+        'idIdoso': _idosoSelecionado!.id,
+        'titulo': _tituloController.text.trim(),
+        'cep': _onlyNumbers(_cepController.text.trim()),
+        'cidade': _cidadeController.text.trim(),
+        'bairro': _bairroController.text.trim(),
+        'rua': _ruaController.text.trim(),
+        'dataServico': _formatarData(_dataSelecionada!),
+        'horaInicio': _formatarHora(_horaInicio!),
+        'horaFim': _formatarHora(_horaFim!),
+      };
+
+      late final Map<String, dynamic> response;
+
+      if (editando) {
+        final idVaga = widget.vagaParaEditar!['IdVaga'];
+
+        response = await ServicoApi.put(
+          '/api/responsavel/vaga/$idVaga',
+          body,
+        );
+      } else {
+        response = await ServicoApi.post(
+          '/api/responsavel/vagas',
+          body,
+        );
       }
-
-      final response = await ServicoApi.post(
-        '/api/responsavel/vagas',
-        {
-          'idIdoso': _idosoSelecionado!.id,
-          'titulo': _tituloController.text.trim(),
-          'cep': _onlyNumbers(_cepController.text.trim()),
-          'cidade': _cidadeController.text.trim(),
-          'bairro': _bairroController.text.trim(),
-          'rua': _ruaController.text.trim(),
-          'dataServico': _formatarData(_dataSelecionada!),
-          'horaInicio': _formatarHora(_horaInicio!),
-          'horaFim': _formatarHora(_horaFim!),
-        },
-      );
 
       if (!mounted) return;
 
       if (response['success'] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Vaga criada com sucesso!')),
+          SnackBar(
+            content: Text(
+              editando
+                  ? 'Vaga atualizada com sucesso!'
+                  : 'Vaga criada com sucesso!',
+            ),
+            backgroundColor: roxo,
+          ),
         );
 
         Navigator.pop(context, true);
       } else {
-        _mostrarSnack(response['message'] ?? 'Erro ao criar vaga.');
+        _mostrarSnack(response['message'] ?? 'Erro ao salvar vaga.');
       }
     } catch (e) {
       if (!mounted) return;
-      _mostrarSnack('Erro ao criar vaga: $e');
+      _mostrarSnack('Erro ao salvar vaga: $e');
     } finally {
       if (mounted) setState(() => _carregando = false);
     }
@@ -243,7 +317,10 @@ class _CriarVagaPageState extends State<CriarVagaPage> {
 
   void _mostrarSnack(String mensagem) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(mensagem)),
+      SnackBar(
+        content: Text(mensagem),
+        backgroundColor: rosa,
+      ),
     );
   }
 
@@ -314,6 +391,20 @@ class _CriarVagaPageState extends State<CriarVagaPage> {
           prefixIcon: icon != null ? Icon(icon, color: roxo) : null,
           suffixIcon: suffixIcon,
           counterText: '',
+          filled: true,
+          fillColor: Colors.white,
+          labelStyle: const TextStyle(color: roxo),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: roxo.withOpacity(0.12)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(color: rosa, width: 2),
+          ),
         ),
       ),
     );
@@ -383,23 +474,29 @@ class _CriarVagaPageState extends State<CriarVagaPage> {
         ),
         borderRadius: BorderRadius.circular(24),
       ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.work_outline, color: Colors.white, size: 36),
-          SizedBox(height: 12),
+          Icon(
+            editando ? Icons.edit_note : Icons.work_outline,
+            color: Colors.white,
+            size: 36,
+          ),
+          const SizedBox(height: 12),
           Text(
-            'Nova oportunidade',
-            style: TextStyle(
+            editando ? 'Editar oportunidade' : 'Nova oportunidade',
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 23,
               fontWeight: FontWeight.w900,
             ),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
-            'Selecione o idoso, informe a localidade e o horário do serviço.',
-            style: TextStyle(
+            editando
+                ? 'Atualize as informações da vaga publicada.'
+                : 'Selecione o idoso, informe a localidade e o horário do serviço.',
+            style: const TextStyle(
               color: Colors.white70,
               height: 1.4,
             ),
@@ -418,7 +515,7 @@ class _CriarVagaPageState extends State<CriarVagaPage> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(18),
         ),
-        child: const Center(child: CircularProgressIndicator()),
+        child: const Center(child: CircularProgressIndicator(color: rosa)),
       );
     }
 
@@ -484,9 +581,11 @@ class _CriarVagaPageState extends State<CriarVagaPage> {
             child: Text(idoso.name),
           );
         }).toList(),
-        onChanged: (value) {
-          setState(() => _idosoSelecionado = value);
-        },
+        onChanged: editando
+            ? null
+            : (value) {
+                setState(() => _idosoSelecionado = value);
+              },
       ),
     );
   }
@@ -526,7 +625,7 @@ class _CriarVagaPageState extends State<CriarVagaPage> {
     return Scaffold(
       backgroundColor: fundo,
       appBar: AppBar(
-        title: const Text('Criar vaga'),
+        title: Text(editando ? 'Editar vaga' : 'Criar vaga'),
         backgroundColor: roxo,
         foregroundColor: Colors.white,
       ),
@@ -651,7 +750,7 @@ class _CriarVagaPageState extends State<CriarVagaPage> {
             width: double.infinity,
             height: 54,
             child: ElevatedButton.icon(
-              onPressed: _carregando ? null : _criarVaga,
+              onPressed: _carregando ? null : _salvarVaga,
               icon: _carregando
                   ? const SizedBox(
                       width: 22,
@@ -661,8 +760,14 @@ class _CriarVagaPageState extends State<CriarVagaPage> {
                         color: Colors.white,
                       ),
                     )
-                  : const Icon(Icons.add),
-              label: Text(_carregando ? 'Criando...' : 'Criar vaga'),
+                  : Icon(editando ? Icons.save : Icons.add),
+              label: Text(
+                _carregando
+                    ? 'Salvando...'
+                    : editando
+                        ? 'Salvar alterações'
+                        : 'Criar vaga',
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: rosa,
                 foregroundColor: Colors.white,

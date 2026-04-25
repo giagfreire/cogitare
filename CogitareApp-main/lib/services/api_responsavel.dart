@@ -3,7 +3,6 @@ import '../models/endereco.dart';
 import 'api_client.dart';
 
 class ApiResponsavel {
-  /// Cria endereço
   static Future<Map<String, dynamic>> createEndereco(Endereco address) async {
     try {
       return await ApiClient.post('/api/responsavel/endereco', {
@@ -15,14 +14,10 @@ class ApiResponsavel {
         'cep': address.zipCode,
       });
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Erro ao cadastrar endereço: $e',
-      };
+      return {'success': false, 'message': 'Erro ao cadastrar endereço: $e'};
     }
   }
 
-  /// Cria responsável
   static Future<Map<String, dynamic>> createResponsavel(
     Responsavel guardian,
   ) async {
@@ -33,20 +28,15 @@ class ApiResponsavel {
         'nome': guardian.name,
         'email': guardian.email,
         'telefone': guardian.phone,
-        'dataNascimento':
-            guardian.birthDate?.toIso8601String().split('T')[0],
+        'dataNascimento': guardian.birthDate?.toIso8601String().split('T')[0],
         'senha': guardian.password,
         'fotoUrl': guardian.photoUrl,
       });
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Erro ao cadastrar responsável: $e',
-      };
+      return {'success': false, 'message': 'Erro ao cadastrar responsável: $e'};
     }
   }
 
-  /// Cadastro completo
   static Future<Map<String, dynamic>> createComplete({
     required Endereco address,
     required Responsavel guardian,
@@ -63,20 +53,15 @@ class ApiResponsavel {
         'nome': guardian.name,
         'email': guardian.email,
         'telefone': guardian.phone,
-        'dataNascimento':
-            guardian.birthDate?.toIso8601String().split('T')[0],
+        'dataNascimento': guardian.birthDate?.toIso8601String().split('T')[0],
         'senha': guardian.password,
         'fotoUrl': guardian.photoUrl,
       });
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Erro no cadastro completo: $e',
-      };
+      return {'success': false, 'message': 'Erro no cadastro completo: $e'};
     }
   }
 
-  /// Lista todos
   static Future<List<Responsavel>> list() async {
     try {
       final response = await ApiClient.get('/api/responsavel');
@@ -87,12 +72,11 @@ class ApiResponsavel {
       }
 
       return [];
-    } catch (e) {
+    } catch (_) {
       return [];
     }
   }
 
-  /// Busca por ID
   static Future<Responsavel?> getById(int id) async {
     try {
       final response = await ApiClient.get('/api/responsavel/$id');
@@ -102,12 +86,11 @@ class ApiResponsavel {
       }
 
       return null;
-    } catch (e) {
+    } catch (_) {
       return null;
     }
   }
 
-  /// Buscar perfil do responsável logado
   static Future<Map<String, dynamic>?> getPerfil() async {
     try {
       final response = await ApiClient.get('/api/responsavel/perfil');
@@ -117,12 +100,11 @@ class ApiResponsavel {
       }
 
       return null;
-    } catch (e) {
+    } catch (_) {
       return null;
     }
   }
 
-  /// Atualizar perfil do responsável logado
   static Future<Map<String, dynamic>> atualizarPerfil({
     required String nome,
     required String email,
@@ -145,14 +127,10 @@ class ApiResponsavel {
         'data': response['data'],
       };
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Erro ao atualizar perfil: $e',
-      };
+      return {'success': false, 'message': 'Erro ao atualizar perfil: $e'};
     }
   }
 
-  /// Apagar conta do responsável logado
   static Future<Map<String, dynamic>> apagarConta() async {
     try {
       final response = await ApiClient.delete('/api/responsavel/perfil');
@@ -162,32 +140,32 @@ class ApiResponsavel {
         'message': response['message'] ?? 'Conta apagada com sucesso',
       };
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Erro ao apagar conta: $e',
-      };
+      return {'success': false, 'message': 'Erro ao apagar conta: $e'};
     }
   }
 
-  /// Criar vaga
   static Future<Map<String, dynamic>> criarVaga({
+    required int idIdoso,
     required String titulo,
-    required String descricao,
+    required String cep,
     required String cidade,
+    required String bairro,
+    required String rua,
     required String dataServico,
     required String horaInicio,
     required String horaFim,
-    required double valor,
   }) async {
     try {
       final response = await ApiClient.post('/api/responsavel/vagas', {
+        'idIdoso': idIdoso,
         'titulo': titulo,
-        'descricao': descricao,
+        'cep': cep,
         'cidade': cidade,
+        'bairro': bairro,
+        'rua': rua,
         'dataServico': dataServico,
         'horaInicio': horaInicio,
         'horaFim': horaFim,
-        'valor': valor,
       });
 
       return {
@@ -196,48 +174,45 @@ class ApiResponsavel {
         'data': response['data'],
       };
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Erro ao criar vaga: $e',
-      };
+      return {'success': false, 'message': 'Erro ao criar vaga: $e'};
     }
   }
 
-  /// Minhas vagas do responsável logado
   static Future<List<Map<String, dynamic>>> getMinhasVagas() async {
     try {
-      final response = await ApiClient.get('/api/responsavel/vagas/minhas');
+      final response = await ApiClient.get('/api/responsavel/minhas-vagas');
 
       if (response['success'] == true && response['data'] != null) {
         return List<Map<String, dynamic>>.from(response['data']);
       }
 
       return [];
-    } catch (e) {
+    } catch (_) {
       return [];
     }
   }
 
-  /// Editar vaga
   static Future<Map<String, dynamic>> editarVaga({
     required int idVaga,
     required String titulo,
-    required String descricao,
+    required String cep,
     required String cidade,
+    required String bairro,
+    required String rua,
     required String dataServico,
     required String horaInicio,
     required String horaFim,
-    required double valor,
   }) async {
     try {
-      final response = await ApiClient.put('/api/responsavel/vagas/$idVaga', {
+      final response = await ApiClient.put('/api/responsavel/vaga/$idVaga', {
         'titulo': titulo,
-        'descricao': descricao,
+        'cep': cep,
         'cidade': cidade,
+        'bairro': bairro,
+        'rua': rua,
         'dataServico': dataServico,
         'horaInicio': horaInicio,
         'horaFim': horaFim,
-        'valor': valor,
       });
 
       return {
@@ -246,82 +221,61 @@ class ApiResponsavel {
         'data': response['data'],
       };
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Erro ao editar vaga: $e',
-      };
+      return {'success': false, 'message': 'Erro ao editar vaga: $e'};
     }
   }
 
-  /// Encerrar vaga
-  static Future<Map<String, dynamic>> encerrarVaga(int idVaga) async {
+  static Future<Map<String, dynamic>> alterarStatusVaga({
+    required int idVaga,
+    required String status,
+  }) async {
     try {
       final response =
-          await ApiClient.put('/api/responsavel/vagas/$idVaga/status', {
-        'status': 'Encerrada',
+          await ApiClient.put('/api/responsavel/vaga/$idVaga/status', {
+        'status': status,
       });
 
       return {
         'success': response['success'] == true,
-        'message': response['message'] ?? 'Vaga encerrada com sucesso',
+        'message': response['message'] ?? 'Status atualizado',
       };
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Erro ao encerrar vaga: $e',
-      };
+      return {'success': false, 'message': 'Erro ao alterar status: $e'};
     }
   }
 
-  /// Reabrir vaga
-  static Future<Map<String, dynamic>> reabrirVaga(int idVaga) async {
-    try {
-      final response =
-          await ApiClient.put('/api/responsavel/vagas/$idVaga/status', {
-        'status': 'Aberta',
-      });
-
-      return {
-        'success': response['success'] == true,
-        'message': response['message'] ?? 'Vaga reaberta com sucesso',
-      };
-    } catch (e) {
-      return {
-        'success': false,
-        'message': 'Erro ao reabrir vaga: $e',
-      };
-    }
+  static Future<Map<String, dynamic>> encerrarVaga(int idVaga) {
+    return alterarStatusVaga(idVaga: idVaga, status: 'Encerrada');
   }
 
-  /// Excluir vaga
+  static Future<Map<String, dynamic>> reabrirVaga(int idVaga) {
+    return alterarStatusVaga(idVaga: idVaga, status: 'Aberta');
+  }
+
   static Future<Map<String, dynamic>> excluirVaga(int idVaga) async {
     try {
-      final response = await ApiClient.delete('/api/responsavel/vagas/$idVaga');
+      final response = await ApiClient.delete('/api/responsavel/vaga/$idVaga');
 
       return {
         'success': response['success'] == true,
         'message': response['message'] ?? 'Vaga excluída com sucesso',
       };
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Erro ao excluir vaga: $e',
-      };
+      return {'success': false, 'message': 'Erro ao excluir vaga: $e'};
     }
   }
 
-  /// Ver interessados
   static Future<List<Map<String, dynamic>>> getInteressados(int idVaga) async {
     try {
       final response =
-          await ApiClient.get('/api/responsavel/vagas/$idVaga/interessados');
+          await ApiClient.get('/api/responsavel/vaga/$idVaga/interessados');
 
       if (response['success'] == true && response['data'] != null) {
         return List<Map<String, dynamic>>.from(response['data']);
       }
 
       return [];
-    } catch (e) {
+    } catch (_) {
       return [];
     }
   }

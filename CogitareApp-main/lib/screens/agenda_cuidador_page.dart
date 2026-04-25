@@ -311,7 +311,7 @@ class _AgendaCuidadorPageState extends State<AgendaCuidadorPage> {
               ),
               Switch(
                 value: ativo,
-                activeColor: rosa,
+                activeThumbColor: rosa,
                 onChanged: (value) {
                   setState(() {
                     d['ativo'] = value;

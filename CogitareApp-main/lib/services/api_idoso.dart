@@ -4,13 +4,16 @@ import 'api_client.dart';
 class ApiIdoso {
   static Future<Map<String, dynamic>> create(Idoso idoso) async {
     try {
-      final response = await ApiClient.post('/api/idoso', idoso.toJson());
+      final response = await ApiClient.post(
+        '/api/idoso/cadastro',
+        idoso.toJson(),
+      );
 
       if (response['success'] == true) {
         return {
           'success': true,
-          'message': response['message'],
-          'idosoId': response['data']?['IdIdoso'],
+          'message': response['message'] ?? 'Idoso cadastrado com sucesso',
+          'idosoId': response['idosoId'] ?? response['data']?['IdIdoso'],
         };
       }
 
@@ -58,6 +61,7 @@ class ApiIdoso {
   static Future<Map<String, dynamic>> update(int id, Idoso idoso) async {
     try {
       final idosoData = idoso.toJson();
+
       idosoData.remove('IdIdoso');
       idosoData.remove('FotoUrl');
 
@@ -66,7 +70,7 @@ class ApiIdoso {
       if (response['success'] == true) {
         return {
           'success': true,
-          'message': response['message'],
+          'message': response['message'] ?? 'Idoso atualizado com sucesso',
         };
       }
 

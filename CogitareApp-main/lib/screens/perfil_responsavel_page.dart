@@ -1,9 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../services/api_client.dart';
 import '../services/servico_autenticacao.dart';
 import 'editar_perfil_responsavel_page.dart';
-import 'tela_configuracoes.dart';
 
 class PerfilResponsavelPage extends StatefulWidget {
   const PerfilResponsavelPage({super.key});
@@ -14,10 +14,11 @@ class PerfilResponsavelPage extends StatefulWidget {
 
 class _PerfilResponsavelPageState extends State<PerfilResponsavelPage> {
   bool isLoading = true;
-  Map<String, dynamic>? responsavel;
+  Map<String, dynamic> responsavel = {};
 
   static const Color roxo = Color(0xFF42124C);
   static const Color rosa = Color(0xFFFE0472);
+  static const Color verde = Color(0xFF8AFF00);
   static const Color fundo = Color(0xFFF6F4F8);
 
   @override
@@ -27,7 +28,7 @@ class _PerfilResponsavelPageState extends State<PerfilResponsavelPage> {
   }
 
   Future<void> carregarPerfil() async {
-    setState(() => isLoading = true);
+    if (mounted) setState(() => isLoading = true);
 
     try {
       final token = await ServicoAutenticacao.getToken();
@@ -38,8 +39,20 @@ class _PerfilResponsavelPageState extends State<PerfilResponsavelPage> {
 
       final response = await ApiClient.get('/api/responsavel/perfil');
 
-      if (response['success'] == true && response['data'] != null) {
-        responsavel = Map<String, dynamic>.from(response['data']);
+      debugPrint('RESPOSTA PERFIL RESPONSAVEL: $response');
+
+      final data = response['data'];
+
+      if (response['success'] == true && data != null) {
+        if (data is Map<String, dynamic>) {
+          responsavel = data;
+        } else if (data is Map) {
+          responsavel = Map<String, dynamic>.from(data);
+        } else if (data is List && data.isNotEmpty) {
+          responsavel = Map<String, dynamic>.from(data.first);
+        } else {
+          responsavel = {};
+        }
       } else {
         responsavel = {};
       }
@@ -56,6 +69,7 @@ class _PerfilResponsavelPageState extends State<PerfilResponsavelPage> {
     if (valor == null) return fallback;
 
     final texto = valor.toString().trim();
+
     if (texto.isEmpty || texto.toLowerCase() == 'null') {
       return fallback;
     }
@@ -68,15 +82,15 @@ class _PerfilResponsavelPageState extends State<PerfilResponsavelPage> {
 
     final texto = valor.toString().trim();
 
-    if (texto.isEmpty || texto.toLowerCase() == 'null') {
-      return '';
+    if (texto.isEmpty || texto.toLowerCase() == 'null') return '';
+
+    if (texto.startsWith('http://') ||
+        texto.startsWith('https://') ||
+        texto.startsWith('data:image')) {
+      return texto;
     }
 
-    if (!texto.startsWith('http://') && !texto.startsWith('https://')) {
-      return '';
-    }
-
-    return texto;
+    return '';
   }
 
   String formatarData(dynamic data) {
@@ -108,15 +122,37 @@ class _PerfilResponsavelPageState extends State<PerfilResponsavelPage> {
     }
   }
 
-  Future<void> abrirConfiguracoes() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const TelaConfiguracoes(),
+  Widget buildAvatar(String fotoUrl) {
+    if (fotoUrl.startsWith('data:image')) {
+      try {
+        final base64Limpo = fotoUrl.split(',').last;
+
+        return CircleAvatar(
+          radius: 52,
+          backgroundColor: Colors.white24,
+          backgroundImage: MemoryImage(base64Decode(base64Limpo)),
+        );
+      } catch (_) {}
+    }
+
+    if (fotoUrl.startsWith('http')) {
+      return CircleAvatar(
+        radius: 52,
+        backgroundColor: Colors.white24,
+        backgroundImage: NetworkImage(fotoUrl),
+        onBackgroundImageError: (_, __) {},
+      );
+    }
+
+    return const CircleAvatar(
+      radius: 52,
+      backgroundColor: Colors.white24,
+      child: Icon(
+        Icons.person,
+        size: 52,
+        color: Colors.white,
       ),
     );
-
-    await carregarPerfil();
   }
 
   Widget buildInfoCard({
@@ -125,11 +161,11 @@ class _PerfilResponsavelPageState extends State<PerfilResponsavelPage> {
     required String valor,
   }) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: roxo.withOpacity(0.08)),
         boxShadow: [
           BoxShadow(
@@ -141,7 +177,10 @@ class _PerfilResponsavelPageState extends State<PerfilResponsavelPage> {
       ),
       child: Row(
         children: [
-          Icon(icon, color: roxo),
+          CircleAvatar(
+            backgroundColor: rosa.withOpacity(0.12),
+            child: Icon(icon, color: rosa),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -150,7 +189,7 @@ class _PerfilResponsavelPageState extends State<PerfilResponsavelPage> {
                 Text(
                   titulo,
                   style: TextStyle(
-                    color: roxo.withOpacity(0.65),
+                    color: roxo.withOpacity(0.6),
                     fontSize: 13,
                   ),
                 ),
@@ -159,8 +198,8 @@ class _PerfilResponsavelPageState extends State<PerfilResponsavelPage> {
                   valor,
                   style: const TextStyle(
                     color: roxo,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
@@ -171,89 +210,59 @@ class _PerfilResponsavelPageState extends State<PerfilResponsavelPage> {
     );
   }
 
-  Widget buildMenuButton({
-    required IconData icon,
-    required String titulo,
-    required String subtitulo,
-    required VoidCallback onTap,
-    Color color = roxo,
-  }) {
+  Widget buildResumoCard(String nome) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: roxo.withOpacity(0.08)),
-        boxShadow: [
-          BoxShadow(
-            color: roxo.withOpacity(0.035),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+        color: verde.withOpacity(0.16),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: verde.withOpacity(0.5)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.verified_user_outlined, color: roxo),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              '$nome está cadastrado como responsável no Cogitare.',
+              style: const TextStyle(
+                color: roxo,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+              ),
+            ),
           ),
         ],
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: CircleAvatar(
-          backgroundColor: color.withOpacity(0.12),
-          child: Icon(icon, color: color),
-        ),
-        title: Text(
-          titulo,
-          style: TextStyle(
-            color: color,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        subtitle: Text(subtitulo),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-        onTap: onTap,
-      ),
-    );
-  }
-
-  Widget buildAvatar(String fotoUrl) {
-    final temFoto = fotoUrl.isNotEmpty;
-
-    return CircleAvatar(
-      radius: 44,
-      backgroundColor: Colors.white24,
-      backgroundImage: temFoto ? NetworkImage(fotoUrl) : null,
-      child: !temFoto
-          ? const Icon(
-              Icons.person,
-              size: 42,
-              color: Colors.white,
-            )
-          : null,
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final nome = textoSeguro(
-      responsavel?['Nome'] ?? responsavel?['nome'],
+      responsavel['Nome'] ?? responsavel['nome'],
       fallback: 'Responsável',
     );
 
     final email = textoSeguro(
-      responsavel?['Email'] ?? responsavel?['email'],
+      responsavel['Email'] ?? responsavel['email'],
     );
 
     final telefone = textoSeguro(
-      responsavel?['Telefone'] ?? responsavel?['telefone'],
+      responsavel['Telefone'] ?? responsavel['telefone'],
     );
 
     final cpf = textoSeguro(
-      responsavel?['Cpf'] ?? responsavel?['cpf'],
+      responsavel['Cpf'] ?? responsavel['cpf'],
     );
 
     final dataNascimento = formatarData(
-      responsavel?['DataNascimento'] ?? responsavel?['dataNascimento'],
+      responsavel['DataNascimento'] ?? responsavel['dataNascimento'],
     );
 
     final fotoUrl = fotoSegura(
-      responsavel?['FotoUrl'] ?? responsavel?['fotoUrl'],
+      responsavel['FotoUrl'] ?? responsavel['fotoUrl'],
     );
 
     return Scaffold(
@@ -262,32 +271,26 @@ class _PerfilResponsavelPageState extends State<PerfilResponsavelPage> {
         title: const Text('Meu perfil'),
         backgroundColor: roxo,
         foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            tooltip: 'Configurações',
-            onPressed: abrirConfiguracoes,
-            icon: const Icon(Icons.settings_outlined),
-          ),
-        ],
       ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: rosa))
           : RefreshIndicator(
               onRefresh: carregarPerfil,
+              color: rosa,
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(16),
                 children: [
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(22),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         colors: [roxo, rosa],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(26),
                     ),
                     child: Column(
                       children: [
@@ -297,8 +300,8 @@ class _PerfilResponsavelPageState extends State<PerfilResponsavelPage> {
                           nome,
                           textAlign: TextAlign.center,
                           style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 23,
+                            fontWeight: FontWeight.w900,
                             color: Colors.white,
                           ),
                         ),
@@ -311,63 +314,83 @@ class _PerfilResponsavelPageState extends State<PerfilResponsavelPage> {
                             fontSize: 14,
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        OutlinedButton.icon(
-                          onPressed: abrirEditarPerfil,
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: Colors.white54),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                        const SizedBox(height: 18),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: abrirEditarPerfil,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(color: Colors.white70),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 13),
+                            ),
+                            icon: const Icon(Icons.edit_outlined),
+                            label: const Text(
+                              'Editar perfil',
+                              style: TextStyle(fontWeight: FontWeight.bold),
                             ),
                           ),
-                          icon: const Icon(Icons.edit_outlined),
-                          label: const Text('Editar perfil'),
                         ),
                       ],
                     ),
                   ),
+
                   const SizedBox(height: 18),
+
+                  buildResumoCard(nome),
+
                   const Text(
-                    'Informações da conta',
+                    'Dados pessoais',
                     style: TextStyle(
                       fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w900,
                       color: roxo,
                     ),
                   ),
+
                   const SizedBox(height: 12),
+
                   buildInfoCard(
                     icon: Icons.badge_outlined,
                     titulo: 'CPF',
                     valor: cpf,
                   ),
-                  buildInfoCard(
-                    icon: Icons.phone_outlined,
-                    titulo: 'Telefone',
-                    valor: telefone,
-                  ),
+
                   buildInfoCard(
                     icon: Icons.calendar_today_outlined,
                     titulo: 'Data de nascimento',
                     valor: dataNascimento,
                   ),
-                  const SizedBox(height: 18),
+
+                  const SizedBox(height: 10),
+
                   const Text(
-                    'Opções',
+                    'Contato',
                     style: TextStyle(
                       fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w900,
                       color: roxo,
                     ),
                   ),
+
                   const SizedBox(height: 12),
-                  buildMenuButton(
-                    icon: Icons.settings_outlined,
-                    titulo: 'Configurações',
-                    subtitulo: 'Termos, suporte, sobre o app e segurança',
-                    onTap: abrirConfiguracoes,
+
+                  buildInfoCard(
+                    icon: Icons.phone_outlined,
+                    titulo: 'Telefone',
+                    valor: telefone,
                   ),
+
+                  buildInfoCard(
+                    icon: Icons.email_outlined,
+                    titulo: 'E-mail',
+                    valor: email,
+                  ),
+
+                  const SizedBox(height: 30),
                 ],
               ),
             ),

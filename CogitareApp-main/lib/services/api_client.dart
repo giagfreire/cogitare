@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiClient {
-static String get baseUrl {
-  return 'http://127.0.0.1:3000';
-}
+  static String get baseUrl {
+    return 'http://127.0.0.1:3000';
+  }
 
   static String? _token;
 
@@ -17,17 +17,29 @@ static String get baseUrl {
   }
 
   static Map<String, String> get _headers => {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json; charset=UTF-8',
         'Accept': 'application/json',
         if (_token != null) 'Authorization': 'Bearer $_token',
       };
 
   static dynamic _decodeBody(http.Response response) {
-    if (response.body.isEmpty) return null;
+    print('STATUS: ${response.statusCode}');
+    print('BODY: ${response.body}');
+
+    if (response.body.isEmpty) {
+      return {
+        'success': response.statusCode >= 200 && response.statusCode < 300,
+        'message': 'Resposta vazia do servidor',
+      };
+    }
+
     try {
       return jsonDecode(response.body);
     } catch (_) {
-      return response.body;
+      return {
+        'success': false,
+        'message': response.body,
+      };
     }
   }
 
@@ -36,6 +48,7 @@ static String get baseUrl {
       Uri.parse('$baseUrl$endpoint'),
       headers: _headers,
     );
+
     return _decodeBody(response);
   }
 
@@ -45,6 +58,7 @@ static String get baseUrl {
       headers: _headers,
       body: jsonEncode(body),
     );
+
     return _decodeBody(response);
   }
 
@@ -54,6 +68,7 @@ static String get baseUrl {
       headers: _headers,
       body: jsonEncode(body),
     );
+
     return _decodeBody(response);
   }
 
@@ -62,6 +77,7 @@ static String get baseUrl {
       Uri.parse('$baseUrl$endpoint'),
       headers: _headers,
     );
+
     return _decodeBody(response);
   }
 }

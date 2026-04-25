@@ -23,23 +23,38 @@ class TelaCadastroIdoso extends StatefulWidget {
 class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
   final _formKey = GlobalKey<FormState>();
 
+  static const Color roxo = Color(0xFF42124C);
+  static const Color rosa = Color(0xFFFE0472);
+  static const Color verde = Color(0xFF8AFF00);
+  static const Color fundo = Color(0xFFF8F6FA);
+
   final TextEditingController _nomeController = TextEditingController();
   final TextEditingController _dataNascimentoController =
       TextEditingController();
-  final TextEditingController _cuidadosMedicosController =
+  final TextEditingController _condicoesMedicasController =
       TextEditingController();
-  final TextEditingController _descricaoExtraController =
+  final TextEditingController _observacoesController =
+      TextEditingController();
+
+  final TextEditingController _nomeMedicamentoController =
+      TextEditingController();
+  final TextEditingController _horarioMedicamentoController =
       TextEditingController();
 
   bool _loading = false;
 
   String? _sexo;
   int? _mobilidadeId;
-  int? _nivelAutonomiaId;
 
-  bool _temCuidadosMedicos = false;
-  bool _temDescricaoExtra = false;
-  bool _querServicos = false;
+  bool _usaMedicacao = false;
+  bool _cuidadorAplicaMedicacao = false;
+
+  bool _precisaCompanhia = false;
+
+  bool _precisaBanho = false;
+  bool _precisaAjudaBanho = false;
+
+  bool _precisaAjudaAlimentacao = false;
 
   final List<Map<String, dynamic>> _mobilidades = [
     {'id': 1, 'nome': 'Anda normalmente'},
@@ -49,28 +64,31 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
     {'id': 5, 'nome': 'Acamado'},
   ];
 
-  final List<Map<String, dynamic>> _autonomias = [
-    {'id': 1, 'nome': 'Independente'},
-    {'id': 2, 'nome': 'Precisa de pouca ajuda'},
-    {'id': 3, 'nome': 'Precisa de ajuda frequente'},
-    {'id': 4, 'nome': 'Totalmente dependente'},
-  ];
+  @override
+  void initState() {
+    super.initState();
 
-  final List<Map<String, dynamic>> _servicos = [
-    {'id': 1, 'nome': 'Acompanhamento'},
-    {'id': 2, 'nome': 'Higiene pessoal'},
-    {'id': 3, 'nome': 'Alimentação'},
-    {'id': 4, 'nome': 'Administração de remédios'},
-    {'id': 5, 'nome': 'Passeios e atividades'},
-    {'id': 6, 'nome': 'Cuidados noturnos'},
-  ];
+    final idoso = widget.idosoParaEditar;
+
+    if (idoso != null) {
+      _nomeController.text = idoso.name;
+      _dataNascimentoController.text =
+          idoso.birthDate?.toIso8601String().split('T').first ?? '';
+      _sexo = idoso.gender;
+      _mobilidadeId = idoso.mobilityId;
+      _condicoesMedicasController.text = idoso.medicalCare ?? '';
+      _observacoesController.text = idoso.extraDescription ?? '';
+    }
+  }
 
   @override
   void dispose() {
     _nomeController.dispose();
     _dataNascimentoController.dispose();
-    _cuidadosMedicosController.dispose();
-    _descricaoExtraController.dispose();
+    _condicoesMedicasController.dispose();
+    _observacoesController.dispose();
+    _nomeMedicamentoController.dispose();
+    _horarioMedicamentoController.dispose();
     super.dispose();
   }
 
@@ -80,7 +98,6 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
       initialDate: DateTime(1950),
       firstDate: DateTime(1900),
       lastDate: DateTime.now(),
-      locale: const Locale('pt', 'BR'),
     );
 
     if (data != null) {
@@ -107,9 +124,6 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
         throw Exception('Token não encontrado. Faça login novamente.');
       }
 
-      if (responsavelId == null) {
-        throw Exception('ID do responsável não encontrado.');
-      }
 
       final idoso = Idoso(
         guardianId: responsavelId,
@@ -117,22 +131,34 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
         birthDate: DateTime.tryParse(_dataNascimentoController.text.trim()),
         gender: _sexo,
         mobilityId: _mobilidadeId,
-        autonomyLevelId: _nivelAutonomiaId,
-        medicalCare: _temCuidadosMedicos
-            ? _cuidadosMedicosController.text.trim()
-            : null,
-        extraDescription: _temDescricaoExtra
-            ? _descricaoExtraController.text.trim()
-            : null,
-       
+        autonomyLevelId: null,
+        medicalCare: _condicoesMedicasController.text.trim(),
+        extraDescription: _observacoesController.text.trim(),
       );
 
       final body = idoso.toJson();
-      body['IdResponsavel'] = responsavelId;
-      body['ServicosSelecionados'] =
-          _querServicos ? _servicosSelecionados : [];
-      body['Disponibilidade'] =
-          _querDisponibilidade ? _disponibilidade : {};
+
+if (responsavelId != null) {
+  body['IdResponsavel'] = responsavelId;
+}
+      body['ServicosDetalhados'] = {
+        'medicacao': {
+          'usaMedicacao': _usaMedicacao,
+          'cuidadorVaiAplicar': _cuidadorAplicaMedicacao,
+          'nomeMedicamento': _nomeMedicamentoController.text.trim(),
+          'horarioMedicamento': _horarioMedicamentoController.text.trim(),
+        },
+        'companhia': {
+          'precisaCompanhia': _precisaCompanhia,
+        },
+        'banho': {
+          'precisaBanho': _precisaBanho,
+          'precisaAjudaBanho': _precisaAjudaBanho,
+        },
+        'alimentacao': {
+          'precisaAjudaAlimentacao': _precisaAjudaAlimentacao,
+        },
+      };
 
       final response = await http.post(
         Uri.parse('${ApiClient.baseUrl}/api/idoso/cadastro'),
@@ -143,7 +169,7 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
         body: jsonEncode(body),
       );
 
-      final data = jsonDecode(response.body);
+      final data = response.body.isNotEmpty ? jsonDecode(response.body) : null;
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (!mounted) return;
@@ -151,13 +177,17 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Idoso cadastrado com sucesso!'),
-            backgroundColor: Colors.green,
+            backgroundColor: roxo,
           ),
         );
 
         Navigator.pop(context, true);
       } else {
-        throw Exception(data['message'] ?? 'Erro ao cadastrar idoso.');
+        throw Exception(
+          data != null && data['message'] != null
+              ? data['message']
+              : 'Erro ao cadastrar idoso.',
+        );
       }
     } catch (e) {
       if (!mounted) return;
@@ -165,7 +195,7 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: Colors.red,
+          backgroundColor: rosa,
         ),
       );
     } finally {
@@ -177,14 +207,29 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
 
   Widget _tituloSecao(String titulo) {
     return Padding(
-      padding: const EdgeInsets.only(top: 22, bottom: 10),
-      child: Text(
-        titulo,
-        style: const TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          color: Color(0xFF2E5E4E),
-        ),
+      padding: const EdgeInsets.only(top: 22, bottom: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 5,
+            height: 26,
+            decoration: BoxDecoration(
+              color: rosa,
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              titulo,
+              style: const TextStyle(
+                color: roxo,
+                fontSize: 19,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -208,19 +253,20 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
         validator: validator,
         decoration: InputDecoration(
           labelText: label,
-          prefixIcon: Icon(icon),
+          prefixIcon: Icon(icon, color: roxo),
           filled: true,
           fillColor: Colors.white,
+          labelStyle: const TextStyle(color: roxo),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(16),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: roxo.withOpacity(0.18)),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: Color(0xFF2E5E4E), width: 2),
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(color: rosa, width: 2),
           ),
         ),
       ),
@@ -238,25 +284,26 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: DropdownButtonFormField<T>(
-        initialValue: value,
+        value: value,
         items: items,
         onChanged: onChanged,
         validator: validator,
         decoration: InputDecoration(
           labelText: label,
-          prefixIcon: Icon(icon),
+          prefixIcon: Icon(icon, color: roxo),
           filled: true,
           fillColor: Colors.white,
+          labelStyle: const TextStyle(color: roxo),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(16),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: roxo.withOpacity(0.18)),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: Color(0xFF2E5E4E), width: 2),
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(color: rosa, width: 2),
           ),
         ),
       ),
@@ -273,8 +320,15 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE0E0E0)),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: roxo.withOpacity(0.12)),
+        boxShadow: [
+          BoxShadow(
+            color: roxo.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -282,8 +336,9 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
           Text(
             pergunta,
             style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
+              color: roxo,
+              fontSize: 15.5,
+              fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 12),
@@ -317,72 +372,167 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
     required VoidCallback onTap,
   }) {
     return InkWell(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(14),
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        height: 46,
+        alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selecionado ? const Color(0xFF2E5E4E) : Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          color: selecionado ? rosa : fundo,
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: selecionado ? const Color(0xFF2E5E4E) : Colors.grey.shade300,
+            color: selecionado ? rosa : roxo.withOpacity(0.18),
           ),
         ),
-        alignment: Alignment.center,
         child: Text(
           texto,
           style: TextStyle(
-            color: selecionado ? Colors.white : Colors.black87,
-            fontWeight: FontWeight.w600,
+            color: selecionado ? Colors.white : roxo,
+            fontWeight: FontWeight.bold,
           ),
         ),
       ),
     );
   }
 
-  Widget _listaServicos() {
+  Widget _cardAviso(String texto) {
     return Container(
+      width: double.infinity,
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: verde.withOpacity(0.18),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE0E0E0)),
+        border: Border.all(color: verde.withOpacity(0.8)),
       ),
-      child: Column(
-        children: _servicos.map((servico) {
-          final int id = servico['id'];
-          final String nome = servico['nome'];
+      child: Text(
+        texto,
+        style: const TextStyle(
+          color: roxo,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
 
-          return CheckboxListTile(
-            value: _servicosSelecionados.contains(id),
-            title: Text(nome),
-            activeColor: const Color(0xFF2E5E4E),
-            contentPadding: EdgeInsets.zero,
+  Widget _secaoMedicacao() {
+    return Column(
+      children: [
+        _simNao(
+          pergunta: 'O idoso usa medicação?',
+          valor: _usaMedicacao,
+          onChanged: (value) {
+            setState(() {
+              _usaMedicacao = value;
+
+              if (!value) {
+                _cuidadorAplicaMedicacao = false;
+                _nomeMedicamentoController.clear();
+                _horarioMedicamentoController.clear();
+              }
+            });
+          },
+        ),
+        if (_usaMedicacao)
+          _simNao(
+            pergunta: 'O cuidador vai aplicar/dar essa medicação?',
+            valor: _cuidadorAplicaMedicacao,
             onChanged: (value) {
               setState(() {
-                if (value == true) {
-                  _servicosSelecionados.add(id);
-                } else {
-                  _servicosSelecionados.remove(id);
+                _cuidadorAplicaMedicacao = value;
+
+                if (!value) {
+                  _nomeMedicamentoController.clear();
+                  _horarioMedicamentoController.clear();
                 }
               });
             },
-          );
-        }).toList(),
-      ),
+          ),
+        if (_usaMedicacao && _cuidadorAplicaMedicacao) ...[
+          _campoTexto(
+            controller: _nomeMedicamentoController,
+            label: 'Nome do medicamento',
+            icon: Icons.medication,
+            validator: (value) {
+              if (_usaMedicacao &&
+                  _cuidadorAplicaMedicacao &&
+                  (value == null || value.trim().isEmpty)) {
+                return 'Informe o nome do medicamento';
+              }
+              return null;
+            },
+          ),
+          _campoTexto(
+            controller: _horarioMedicamentoController,
+            label: 'Horário do medicamento',
+            icon: Icons.access_time,
+            validator: (value) {
+              if (_usaMedicacao &&
+                  _cuidadorAplicaMedicacao &&
+                  (value == null || value.trim().isEmpty)) {
+                return 'Informe o horário do medicamento';
+              }
+              return null;
+            },
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _secaoNecessidades() {
+    return Column(
+      children: [
+        _simNao(
+          pergunta: 'Precisa de companhia?',
+          valor: _precisaCompanhia,
+          onChanged: (value) {
+            setState(() => _precisaCompanhia = value);
+          },
+        ),
+        _simNao(
+          pergunta: 'Precisa de banho?',
+          valor: _precisaBanho,
+          onChanged: (value) {
+            setState(() {
+              _precisaBanho = value;
+
+              if (!value) {
+                _precisaAjudaBanho = false;
+              }
+            });
+          },
+        ),
+        if (_precisaBanho)
+          _simNao(
+            pergunta: 'Precisa de ajuda com o banho?',
+            valor: _precisaAjudaBanho,
+            onChanged: (value) {
+              setState(() => _precisaAjudaBanho = value);
+            },
+          ),
+        _simNao(
+          pergunta: 'Precisa de ajuda com alimentação?',
+          valor: _precisaAjudaAlimentacao,
+          onChanged: (value) {
+            setState(() => _precisaAjudaAlimentacao = value);
+          },
+        ),
+      ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final bool editando = widget.idosoParaEditar != null;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F7F5),
+      backgroundColor: fundo,
       appBar: AppBar(
-        title: const Text('Cadastro do Idoso'),
-        backgroundColor: const Color(0xFF2E5E4E),
+        backgroundColor: roxo,
         foregroundColor: Colors.white,
         elevation: 0,
+        title: Text(editando ? 'Editar idoso' : 'Cadastro do idoso'),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -391,11 +541,15 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
             key: _formKey,
             child: Column(
               children: [
-                _tituloSecao('Dados principais'),
+                _cardAviso(
+                  'Preencha as informações principais do idoso para encontrar o cuidador ideal.',
+                ),
+
+                _tituloSecao('Dados do idoso'),
 
                 _campoTexto(
                   controller: _nomeController,
-                  label: 'Nome completo do idoso',
+                  label: 'Nome e sobrenome do idoso',
                   icon: Icons.person,
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
@@ -420,13 +574,22 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
                 ),
 
                 _dropdown<String>(
-                  label: 'Sexo',
+                  label: 'Sexo do idoso',
                   icon: Icons.wc,
                   value: _sexo,
                   items: const [
-                    DropdownMenuItem(value: 'Feminino', child: Text('Feminino')),
-                    DropdownMenuItem(value: 'Masculino', child: Text('Masculino')),
-                    DropdownMenuItem(value: 'Outro', child: Text('Outro')),
+                    DropdownMenuItem(
+                      value: 'Feminino',
+                      child: Text('Feminino'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Masculino',
+                      child: Text('Masculino'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Outro',
+                      child: Text('Outro'),
+                    ),
                     DropdownMenuItem(
                       value: 'Prefiro não informar',
                       child: Text('Prefiro não informar'),
@@ -438,6 +601,21 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
                   validator: (value) {
                     if (value == null) {
                       return 'Selecione o sexo';
+                    }
+                    return null;
+                  },
+                ),
+
+                _tituloSecao('Saúde e mobilidade'),
+
+                _campoTexto(
+                  controller: _condicoesMedicasController,
+                  label: 'Condições médicas',
+                  icon: Icons.medical_services,
+                  maxLines: 3,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Informe as condições médicas';
                     }
                     return null;
                   },
@@ -464,115 +642,51 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
                   },
                 ),
 
-                _dropdown<int>(
-                  label: 'Nível de autonomia',
-                  icon: Icons.elderly,
-                  value: _nivelAutonomiaId,
-                  items: _autonomias.map((item) {
-                    return DropdownMenuItem<int>(
-                      value: item['id'],
-                      child: Text(item['nome']),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() => _nivelAutonomiaId = value);
-                  },
-                  validator: (value) {
-                    if (value == null) {
-                      return 'Selecione o nível de autonomia';
-                    }
-                    return null;
-                  },
+                _tituloSecao('Medicação'),
+
+                _secaoMedicacao(),
+
+                _tituloSecao('Observações importantes'),
+
+                _campoTexto(
+                  controller: _observacoesController,
+                  label: 'Observações importantes',
+                  icon: Icons.notes,
+                  maxLines: 4,
                 ),
 
-                _tituloSecao('Informações de cuidado'),
+                _tituloSecao('Necessidades do idoso'),
 
-                _simNao(
-                  pergunta: 'O idoso possui cuidados médicos específicos?',
-                  valor: _temCuidadosMedicos,
-                  onChanged: (value) {
-                    setState(() {
-                      _temCuidadosMedicos = value;
-                      if (!value) _cuidadosMedicosController.clear();
-                    });
-                  },
-                ),
-
-                if (_temCuidadosMedicos)
-                  _campoTexto(
-                    controller: _cuidadosMedicosController,
-                    label: 'Descreva os cuidados médicos',
-                    icon: Icons.medical_services,
-                    maxLines: 4,
-                    validator: (value) {
-                      if (_temCuidadosMedicos &&
-                          (value == null || value.trim().isEmpty)) {
-                        return 'Descreva os cuidados médicos';
-                      }
-                      return null;
-                    },
-                  ),
-
-                _simNao(
-                  pergunta: 'Deseja adicionar uma descrição extra?',
-                  valor: _temDescricaoExtra,
-                  onChanged: (value) {
-                    setState(() {
-                      _temDescricaoExtra = value;
-                      if (!value) _descricaoExtraController.clear();
-                    });
-                  },
-                ),
-
-                if (_temDescricaoExtra)
-                  _campoTexto(
-                    controller: _descricaoExtraController,
-                    label: 'Descrição extra',
-                    icon: Icons.description,
-                    maxLines: 4,
-                  ),
-
-                _simNao(
-                  pergunta: 'Deseja selecionar serviços necessários?',
-                  valor: _querServicos,
-                  onChanged: (value) {
-                    setState(() {
-                      _querServicos = value;
-                      if (!value) _servicosSelecionados.clear();
-                    });
-                  },
-                ),
-
-                if (_querServicos) _listaServicos(),
-
-                if (_querDisponibilidade) _listaDisponibilidade(),
+                _secaoNecessidades(),
 
                 const SizedBox(height: 24),
 
                 SizedBox(
                   width: double.infinity,
-                  height: 54,
+                  height: 56,
                   child: ElevatedButton(
                     onPressed: _loading ? null : _salvarIdoso,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2E5E4E),
+                      backgroundColor: rosa,
                       foregroundColor: Colors.white,
+                      disabledBackgroundColor: rosa.withOpacity(0.45),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(18),
                       ),
+                      elevation: 0,
                     ),
                     child: _loading
                         ? const SizedBox(
-                            width: 22,
-                            height: 22,
+                            width: 24,
+                            height: 24,
                             child: CircularProgressIndicator(
                               color: Colors.white,
-                              strokeWidth: 2,
+                              strokeWidth: 2.4,
                             ),
                           )
-                        : const Text(
-                            'Cadastrar idoso',
-                            style: TextStyle(
+                        : Text(
+                            editando ? 'Salvar alterações' : 'Cadastrar idoso',
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),

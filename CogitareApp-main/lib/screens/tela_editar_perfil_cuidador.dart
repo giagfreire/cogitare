@@ -331,7 +331,7 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
                   const SizedBox(height: 12),
 
                   DropdownButtonFormField<String>(
-                    value: sexoSelecionado,
+                    initialValue: sexoSelecionado,
                     decoration: const InputDecoration(labelText: 'Sexo'),
                     items: const [
                       DropdownMenuItem(value: 'feminino', child: Text('Feminino')),
