@@ -819,9 +819,14 @@ router.delete('/vagas/:idVaga', authenticateToken, async (req, res) => {
     }
 
     await db.query(
-      'DELETE FROM vaga WHERE IdVaga = ? AND IdResponsavel = ?',
-      [idVaga, req.user.id]
-    );
+  'DELETE FROM vagacuidador WHERE IdVaga = ?',
+  [idVaga]
+);
+
+await db.query(
+  'DELETE FROM vaga WHERE IdVaga = ? AND IdResponsavel = ?',
+  [idVaga, req.user.id]
+);
 
     return res.json({
       success: true,

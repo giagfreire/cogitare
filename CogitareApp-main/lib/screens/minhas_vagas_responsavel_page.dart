@@ -14,6 +14,9 @@ class _MinhasVagasResponsavelPageState
   List<dynamic> vagas = [];
   bool isLoading = true;
 
+  static const Color roxo = Color(0xFF42124C);
+  static const Color rosa = Color(0xFFFE0472);
+
   @override
   void initState() {
     super.initState();
@@ -21,33 +24,21 @@ class _MinhasVagasResponsavelPageState
   }
 
   Future<void> fetchVagas() async {
-    setState(() {
-      isLoading = true;
-    });
+    setState(() => isLoading = true);
 
     try {
       final response = await ApiClient.get('/api/responsavel/vagas/minhas');
 
-      print('RESPOSTA MINHAS VAGAS RESPONSAVEL: $response');
-
       if (response != null && response['success'] == true) {
-        setState(() {
-          vagas = response['data'] ?? [];
-          isLoading = false;
-        });
+        vagas = response['data'] ?? [];
       } else {
-        setState(() {
-          vagas = [];
-          isLoading = false;
-        });
+        vagas = [];
       }
     } catch (e) {
-      print('ERRO AO BUSCAR MINHAS VAGAS: $e');
-      setState(() {
-        vagas = [];
-        isLoading = false;
-      });
+      vagas = [];
     }
+
+    setState(() => isLoading = false);
   }
 
   Color getStatusColor(String status) {
@@ -57,7 +48,6 @@ class _MinhasVagasResponsavelPageState
       case 'encerrada':
         return Colors.red;
       case 'concluida':
-      case 'concluída':
         return Colors.blue;
       default:
         return Colors.grey;
@@ -65,556 +55,167 @@ class _MinhasVagasResponsavelPageState
   }
 
   String formatarData(dynamic valor) {
-    if (valor == null) return 'Não informada';
-
-    final texto = valor.toString();
-
+    if (valor == null) return '-';
     try {
-      final data = DateTime.parse(texto);
-      final dia = data.day.toString().padLeft(2, '0');
-      final mes = data.month.toString().padLeft(2, '0');
-      final ano = data.year.toString();
-      return '$dia/$mes/$ano';
+      final data = DateTime.parse(valor.toString());
+      return "${data.day}/${data.month}/${data.year}";
     } catch (_) {
-      return texto.split('T').first;
-    }
-  }
-
-  String formatarHora(dynamic valor) {
-    if (valor == null) return 'Não informada';
-
-    final texto = valor.toString();
-
-    if (texto.contains(':')) {
-      final partes = texto.split(':');
-      if (partes.length >= 2) {
-        return '${partes[0]}:${partes[1]}';
-      }
-    }
-
-    return texto;
-  }
-
-  Future<void> atualizarVaga({
-    required int idVaga,
-    required String titulo,
-    required String descricao,
-    required String cidade,
-    required String dataServico,
-    required String horaInicio,
-    required String horaFim,
-    required String valor,
-  }) async {
-    try {
-      final response = await ApiClient.put(
-        '/api/responsavel/vagas/$idVaga',
-        {
-          'titulo': titulo,
-          'descricao': descricao,
-          'cidade': cidade,
-          'dataServico': dataServico,
-          'horaInicio': horaInicio,
-          'horaFim': horaFim,
-          'valor': double.tryParse(valor.replaceAll(',', '.')) ?? 0,
-        },
-      );
-
-      print('RESPOSTA ATUALIZAR VAGA: $response');
-
-      if (response != null && response['success'] == true) {
-        if (!mounted) return;
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Vaga atualizada com sucesso'),
-          ),
-        );
-
-        fetchVagas();
-      } else {
-        throw Exception(response?['message'] ?? 'Erro ao atualizar vaga');
-      }
-    } catch (e) {
-      print('ERRO AO ATUALIZAR VAGA: $e');
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro ao atualizar vaga: $e'),
-        ),
-      );
+      return valor.toString();
     }
   }
 
   Future<void> excluirVaga(int idVaga) async {
-    try {
-      final response = await ApiClient.delete('/api/responsavel/vagas/$idVaga');
-
-      print('RESPOSTA EXCLUIR VAGA: $response');
-
-      if (response != null && response['success'] == true) {
-        if (!mounted) return;
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Vaga excluída com sucesso'),
-          ),
-        );
-
-        fetchVagas();
-      } else {
-        throw Exception(response?['message'] ?? 'Erro ao excluir vaga');
-      }
-    } catch (e) {
-      print('ERRO AO EXCLUIR VAGA: $e');
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro ao excluir vaga: $e'),
-        ),
-      );
-    }
+    await ApiClient.delete('/api/responsavel/vagas/$idVaga');
+    fetchVagas();
   }
 
-  Future<void> alterarStatusVaga({
-    required int idVaga,
-    required String novoStatus,
-  }) async {
-    try {
-      final response = await ApiClient.put(
-        '/api/responsavel/vagas/$idVaga/status',
-        {'status': novoStatus},
-      );
-
-      print('RESPOSTA ALTERAR STATUS VAGA: $response');
-
-      if (response != null && response['success'] == true) {
-        if (!mounted) return;
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              novoStatus == 'Encerrada'
-                  ? 'Vaga encerrada com sucesso'
-                  : 'Vaga reaberta com sucesso',
-            ),
-          ),
-        );
-
-        fetchVagas();
-      } else {
-        throw Exception(response?['message'] ?? 'Erro ao alterar status');
-      }
-    } catch (e) {
-      print('ERRO AO ALTERAR STATUS: $e');
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro ao alterar status: $e'),
-        ),
-      );
-    }
-  }
-
-  void confirmarAlterarStatus(Map<String, dynamic> vaga) {
-    final statusAtual = (vaga['Status'] ?? '').toString();
-    final isAberta = statusAtual.toLowerCase() == 'aberta';
-    final novoStatus = isAberta ? 'Encerrada' : 'Aberta';
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(isAberta ? 'Encerrar vaga' : 'Reabrir vaga'),
-        content: Text(
-          isAberta
-              ? 'Tem certeza que deseja encerrar a vaga "${vaga['Titulo'] ?? 'Sem título'}"?'
-              : 'Tem certeza que deseja reabrir a vaga "${vaga['Titulo'] ?? 'Sem título'}"?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              alterarStatusVaga(
-                idVaga: vaga['IdVaga'],
-                novoStatus: novoStatus,
-              );
-            },
-            child: Text(
-              isAberta ? 'Encerrar' : 'Reabrir',
-              style: TextStyle(
-                color: isAberta ? Colors.red : Colors.green,
-              ),
-            ),
-          ),
-        ],
-      ),
+  Future<void> alterarStatus(int idVaga, bool aberta) async {
+    await ApiClient.put(
+      '/api/responsavel/vagas/$idVaga/status',
+      {'status': aberta ? 'Encerrada' : 'Aberta'},
     );
+    fetchVagas();
   }
 
   Future<void> verInteressados(int idVaga) async {
-    try {
-      final response =
-          await ApiClient.get('/api/responsavel/vagas/$idVaga/interessados');
+    final response =
+        await ApiClient.get('/api/responsavel/vagas/$idVaga/interessados');
 
-      print('RESPOSTA INTERESSADOS: $response');
+    if (!mounted) return;
 
-      if (!mounted) return;
+    final lista = response['data'] ?? [];
 
-      if (response != null && response['success'] == true) {
-        final List<dynamic> interessados = response['data'] ?? [];
-
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Interessados'),
-            content: SizedBox(
-              width: double.maxFinite,
-              child: interessados.isEmpty
-                  ? const Text('Nenhum cuidador interessado ainda.')
-                  : ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: interessados.length,
-                      itemBuilder: (context, index) {
-                        final interessado =
-                            Map<String, dynamic>.from(interessados[index]);
-
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 10),
-                          child: ListTile(
-                            title: Text(interessado['Nome'] ?? 'Sem nome'),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const SizedBox(height: 6),
-                                Text(
-                                  '📧 ${interessado['Email'] ?? 'Não informado'}',
-                                ),
-                                Text(
-                                  '📱 ${interessado['Telefone'] ?? 'Não informado'}',
-                                ),
-                                Text(
-                                  '💰 Valor/hora: R\$ ${interessado['ValorHora'] ?? 'Não informado'}',
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  '📝 ${interessado['Biografia'] ?? 'Sem biografia'}',
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Fechar'),
-              ),
-            ],
-          ),
-        );
-      } else {
-        throw Exception(response?['message'] ?? 'Erro ao buscar interessados');
-      }
-    } catch (e) {
-      print('ERRO AO BUSCAR INTERESSADOS: $e');
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro ao buscar interessados: $e'),
-        ),
-      );
-    }
-  }
-
-  void verDetalhesVaga(Map<String, dynamic> vaga) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(vaga['Titulo'] ?? 'Sem título'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+      builder: (_) => AlertDialog(
+        title: const Text('Interessados'),
+        content: lista.isEmpty
+            ? const Text('Nenhum interessado ainda')
+            : SizedBox(
+                width: double.maxFinite,
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: lista.length,
+                  itemBuilder: (_, i) {
+                    final c = lista[i];
+                    return ListTile(
+                      title: Text(c['Nome'] ?? ''),
+                      subtitle: Text(c['Telefone'] ?? ''),
+                    );
+                  },
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget cardVaga(Map<String, dynamic> v) {
+    final status = v['Status'] ?? 'Aberta';
+    final aberta = status.toLowerCase() == 'aberta';
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          /// titulo + status
+          Row(
             children: [
-              Text('Descrição: ${vaga['Descricao'] ?? 'Não informada'}'),
-              const SizedBox(height: 8),
-              Text('Cidade: ${vaga['Cidade'] ?? 'Não informada'}'),
-              const SizedBox(height: 8),
-              Text('Data: ${formatarData(vaga['DataServico'])}'),
-              const SizedBox(height: 8),
-              Text('Hora início: ${formatarHora(vaga['HoraInicio'])}'),
-              const SizedBox(height: 8),
-              Text('Hora fim: ${formatarHora(vaga['HoraFim'])}'),
-              const SizedBox(height: 8),
-              Text('Valor: R\$ ${vaga['Valor'] ?? '0'}'),
-              const SizedBox(height: 8),
-              Text('Status: ${vaga['Status'] ?? 'Não informado'}'),
+              Expanded(
+                child: Text(
+                  v['Titulo'] ?? '',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: getStatusColor(status).withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  status,
+                  style: TextStyle(
+                    color: getStatusColor(status),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              )
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fechar'),
-          ),
-        ],
-      ),
-    );
-  }
 
-  void abrirEditarVaga(Map<String, dynamic> vaga) {
-    final tituloController =
-        TextEditingController(text: vaga['Titulo']?.toString() ?? '');
-    final descricaoController =
-        TextEditingController(text: vaga['Descricao']?.toString() ?? '');
-    final cidadeController =
-        TextEditingController(text: vaga['Cidade']?.toString() ?? '');
-    final dataController = TextEditingController(
-      text: vaga['DataServico']?.toString().split('T').first ?? '',
-    );
-    final horaInicioController = TextEditingController(
-      text: formatarHora(vaga['HoraInicio']),
-    );
-    final horaFimController = TextEditingController(
-      text: formatarHora(vaga['HoraFim']),
-    );
-    final valorController =
-        TextEditingController(text: vaga['Valor']?.toString() ?? '');
+          const SizedBox(height: 10),
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Editar vaga'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          Text(v['Descricao'] ?? ''),
+
+          const SizedBox(height: 10),
+
+          Row(
             children: [
-              TextField(
-                controller: tituloController,
-                decoration: const InputDecoration(labelText: 'Título'),
-              ),
-              TextField(
-                controller: descricaoController,
-                decoration: const InputDecoration(labelText: 'Descrição'),
-                maxLines: 3,
-              ),
-              TextField(
-                controller: cidadeController,
-                decoration: const InputDecoration(labelText: 'Cidade'),
-              ),
-              TextField(
-                controller: dataController,
-                decoration:
-                    const InputDecoration(labelText: 'Data (AAAA-MM-DD)'),
-              ),
-              TextField(
-                controller: horaInicioController,
-                decoration:
-                    const InputDecoration(labelText: 'Hora início (HH:MM)'),
-              ),
-              TextField(
-                controller: horaFimController,
-                decoration:
-                    const InputDecoration(labelText: 'Hora fim (HH:MM)'),
-              ),
-              TextField(
-                controller: valorController,
-                decoration: const InputDecoration(labelText: 'Valor'),
-                keyboardType: TextInputType.number,
-              ),
+              const Icon(Icons.location_on, size: 18),
+              const SizedBox(width: 5),
+              Text(v['Cidade'] ?? ''),
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
 
-              await atualizarVaga(
-                idVaga: vaga['IdVaga'],
-                titulo: tituloController.text.trim(),
-                descricao: descricaoController.text.trim(),
-                cidade: cidadeController.text.trim(),
-                dataServico: dataController.text.trim(),
-                horaInicio: horaInicioController.text.trim(),
-                horaFim: horaFimController.text.trim(),
-                valor: valorController.text.trim(),
-              );
-            },
-            child: const Text(
-              'Salvar',
-              style: TextStyle(color: Colors.blue),
-            ),
+          Row(
+            children: [
+              const Icon(Icons.calendar_today, size: 18),
+              const SizedBox(width: 5),
+              Text(formatarData(v['DataServico'])),
+            ],
           ),
-        ],
-      ),
-    );
-  }
 
-  void confirmarExcluirVaga(Map<String, dynamic> vaga) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Excluir vaga'),
-        content: Text(
-          'Tem certeza que deseja excluir a vaga "${vaga['Titulo'] ?? 'Sem título'}"?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
+          Row(
+            children: [
+              const Icon(Icons.attach_money, size: 18),
+              const SizedBox(width: 5),
+              Text("R\$ ${v['Valor']}"),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              excluirVaga(vaga['IdVaga']);
-            },
-            child: const Text(
-              'Excluir',
-              style: TextStyle(color: Colors.red),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget buildCardVaga(Map<String, dynamic> vaga) {
-    final status = (vaga['Status'] ?? '').toString();
-    final isAberta = status.toLowerCase() == 'aberta';
+          const SizedBox(height: 12),
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              vaga['Titulo'] ?? 'Sem título',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+          /// ações
+          Wrap(
+            spacing: 8,
+            children: [
+              ElevatedButton(
+                onPressed: () => alterarStatus(v['IdVaga'], aberta),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: aberta ? Colors.red : Colors.green,
+                ),
+                child: Text(aberta ? 'Encerrar' : 'Reabrir'),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(vaga['Descricao'] ?? ''),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                const Icon(Icons.location_on_outlined, size: 18),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(vaga['Cidade'] ?? 'Sem cidade'),
+              ElevatedButton(
+                onPressed: () => verInteressados(v['IdVaga']),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: roxo,
                 ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                const Icon(Icons.calendar_today_outlined, size: 18),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(formatarData(vaga['DataServico'])),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                const Icon(Icons.attach_money, size: 18),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text('R\$ ${vaga['Valor'] ?? '0'}'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: getStatusColor(status).withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    status.isEmpty ? 'Sem status' : status,
-                    style: TextStyle(
-                      color: getStatusColor(status),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () => confirmarAlterarStatus(vaga),
-                  icon: Icon(
-                    isAberta ? Icons.pause_circle_outline : Icons.play_circle_outline,
-                    color: isAberta ? Colors.red : Colors.green,
-                  ),
-                  label: Text(
-                    isAberta ? 'Encerrar' : 'Reabrir',
-                    style: TextStyle(
-                      color: isAberta ? Colors.red : Colors.green,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.visibility),
-                  tooltip: 'Ver detalhes',
-                  onPressed: () => verDetalhesVaga(vaga),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.people, color: Colors.deepPurple),
-                  tooltip: 'Ver interessados',
-                  onPressed: () => verInteressados(vaga['IdVaga']),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.edit, color: Colors.blue),
-                  tooltip: 'Editar vaga',
-                  onPressed: () => abrirEditarVaga(vaga),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  tooltip: 'Excluir vaga',
-                  onPressed: () => confirmarExcluirVaga(vaga),
-                ),
-              ],
-            ),
-          ],
-        ),
+                child: const Text('Interessados'),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: () => excluirVaga(v['IdVaga']),
+              ),
+            ],
+          )
+        ],
       ),
     );
   }
@@ -624,19 +225,18 @@ class _MinhasVagasResponsavelPageState
     return Scaffold(
       appBar: AppBar(
         title: const Text('Minhas Vagas'),
+        backgroundColor: roxo,
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : vagas.isEmpty
-              ? const Center(child: Text('Nenhuma vaga encontrada'))
+              ? const Center(child: Text('Nenhuma vaga ainda'))
               : RefreshIndicator(
                   onRefresh: fetchVagas,
                   child: ListView.builder(
                     itemCount: vagas.length,
-                    itemBuilder: (context, index) {
-                      final vaga = Map<String, dynamic>.from(vagas[index]);
-                      return buildCardVaga(vaga);
-                    },
+                    itemBuilder: (_, i) =>
+                        cardVaga(Map<String, dynamic>.from(vagas[i])),
                   ),
                 ),
     );
