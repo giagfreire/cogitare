@@ -1,9 +1,20 @@
 import '../models/idoso.dart';
 import 'api_client.dart';
+import 'servico_autenticacao.dart';
 
 class ApiIdoso {
+  static Future<void> _prepararToken() async {
+    final token = await ServicoAutenticacao.getToken();
+
+    if (token != null && token.isNotEmpty) {
+      ApiClient.setToken(token);
+    }
+  }
+
   static Future<Map<String, dynamic>> create(Idoso idoso) async {
     try {
+      await _prepararToken();
+
       final response = await ApiClient.post(
         '/api/idoso/cadastro',
         idoso.toJson(),
@@ -31,7 +42,11 @@ class ApiIdoso {
 
   static Future<List<Idoso>> listMeus() async {
     try {
+      await _prepararToken();
+
       final response = await ApiClient.get('/api/idoso/meus');
+
+      print('RESPOSTA API IDOSO MEUS: $response');
 
       if (response['success'] == true && response['data'] is List) {
         final List<dynamic> data = response['data'];
@@ -39,13 +54,16 @@ class ApiIdoso {
       }
 
       return [];
-    } catch (_) {
+    } catch (e) {
+      print('ERRO AO LISTAR IDOSOS: $e');
       return [];
     }
   }
 
   static Future<Idoso?> getById(int id) async {
     try {
+      await _prepararToken();
+
       final response = await ApiClient.get('/api/idoso/$id');
 
       if (response['success'] == true && response['data'] != null) {
@@ -60,6 +78,8 @@ class ApiIdoso {
 
   static Future<Map<String, dynamic>> update(int id, Idoso idoso) async {
     try {
+      await _prepararToken();
+
       final idosoData = idoso.toJson();
 
       idosoData.remove('IdIdoso');

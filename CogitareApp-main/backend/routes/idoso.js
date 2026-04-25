@@ -3,6 +3,16 @@ const router = express.Router();
 const db = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
 
+function getResponsavelId(req) {
+  return req.user?.id || req.user?.IdResponsavel || req.user?.userId;
+}
+
+function normalizarRows(resultado) {
+  if (Array.isArray(resultado)) return resultado;
+  if (resultado && Array.isArray(resultado.rows)) return resultado.rows;
+  return resultado ? [resultado] : [];
+}
+
 router.post('/cadastro', authenticateToken, async (req, res) => {
   const connection = await db.getConnection();
 
@@ -21,7 +31,7 @@ router.post('/cadastro', authenticateToken, async (req, res) => {
       ServicosDetalhados,
     } = req.body;
 
-    const idResponsavelFinal = IdResponsavel || req.user.id;
+    const idResponsavelFinal = IdResponsavel || getResponsavelId(req);
 
     if (!idResponsavelFinal || !Nome) {
       await connection.rollback();
@@ -70,14 +80,7 @@ router.post('/cadastro', authenticateToken, async (req, res) => {
         await connection.query(
           `
           INSERT INTO servico_idoso_detalhado
-          (
-            IdIdoso,
-            TipoServico,
-            Ativo,
-            CuidadorResponsavel,
-            Descricao,
-            Horario
-          )
+          (IdIdoso, TipoServico, Ativo, CuidadorResponsavel, Descricao, Horario)
           VALUES (?, ?, ?, ?, ?, ?)
           `,
           [
@@ -95,14 +98,7 @@ router.post('/cadastro', authenticateToken, async (req, res) => {
         await connection.query(
           `
           INSERT INTO servico_idoso_detalhado
-          (
-            IdIdoso,
-            TipoServico,
-            Ativo,
-            CuidadorResponsavel,
-            Descricao,
-            Horario
-          )
+          (IdIdoso, TipoServico, Ativo, CuidadorResponsavel, Descricao, Horario)
           VALUES (?, ?, ?, ?, ?, ?)
           `,
           [
@@ -122,14 +118,7 @@ router.post('/cadastro', authenticateToken, async (req, res) => {
         await connection.query(
           `
           INSERT INTO servico_idoso_detalhado
-          (
-            IdIdoso,
-            TipoServico,
-            Ativo,
-            CuidadorResponsavel,
-            Descricao,
-            Horario
-          )
+          (IdIdoso, TipoServico, Ativo, CuidadorResponsavel, Descricao, Horario)
           VALUES (?, ?, ?, ?, ?, ?)
           `,
           [
@@ -151,14 +140,7 @@ router.post('/cadastro', authenticateToken, async (req, res) => {
         await connection.query(
           `
           INSERT INTO servico_idoso_detalhado
-          (
-            IdIdoso,
-            TipoServico,
-            Ativo,
-            CuidadorResponsavel,
-            Descricao,
-            Horario
-          )
+          (IdIdoso, TipoServico, Ativo, CuidadorResponsavel, Descricao, Horario)
           VALUES (?, ?, ?, ?, ?, ?)
           `,
           [
@@ -199,22 +181,26 @@ router.post('/cadastro', authenticateToken, async (req, res) => {
 
 router.get('/meus', authenticateToken, async (req, res) => {
   try {
-    if (req.user.tipo !== 'responsavel') {
-      return res.status(403).json({
+    const idResponsavel = getResponsavelId(req);
+
+    if (!idResponsavel) {
+      return res.status(401).json({
         success: false,
-        message: 'Apenas responsáveis podem acessar seus idosos.',
+        message: 'ID do responsável não encontrado no token.',
       });
     }
 
-    const [idosos] = await db.query(
+    const resultado = await db.query(
       `
       SELECT *
       FROM idoso
       WHERE IdResponsavel = ?
       ORDER BY IdIdoso DESC
       `,
-      [req.user.id]
+      [idResponsavel]
     );
+
+    const idosos = normalizarRows(resultado);
 
     return res.json({
       success: true,
@@ -235,7 +221,7 @@ router.get('/responsavel/:idResponsavel', async (req, res) => {
   try {
     const { idResponsavel } = req.params;
 
-    const [idosos] = await db.query(
+    const resultado = await db.query(
       `
       SELECT *
       FROM idoso
@@ -244,6 +230,8 @@ router.get('/responsavel/:idResponsavel', async (req, res) => {
       `,
       [idResponsavel]
     );
+
+    const idosos = normalizarRows(resultado);
 
     return res.json({
       success: true,
@@ -264,14 +252,17 @@ router.get('/:idIdoso', async (req, res) => {
   try {
     const { idIdoso } = req.params;
 
-    const [idosoRows] = await db.query(
+    const resultadoIdoso = await db.query(
       `
       SELECT *
       FROM idoso
       WHERE IdIdoso = ?
+      LIMIT 1
       `,
       [idIdoso]
     );
+
+    const idosoRows = normalizarRows(resultadoIdoso);
 
     if (idosoRows.length === 0) {
       return res.status(404).json({
@@ -280,7 +271,7 @@ router.get('/:idIdoso', async (req, res) => {
       });
     }
 
-    const [servicos] = await db.query(
+    const resultadoServicos = await db.query(
       `
       SELECT *
       FROM servico_idoso_detalhado
@@ -288,6 +279,8 @@ router.get('/:idIdoso', async (req, res) => {
       `,
       [idIdoso]
     );
+
+    const servicos = normalizarRows(resultadoServicos);
 
     return res.json({
       success: true,
