@@ -14,17 +14,13 @@ function normalizarRows(resultado) {
   return resultado ? [resultado] : [];
 }
 
-/* PERFIL DO RESPONSÁVEL */
+/* =========================
+   PERFIL
+========================= */
+
 router.get('/perfil', authenticateToken, async (req, res) => {
   try {
     const idResponsavel = getResponsavelId(req);
-
-    if (!idResponsavel) {
-      return res.status(401).json({
-        success: false,
-        message: 'ID do responsável não encontrado no token.',
-      });
-    }
 
     const resultado = await db.query(
       `
@@ -35,7 +31,18 @@ router.get('/perfil', authenticateToken, async (req, res) => {
         Telefone,
         Cpf,
         DataNascimento,
-        FotoUrl
+        FotoUrl,
+        Cep,
+        Cidade,
+        Bairro,
+        Rua,
+        Numero,
+        Estado,
+        Complemento,
+        ContatoWhatsapp,
+        ContatoTelefone,
+        ContatoEmail,
+        PreferenciaContato
       FROM responsavel
       WHERE IdResponsavel = ?
       LIMIT 1
@@ -44,9 +51,8 @@ router.get('/perfil', authenticateToken, async (req, res) => {
     );
 
     const rows = normalizarRows(resultado);
-    const perfil = rows[0];
 
-    if (!perfil) {
+    if (!rows.length) {
       return res.status(404).json({
         success: false,
         message: 'Responsável não encontrado.',
@@ -55,14 +61,13 @@ router.get('/perfil', authenticateToken, async (req, res) => {
 
     return res.json({
       success: true,
-      data: perfil,
+      data: rows[0],
     });
   } catch (error) {
-    console.error('Erro ao buscar perfil do responsável:', error);
+    console.error(error);
     return res.status(500).json({
       success: false,
       message: 'Erro ao buscar perfil.',
-      error: error.message,
     });
   }
 });
@@ -71,31 +76,44 @@ router.put('/perfil', authenticateToken, async (req, res) => {
   try {
     const idResponsavel = getResponsavelId(req);
 
-    if (!idResponsavel) {
-      return res.status(401).json({
-        success: false,
-        message: 'ID do responsável não encontrado no token.',
-      });
-    }
+    const {
+      nome,
+      email,
+      telefone,
+      dataNascimento,
+      fotoUrl,
+      cep,
+      cidade,
+      bairro,
+      rua,
+      numero,
+      estado,
+      complemento,
+      contatoWhatsapp,
+      contatoTelefone,
+      contatoEmail,
+      preferenciaContato,
+    } = req.body;
 
-    const { nome, email, telefone, dataNascimento, fotoUrl } = req.body;
-
-    if (!nome || !email || !telefone) {
-      return res.status(400).json({
-        success: false,
-        message: 'Nome, email e telefone são obrigatórios.',
-      });
-    }
-
-    const result = await db.query(
+    await db.query(
       `
-      UPDATE responsavel
-      SET 
+      UPDATE responsavel SET
         Nome = ?,
         Email = ?,
         Telefone = ?,
         DataNascimento = ?,
-        FotoUrl = ?
+        FotoUrl = ?,
+        Cep = ?,
+        Cidade = ?,
+        Bairro = ?,
+        Rua = ?,
+        Numero = ?,
+        Estado = ?,
+        Complemento = ?,
+        ContatoWhatsapp = ?,
+        ContatoTelefone = ?,
+        ContatoEmail = ?,
+        PreferenciaContato = ?
       WHERE IdResponsavel = ?
       `,
       [
@@ -104,62 +122,41 @@ router.put('/perfil', authenticateToken, async (req, res) => {
         telefone,
         dataNascimento || null,
         fotoUrl || null,
+        cep || null,
+        cidade || null,
+        bairro || null,
+        rua || null,
+        numero || null,
+        estado || null,
+        complemento || null,
+        contatoWhatsapp || null,
+        contatoTelefone || null,
+        contatoEmail || null,
+        preferenciaContato || null,
         idResponsavel,
       ]
     );
 
-    if (result && result.affectedRows === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Responsável não encontrado para atualizar.',
-      });
-    }
-
-    const resultadoPerfil = await db.query(
-      `
-      SELECT 
-        IdResponsavel,
-        Nome,
-        Email,
-        Telefone,
-        Cpf,
-        DataNascimento,
-        FotoUrl
-      FROM responsavel
-      WHERE IdResponsavel = ?
-      LIMIT 1
-      `,
-      [idResponsavel]
-    );
-
-    const rows = normalizarRows(resultadoPerfil);
-
     return res.json({
       success: true,
-      message: 'Perfil atualizado com sucesso.',
-      data: rows[0],
+      message: 'Perfil atualizado com sucesso',
     });
   } catch (error) {
-    console.error('Erro ao atualizar perfil do responsável:', error);
+    console.error(error);
     return res.status(500).json({
       success: false,
-      message: 'Erro ao atualizar perfil.',
-      error: error.message,
+      message: 'Erro ao atualizar perfil',
     });
   }
 });
 
-/* CRIAR VAGA */
+/* =========================
+   VAGAS
+========================= */
+
 router.post('/vagas', authenticateToken, async (req, res) => {
   try {
     const idResponsavel = getResponsavelId(req);
-
-    if (!idResponsavel) {
-      return res.status(401).json({
-        success: false,
-        message: 'ID do responsável não encontrado no token.',
-      });
-    }
 
     const {
       idIdoso,
@@ -173,50 +170,21 @@ router.post('/vagas', authenticateToken, async (req, res) => {
       horaFim,
     } = req.body;
 
-    if (
-      !idIdoso ||
-      !titulo ||
-      !cep ||
-      !cidade ||
-      !dataServico ||
-      !horaInicio ||
-      !horaFim
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: 'Preencha idoso, título, localidade, data e horários.',
-      });
-    }
-
     const result = await db.query(
       `
       INSERT INTO vaga
-      (
-        IdResponsavel,
-        IdIdoso,
-        Titulo,
-        Descricao,
-        Cep,
-        Cidade,
-        Bairro,
-        Rua,
-        DataServico,
-        HoraInicio,
-        HoraFim,
-        Valor,
-        Status
-      )
+      (IdResponsavel, IdIdoso, Titulo, Descricao, Cep, Cidade, Bairro, Rua, DataServico, HoraInicio, HoraFim, Valor, Status)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         idResponsavel,
         idIdoso,
         titulo,
-        'Valor a combinar com o cuidador.',
+        'Valor a combinar',
         cep,
         cidade,
-        bairro || null,
-        rua || null,
+        bairro,
+        rua,
         dataServico,
         horaInicio,
         horaFim,
@@ -225,39 +193,29 @@ router.post('/vagas', authenticateToken, async (req, res) => {
       ]
     );
 
-    return res.status(201).json({
+    return res.json({
       success: true,
-      message: 'Vaga criada com sucesso.',
       data: { idVaga: result.insertId },
     });
   } catch (error) {
-    console.error('Erro ao criar vaga:', error);
+    console.error(error);
     return res.status(500).json({
       success: false,
-      message: 'Erro ao criar vaga.',
-      error: error.message,
+      message: 'Erro ao criar vaga',
     });
   }
 });
 
-/* MINHAS VAGAS */
 router.get('/minhas-vagas', authenticateToken, async (req, res) => {
   try {
     const idResponsavel = getResponsavelId(req);
-
-    if (!idResponsavel) {
-      return res.status(401).json({
-        success: false,
-        message: 'ID do responsável não encontrado no token.',
-      });
-    }
 
     const resultado = await db.query(
       `
       SELECT 
         v.*,
         i.Nome AS NomeIdoso,
-        COALESCE(COUNT(iv.IdInteresse), 0) AS TotalInteressados
+        COUNT(iv.IdInteresse) AS interessados
       FROM vaga v
       LEFT JOIN idoso i ON i.IdIdoso = v.IdIdoso
       LEFT JOIN interesse_vaga iv ON iv.IdVaga = v.IdVaga
@@ -273,40 +231,43 @@ router.get('/minhas-vagas', authenticateToken, async (req, res) => {
       data: normalizarRows(resultado),
     });
   } catch (error) {
-    console.error('Erro ao listar minhas vagas:', error);
+    console.error(error);
     return res.status(500).json({
       success: false,
-      message: 'Erro ao listar minhas vagas.',
-      error: error.message,
+      message: 'Erro ao listar minhas vagas',
     });
   }
 });
 
-/* BUSCAR UMA VAGA */
-router.get('/vaga/:idVaga', authenticateToken, async (req, res) => {
+/* =========================
+   CONTATO PARA CUIDADOR
+========================= */
+
+router.get('/contato/:idResponsavel', async (req, res) => {
   try {
-    const idResponsavel = getResponsavelId(req);
-    const { idVaga } = req.params;
+    const { idResponsavel } = req.params;
 
     const resultado = await db.query(
       `
       SELECT 
-        v.*,
-        i.Nome AS NomeIdoso
-      FROM vaga v
-      LEFT JOIN idoso i ON i.IdIdoso = v.IdIdoso
-      WHERE v.IdVaga = ? AND v.IdResponsavel = ?
+        Nome,
+        ContatoWhatsapp,
+        ContatoTelefone,
+        ContatoEmail,
+        PreferenciaContato
+      FROM responsavel
+      WHERE IdResponsavel = ?
       LIMIT 1
       `,
-      [idVaga, idResponsavel]
+      [idResponsavel]
     );
 
     const rows = normalizarRows(resultado);
 
-    if (rows.length === 0) {
+    if (!rows.length) {
       return res.status(404).json({
         success: false,
-        message: 'Vaga não encontrada.',
+        message: 'Responsável não encontrado',
       });
     }
 
@@ -315,203 +276,10 @@ router.get('/vaga/:idVaga', authenticateToken, async (req, res) => {
       data: rows[0],
     });
   } catch (error) {
-    console.error('Erro ao buscar vaga:', error);
+    console.error(error);
     return res.status(500).json({
       success: false,
-      message: 'Erro ao buscar vaga.',
-      error: error.message,
-    });
-  }
-});
-
-/* EDITAR VAGA */
-router.put('/vaga/:idVaga', authenticateToken, async (req, res) => {
-  try {
-    const idResponsavel = getResponsavelId(req);
-    const { idVaga } = req.params;
-
-    const {
-      titulo,
-      cep,
-      cidade,
-      bairro,
-      rua,
-      dataServico,
-      horaInicio,
-      horaFim,
-    } = req.body;
-
-    if (!titulo || !cep || !cidade || !dataServico || !horaInicio || !horaFim) {
-      return res.status(400).json({
-        success: false,
-        message: 'Preencha título, localidade, data e horários.',
-      });
-    }
-
-    const result = await db.query(
-      `
-      UPDATE vaga
-      SET 
-        Titulo = ?,
-        Cep = ?,
-        Cidade = ?,
-        Bairro = ?,
-        Rua = ?,
-        DataServico = ?,
-        HoraInicio = ?,
-        HoraFim = ?
-      WHERE IdVaga = ? AND IdResponsavel = ?
-      `,
-      [
-        titulo,
-        cep,
-        cidade,
-        bairro || null,
-        rua || null,
-        dataServico,
-        horaInicio,
-        horaFim,
-        idVaga,
-        idResponsavel,
-      ]
-    );
-
-    if (result && result.affectedRows === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Vaga não encontrada para este responsável.',
-      });
-    }
-
-    return res.json({
-      success: true,
-      message: 'Vaga atualizada com sucesso.',
-    });
-  } catch (error) {
-    console.error('Erro ao editar vaga:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Erro ao editar vaga.',
-      error: error.message,
-    });
-  }
-});
-
-/* ENCERRAR / REABRIR VAGA */
-router.put('/vaga/:idVaga/status', authenticateToken, async (req, res) => {
-  try {
-    const idResponsavel = getResponsavelId(req);
-    const { idVaga } = req.params;
-    const { status } = req.body;
-
-    if (!['Aberta', 'Encerrada'].includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Status inválido. Use Aberta ou Encerrada.',
-      });
-    }
-
-    const result = await db.query(
-      `
-      UPDATE vaga
-      SET Status = ?
-      WHERE IdVaga = ? AND IdResponsavel = ?
-      `,
-      [status, idVaga, idResponsavel]
-    );
-
-    if (result && result.affectedRows === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Vaga não encontrada para este responsável.',
-      });
-    }
-
-    return res.json({
-      success: true,
-      message: status === 'Aberta' ? 'Vaga reaberta.' : 'Vaga encerrada.',
-    });
-  } catch (error) {
-    console.error('Erro ao alterar status da vaga:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Erro ao alterar status da vaga.',
-      error: error.message,
-    });
-  }
-});
-
-/* EXCLUIR VAGA */
-router.delete('/vaga/:idVaga', authenticateToken, async (req, res) => {
-  try {
-    const idResponsavel = getResponsavelId(req);
-    const { idVaga } = req.params;
-
-    const result = await db.query(
-      `
-      DELETE FROM vaga
-      WHERE IdVaga = ? AND IdResponsavel = ?
-      `,
-      [idVaga, idResponsavel]
-    );
-
-    if (result && result.affectedRows === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Vaga não encontrada para este responsável.',
-      });
-    }
-
-    return res.json({
-      success: true,
-      message: 'Vaga excluída com sucesso.',
-    });
-  } catch (error) {
-    console.error('Erro ao excluir vaga:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Erro ao excluir vaga.',
-      error: error.message,
-    });
-  }
-});
-
-/* VER INTERESSADOS */
-router.get('/vaga/:idVaga/interessados', authenticateToken, async (req, res) => {
-  try {
-    const idResponsavel = getResponsavelId(req);
-    const { idVaga } = req.params;
-
-    const resultado = await db.query(
-      `
-      SELECT 
-        iv.*,
-        c.IdCuidador,
-        c.Nome,
-        c.Email,
-        c.Telefone,
-        c.FotoUrl,
-        c.Biografia,
-        c.ValorHora
-      FROM interesse_vaga iv
-      INNER JOIN cuidador c ON c.IdCuidador = iv.IdCuidador
-      INNER JOIN vaga v ON v.IdVaga = iv.IdVaga
-      WHERE iv.IdVaga = ? AND v.IdResponsavel = ?
-      ORDER BY iv.DataCriacao DESC
-      `,
-      [idVaga, idResponsavel]
-    );
-
-    return res.json({
-      success: true,
-      data: normalizarRows(resultado),
-    });
-  } catch (error) {
-    console.error('Erro ao buscar interessados:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar interessados.',
-      error: error.message,
+      message: 'Erro ao buscar contato',
     });
   }
 });

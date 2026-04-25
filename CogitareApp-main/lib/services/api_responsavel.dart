@@ -105,31 +105,55 @@ class ApiResponsavel {
     }
   }
 
-  static Future<Map<String, dynamic>> atualizarPerfil({
-    required String nome,
-    required String email,
-    required String telefone,
-    required String dataNascimento,
-    String? fotoUrl,
-  }) async {
-    try {
-      final response = await ApiClient.put('/api/responsavel/perfil', {
-        'nome': nome,
-        'email': email,
-        'telefone': telefone,
-        'dataNascimento': dataNascimento,
-        'fotoUrl': fotoUrl,
-      });
+static Future<Map<String, dynamic>> atualizarPerfil({
+  required String nome,
+  required String email,
+  required String telefone,
+  required String dataNascimento,
+  String? fotoUrl,
+  String? cep,
+  String? cidade,
+  String? bairro,
+  String? rua,
+  String? numero,
+  String? estado, // 👈 NOVO
+  String? complemento, // 👈 NOVO
+  String? contatoWhatsapp,
+  String? contatoTelefone,
+  String? contatoEmail,
+  String? preferenciaContato,
+}) async {
+  try {
+    final response = await ApiClient.put('/api/responsavel/perfil', {
+      'nome': nome,
+      'email': email,
+      'telefone': telefone,
+      'dataNascimento': dataNascimento,
+      'fotoUrl': fotoUrl,
+      'cep': cep,
+      'cidade': cidade,
+      'bairro': bairro,
+      'rua': rua,
+      'numero': numero,
+      'estado': estado, // 👈 NOVO
+      'complemento': complemento, // 👈 NOVO
+      'contatoWhatsapp': contatoWhatsapp,
+      'contatoTelefone': contatoTelefone,
+      'contatoEmail': contatoEmail,
+      'preferenciaContato': preferenciaContato,
+    });
 
-      return {
-        'success': response['success'] == true,
-        'message': response['message'] ?? 'Perfil atualizado com sucesso',
-        'data': response['data'],
-      };
-    } catch (e) {
-      return {'success': false, 'message': 'Erro ao atualizar perfil: $e'};
-    }
+    return {
+      'success': response['success'] == true,
+      'message': response['message'] ?? 'Perfil atualizado',
+    };
+  } catch (e) {
+    return {
+      'success': false,
+      'message': 'Erro ao atualizar perfil: $e',
+    };
   }
+}
 
   static Future<Map<String, dynamic>> apagarConta() async {
     try {

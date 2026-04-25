@@ -38,9 +38,6 @@ class _PerfilResponsavelPageState extends State<PerfilResponsavelPage> {
       }
 
       final response = await ApiClient.get('/api/responsavel/perfil');
-
-      debugPrint('RESPOSTA PERFIL RESPONSAVEL: $response');
-
       final data = response['data'];
 
       if (response['success'] == true && data != null) {
@@ -155,6 +152,33 @@ class _PerfilResponsavelPageState extends State<PerfilResponsavelPage> {
     );
   }
 
+  Widget tituloSecao(String titulo) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 18, bottom: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 5,
+            height: 24,
+            decoration: BoxDecoration(
+              color: rosa,
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            titulo,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: roxo,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget buildInfoCard({
     required IconData icon,
     required String titulo,
@@ -210,34 +234,6 @@ class _PerfilResponsavelPageState extends State<PerfilResponsavelPage> {
     );
   }
 
-  Widget buildResumoCard(String nome) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 18),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: verde.withOpacity(0.16),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: verde.withOpacity(0.5)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.verified_user_outlined, color: roxo),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              '$nome está cadastrado como responsável no Cogitare.',
-              style: const TextStyle(
-                color: roxo,
-                fontWeight: FontWeight.w600,
-                height: 1.4,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final nome = textoSeguro(
@@ -263,6 +259,32 @@ class _PerfilResponsavelPageState extends State<PerfilResponsavelPage> {
 
     final fotoUrl = fotoSegura(
       responsavel['FotoUrl'] ?? responsavel['fotoUrl'],
+    );
+
+    final cep = textoSeguro(responsavel['Cep'] ?? responsavel['cep']);
+    final cidade = textoSeguro(responsavel['Cidade'] ?? responsavel['cidade']);
+    final estado = textoSeguro(responsavel['Estado'] ?? responsavel['estado']);
+    final bairro = textoSeguro(responsavel['Bairro'] ?? responsavel['bairro']);
+    final rua = textoSeguro(responsavel['Rua'] ?? responsavel['rua']);
+    final numero = textoSeguro(responsavel['Numero'] ?? responsavel['numero']);
+    final complemento = textoSeguro(
+      responsavel['Complemento'] ?? responsavel['complemento'],
+    );
+
+    final contatoWhatsapp = textoSeguro(
+      responsavel['ContatoWhatsapp'] ?? responsavel['contatoWhatsapp'],
+    );
+
+    final contatoTelefone = textoSeguro(
+      responsavel['ContatoTelefone'] ?? responsavel['contatoTelefone'],
+    );
+
+    final contatoEmail = textoSeguro(
+      responsavel['ContatoEmail'] ?? responsavel['contatoEmail'],
+    );
+
+    final preferenciaContato = textoSeguro(
+      responsavel['PreferenciaContato'] ?? responsavel['preferenciaContato'],
     );
 
     return Scaffold(
@@ -338,20 +360,13 @@ class _PerfilResponsavelPageState extends State<PerfilResponsavelPage> {
                     ),
                   ),
 
-                  const SizedBox(height: 18),
+                  tituloSecao('Dados pessoais'),
 
-                  buildResumoCard(nome),
-
-                  const Text(
-                    'Dados pessoais',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                      color: roxo,
-                    ),
+                  buildInfoCard(
+                    icon: Icons.person_outline,
+                    titulo: 'Nome completo',
+                    valor: nome,
                   ),
-
-                  const SizedBox(height: 12),
 
                   buildInfoCard(
                     icon: Icons.badge_outlined,
@@ -365,19 +380,6 @@ class _PerfilResponsavelPageState extends State<PerfilResponsavelPage> {
                     valor: dataNascimento,
                   ),
 
-                  const SizedBox(height: 10),
-
-                  const Text(
-                    'Contato',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                      color: roxo,
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
                   buildInfoCard(
                     icon: Icons.phone_outlined,
                     titulo: 'Telefone',
@@ -388,6 +390,76 @@ class _PerfilResponsavelPageState extends State<PerfilResponsavelPage> {
                     icon: Icons.email_outlined,
                     titulo: 'E-mail',
                     valor: email,
+                  ),
+
+                  tituloSecao('Endereço'),
+
+                  buildInfoCard(
+                    icon: Icons.location_searching,
+                    titulo: 'CEP',
+                    valor: cep,
+                  ),
+
+                  buildInfoCard(
+                    icon: Icons.location_city_outlined,
+                    titulo: 'Cidade',
+                    valor: cidade,
+                  ),
+
+                  buildInfoCard(
+                    icon: Icons.map_outlined,
+                    titulo: 'Estado',
+                    valor: estado,
+                  ),
+
+                  buildInfoCard(
+                    icon: Icons.apartment_outlined,
+                    titulo: 'Bairro',
+                    valor: bairro,
+                  ),
+
+                  buildInfoCard(
+                    icon: Icons.signpost_outlined,
+                    titulo: 'Rua',
+                    valor: rua,
+                  ),
+
+                  buildInfoCard(
+                    icon: Icons.numbers_outlined,
+                    titulo: 'Número',
+                    valor: numero,
+                  ),
+
+                  buildInfoCard(
+                    icon: Icons.add_location_alt_outlined,
+                    titulo: 'Complemento',
+                    valor: complemento,
+                  ),
+
+                  tituloSecao('Contato para cuidadores'),
+
+                  buildInfoCard(
+                    icon: Icons.chat_outlined,
+                    titulo: 'WhatsApp',
+                    valor: contatoWhatsapp,
+                  ),
+
+                  buildInfoCard(
+                    icon: Icons.call_outlined,
+                    titulo: 'Telefone de contato',
+                    valor: contatoTelefone,
+                  ),
+
+                  buildInfoCard(
+                    icon: Icons.alternate_email,
+                    titulo: 'E-mail de contato',
+                    valor: contatoEmail,
+                  ),
+
+                  buildInfoCard(
+                    icon: Icons.contact_phone_outlined,
+                    titulo: 'Preferência de contato',
+                    valor: preferenciaContato,
                   ),
 
                   const SizedBox(height: 30),
