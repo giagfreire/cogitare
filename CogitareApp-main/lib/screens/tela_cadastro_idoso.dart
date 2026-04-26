@@ -1,10 +1,7 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/idoso.dart';
-import '../services/api_client.dart';
+import '../services/api_idoso.dart';
 
 class TelaCadastroIdoso extends StatefulWidget {
   static const String route = '/cadastro-idoso';
@@ -70,15 +67,28 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
 
     final idoso = widget.idosoParaEditar;
 
-    if (idoso != null) {
-      _nomeController.text = idoso.name;
-      _dataNascimentoController.text =
-          idoso.birthDate?.toIso8601String().split('T').first ?? '';
-      _sexo = idoso.gender;
-      _mobilidadeId = idoso.mobilityId;
-      _condicoesMedicasController.text = idoso.medicalCare ?? '';
-      _observacoesController.text = idoso.extraDescription ?? '';
-    }
+   if (idoso != null) {
+  _nomeController.text = idoso.name;
+  _dataNascimentoController.text =
+      idoso.birthDate?.toIso8601String().split('T').first ?? '';
+
+  _sexo = idoso.gender;
+  _mobilidadeId = idoso.mobilityId;
+
+  _condicoesMedicasController.text = idoso.medicalCare ?? '';
+  _observacoesController.text = idoso.extraDescription ?? '';
+
+  _usaMedicacao = idoso.usaMedicacao == 'Sim';
+  _nomeMedicamentoController.text = idoso.medicacaoDetalhes ?? '';
+
+  _precisaBanho = idoso.precisaBanho == 'Sim';
+  _precisaAjudaAlimentacao = idoso.precisaAlimentacao == 'Sim';
+  _precisaCompanhia = idoso.precisaAcompanhamento == 'Sim';
+
+  _cuidadorAplicaMedicacao =
+      idoso.medicacaoDetalhes != null &&
+      idoso.medicacaoDetalhes!.trim().isNotEmpty;
+}
   }
 
   @override
@@ -109,101 +119,79 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
   }
 
   Future<void> _salvarIdoso() async {
-    if (!_formKey.currentState!.validate()) return;
+  if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _loading = true);
+  setState(() => _loading = true);
 
-    try {
-      final prefs = await SharedPreferences.getInstance();
+  try {
+    final editando = widget.idosoParaEditar != null;
 
-      final token = prefs.getString('token');
-      final responsavelId =
-          prefs.getInt('responsavelId') ?? prefs.getInt('userId');
+    final detalhesMedicacao = [
+      if (_nomeMedicamentoController.text.trim().isNotEmpty)
+        'Medicamento: ${_nomeMedicamentoController.text.trim()}',
+      if (_horarioMedicamentoController.text.trim().isNotEmpty)
+        'Horário: ${_horarioMedicamentoController.text.trim()}',
+    ].join(' | ');
 
-      if (token == null || token.isEmpty) {
-        throw Exception('Token não encontrado. Faça login novamente.');
-      }
+    final idoso = Idoso(
+      id: widget.idosoParaEditar?.id,
+      guardianId: widget.idosoParaEditar?.guardianId,
+      name: _nomeController.text.trim(),
+      birthDate: DateTime.tryParse(_dataNascimentoController.text.trim()),
+      gender: _sexo,
+      mobilityId: _mobilidadeId,
+      autonomyLevelId: null,
+      medicalCare: _condicoesMedicasController.text.trim(),
+      extraDescription: _observacoesController.text.trim(),
+      usaMedicacao: _usaMedicacao ? 'Sim' : 'Não',
+      medicacaoDetalhes: detalhesMedicacao.isEmpty ? null : detalhesMedicacao,
+      precisaBanho: _precisaBanho ? 'Sim' : 'Não',
+      banhoDetalhes: _precisaAjudaBanho ? 'Precisa de ajuda com banho' : null,
+      precisaAlimentacao: _precisaAjudaAlimentacao ? 'Sim' : 'Não',
+      alimentacaoDetalhes:
+          _precisaAjudaAlimentacao ? 'Precisa de ajuda com alimentação' : null,
+      precisaAcompanhamento: _precisaCompanhia ? 'Sim' : 'Não',
+      acompanhamentoDetalhes:
+          _precisaCompanhia ? 'Precisa de companhia/acompanhamento' : null,
+    );
 
+    final response = editando
+        ? await ApiIdoso.update(widget.idosoParaEditar!.id!, idoso)
+        : await ApiIdoso.create(idoso);
 
-      final idoso = Idoso(
-        guardianId: responsavelId,
-        name: _nomeController.text.trim(),
-        birthDate: DateTime.tryParse(_dataNascimentoController.text.trim()),
-        gender: _sexo,
-        mobilityId: _mobilidadeId,
-        autonomyLevelId: null,
-        medicalCare: _condicoesMedicasController.text.trim(),
-        extraDescription: _observacoesController.text.trim(),
-      );
+    if (!mounted) return;
 
-      final body = idoso.toJson();
-
-if (responsavelId != null) {
-  body['IdResponsavel'] = responsavelId;
-}
-      body['ServicosDetalhados'] = {
-        'medicacao': {
-          'usaMedicacao': _usaMedicacao,
-          'cuidadorVaiAplicar': _cuidadorAplicaMedicacao,
-          'nomeMedicamento': _nomeMedicamentoController.text.trim(),
-          'horarioMedicamento': _horarioMedicamentoController.text.trim(),
-        },
-        'companhia': {
-          'precisaCompanhia': _precisaCompanhia,
-        },
-        'banho': {
-          'precisaBanho': _precisaBanho,
-          'precisaAjudaBanho': _precisaAjudaBanho,
-        },
-        'alimentacao': {
-          'precisaAjudaAlimentacao': _precisaAjudaAlimentacao,
-        },
-      };
-
-      final response = await http.post(
-        Uri.parse('${ApiClient.baseUrl}/api/idoso/cadastro'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode(body),
-      );
-
-      final data = response.body.isNotEmpty ? jsonDecode(response.body) : null;
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        if (!mounted) return;
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Idoso cadastrado com sucesso!'),
-            backgroundColor: roxo,
-          ),
-        );
-
-        Navigator.pop(context, true);
-      } else {
-        throw Exception(
-          data != null && data['message'] != null
-              ? data['message']
-              : 'Erro ao cadastrar idoso.',
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-
+    if (response['success'] == true) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: rosa,
+          content: Text(
+            editando
+                ? 'Dados do idoso atualizados com sucesso!'
+                : 'Idoso cadastrado com sucesso!',
+          ),
+          backgroundColor: roxo,
         ),
       );
-    } finally {
-      if (mounted) {
-        setState(() => _loading = false);
-      }
+
+      Navigator.pop(context, true);
+    } else {
+      throw Exception(response['message'] ?? 'Erro ao salvar idoso.');
+    }
+  } catch (e) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(e.toString().replaceAll('Exception: ', '')),
+        backgroundColor: rosa,
+      ),
+    );
+  } finally {
+    if (mounted) {
+      setState(() => _loading = false);
     }
   }
+}
 
   Widget _tituloSecao(String titulo) {
     return Padding(

@@ -108,47 +108,36 @@ class _MinhasVagasAceitasPageState extends State<MinhasVagasAceitasPage> {
   }
 
   Future<void> _abrirWhatsapp(String numero) async {
-  String telefone = _somenteNumeros(numero);
+    String telefone = _somenteNumeros(numero);
 
-  if (telefone.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('WhatsApp não informado para esta vaga.'),
-        backgroundColor: Colors.orange,
-      ),
-    );
-    return;
-  }
+    if (telefone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('WhatsApp não informado para esta vaga.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
 
-  if (!telefone.startsWith('55')) {
-    telefone = '55$telefone';
-  }
+    if (!telefone.startsWith('55')) {
+      telefone = '55$telefone';
+    }
 
-  final uri = Uri.parse('https://wa.me/$telefone');
+    final uri = Uri.parse('https://wa.me/$telefone');
 
-  if (await canLaunchUrl(uri)) {
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  } else {
-    if (!mounted) return;
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Não foi possível abrir o WhatsApp.'),
-        backgroundColor: Colors.red,
-      ),
-    );
-  }
-}
-
-  Color _corStatus(String status) {
-    final s = status.toLowerCase();
-
-    if (s.contains('aceit')) return Colors.green;
-    if (s.contains('pendente')) return Colors.orange;
-    if (s.contains('cancel')) return Colors.red;
-    if (s.contains('conclu')) return Colors.blue;
-
-    return Colors.grey;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível abrir o WhatsApp.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   String _pegarWhatsapp(Map<String, dynamic> vaga) {
@@ -188,15 +177,15 @@ class _MinhasVagasAceitasPageState extends State<MinhasVagasAceitasPage> {
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(24),
-        children: const [
-          SizedBox(height: 100),
+        children: [
+          const SizedBox(height: 100),
           Icon(
-            Icons.assignment_turned_in_outlined,
-            size: 72,
-            color: Colors.grey,
+            Icons.check_circle_outline,
+            size: 76,
+            color: verde,
           ),
-          SizedBox(height: 16),
-          Text(
+          const SizedBox(height: 16),
+          const Text(
             'Você ainda não aceitou nenhuma vaga.',
             textAlign: TextAlign.center,
             style: TextStyle(
@@ -205,13 +194,13 @@ class _MinhasVagasAceitasPageState extends State<MinhasVagasAceitasPage> {
               color: roxo,
             ),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
             'Quando você aceitar uma vaga, ela aparecerá aqui com o WhatsApp do responsável liberado.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 14,
-              color: Colors.black54,
+              color: roxo.withOpacity(0.65),
               height: 1.4,
             ),
           ),
@@ -229,7 +218,7 @@ class _MinhasVagasAceitasPageState extends State<MinhasVagasAceitasPage> {
           children: [
             const Icon(
               Icons.error_outline,
-              color: Colors.redAccent,
+              color: rosa,
               size: 48,
             ),
             const SizedBox(height: 12),
@@ -242,7 +231,7 @@ class _MinhasVagasAceitasPageState extends State<MinhasVagasAceitasPage> {
             ElevatedButton(
               onPressed: _carregarVagas,
               style: ElevatedButton.styleFrom(
-                backgroundColor: roxo,
+                backgroundColor: rosa,
                 foregroundColor: Colors.white,
               ),
               child: const Text('Tentar novamente'),
@@ -274,129 +263,146 @@ class _MinhasVagasAceitasPageState extends State<MinhasVagasAceitasPage> {
     final whatsapp = _pegarWhatsapp(vaga);
     final temWhatsapp = whatsapp.isNotEmpty;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 14),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        gradient: LinearGradient(
+          colors: [
+            rosa.withOpacity(0.24),
+            verde.withOpacity(0.24),
+          ],
+        ),
       ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => DetalheVagaAceitaPage(vaga: vaga),
-            ),
-          );
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      titulo,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                        color: roxo,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _corStatus(status).withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      status,
-                      style: TextStyle(
-                        color: _corStatus(status),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                ],
+      child: Card(
+        margin: const EdgeInsets.all(1.4),
+        elevation: 2,
+        color: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(21),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(21),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => DetalheVagaAceitaPage(vaga: vaga),
               ),
-              const SizedBox(height: 12),
-              _infoLinha(Icons.location_on_outlined, 'Cidade: $cidade'),
-              const SizedBox(height: 6),
-              _infoLinha(Icons.calendar_today_outlined, 'Data: $data'),
-              const SizedBox(height: 6),
-              _infoLinha(
-                Icons.access_time_outlined,
-                'Horário: $horaInicio às $horaFim',
-              ),
-              const SizedBox(height: 6),
-              _infoLinha(Icons.attach_money_outlined, 'Valor: $valor'),
-              const SizedBox(height: 6),
-              _infoLinha(Icons.person_outline, 'Responsável: $responsavel'),
-              const SizedBox(height: 14),
-              if (temWhatsapp)
-                SizedBox(
-                  width: double.infinity,
-                  height: 46,
-                  child: ElevatedButton.icon(
-                    onPressed: () => _abrirWhatsapp(whatsapp),
-                    icon: const Icon(Icons.chat_outlined),
-                    label: const Text('Chamar no WhatsApp'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                  ),
-                )
-              else
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    'WhatsApp ainda não retornado pelo backend.',
-                    style: TextStyle(
-                      color: Colors.orange,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              const SizedBox(height: 10),
-              const Align(
-                alignment: Alignment.centerRight,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Text(
-                      'Ver detalhes',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: roxo,
+                    Expanded(
+                      child: Text(
+                        titulo,
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: rosa,
+                        ),
                       ),
                     ),
-                    SizedBox(width: 6),
-                    Icon(
-                      Icons.arrow_forward_ios,
-                      size: 14,
-                      color: roxo,
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: rosa.withOpacity(0.14),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: verde.withOpacity(0.55),
+                        ),
+                      ),
+                      child: Text(
+                        status,
+                        style: const TextStyle(
+                          color: roxo,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
                     ),
                   ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 12),
+                _infoLinha(Icons.location_on_outlined, 'Cidade: $cidade'),
+                const SizedBox(height: 6),
+                _infoLinha(Icons.calendar_today_outlined, 'Data: $data'),
+                const SizedBox(height: 6),
+                _infoLinha(
+                  Icons.access_time_outlined,
+                  'Horário: $horaInicio às $horaFim',
+                ),
+                const SizedBox(height: 6),
+                _infoLinha(Icons.attach_money_outlined, 'Valor: $valor'),
+                const SizedBox(height: 6),
+                _infoLinha(Icons.person_outline, 'Responsável: $responsavel'),
+                const SizedBox(height: 14),
+                if (temWhatsapp)
+                  SizedBox(
+                    width: double.infinity,
+                    height: 46,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _abrirWhatsapp(whatsapp),
+                      icon: const Icon(Icons.chat_outlined),
+                      label: const Text('Chamar no WhatsApp'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: verde,
+                        foregroundColor: Colors.black,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: rosa.withOpacity(0.10),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      'WhatsApp ainda não retornado pelo backend.',
+                      style: TextStyle(
+                        color: rosa,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 10),
+                const Align(
+                  alignment: Alignment.centerRight,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Ver detalhes',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: rosa,
+                        ),
+                      ),
+                      SizedBox(width: 6),
+                      Icon(
+                        Icons.arrow_forward_ios,
+                        size: 14,
+                        color: rosa,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -417,7 +423,9 @@ class _MinhasVagasAceitasPageState extends State<MinhasVagasAceitasPage> {
               margin: const EdgeInsets.only(bottom: 16),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: roxo,
+                gradient: const LinearGradient(
+                  colors: [roxo, rosa, verde],
+                ),
                 borderRadius: BorderRadius.circular(18),
               ),
               child: Text(
@@ -477,6 +485,7 @@ class DetalheVagaAceitaPage extends StatelessWidget {
 
   static const Color roxo = Color(0xFF42124C);
   static const Color rosa = Color(0xFFFE0472);
+  static const Color verde = Color(0xFF8AFF00);
   static const Color fundo = Color(0xFFF6F4F8);
 
   String _t(dynamic v, {String fallback = 'Não informado'}) {
@@ -543,35 +552,35 @@ class DetalheVagaAceitaPage extends StatelessWidget {
   }
 
   Future<void> _abrirWhatsapp(BuildContext context, String numero) async {
-  String telefone = _somenteNumeros(numero);
+    String telefone = _somenteNumeros(numero);
 
-  if (telefone.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('WhatsApp não informado para esta vaga.'),
-        backgroundColor: Colors.orange,
-      ),
-    );
-    return;
+    if (telefone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('WhatsApp não informado para esta vaga.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    if (!telefone.startsWith('55')) {
+      telefone = '55$telefone';
+    }
+
+    final uri = Uri.parse('https://wa.me/$telefone');
+
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível abrir o WhatsApp.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
-
-  if (!telefone.startsWith('55')) {
-    telefone = '55$telefone';
-  }
-
-  final uri = Uri.parse('https://wa.me/$telefone');
-
-  if (await canLaunchUrl(uri)) {
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  } else {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Não foi possível abrir o WhatsApp.'),
-        backgroundColor: Colors.red,
-      ),
-    );
-  }
-}
 
   Widget _detalheLinha(IconData icon, String label, String valor) {
     return Row(
@@ -596,28 +605,41 @@ class DetalheVagaAceitaPage extends StatelessWidget {
     required String titulo,
     required List<Widget> children,
   }) {
-    return Card(
-      elevation: 2,
+    return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              titulo,
-              style: const TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.bold,
-                color: roxo,
-              ),
-            ),
-            const SizedBox(height: 12),
-            ...children,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          colors: [
+            rosa.withOpacity(0.18),
+            verde.withOpacity(0.18),
           ],
+        ),
+      ),
+      child: Card(
+        elevation: 2,
+        margin: const EdgeInsets.all(1.2),
+        color: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(19),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                titulo,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color: rosa,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ...children,
+            ],
+          ),
         ),
       ),
     );
@@ -630,10 +652,23 @@ class DetalheVagaAceitaPage extends StatelessWidget {
     final cidade = _t(vaga['Cidade']);
     final bairro = _t(vaga['Bairro']);
     final rua = _t(vaga['Rua']);
+    final cep = _t(vaga['Cep']);
     final data = _formatarData(vaga['DataServico']);
     final horaInicio = _formatarHora(vaga['HoraInicio']);
     final horaFim = _formatarHora(vaga['HoraFim']);
     final valor = _formatarValor(vaga['Valor']);
+
+    final nomeIdoso = _t(
+      vaga['NomeIdoso'],
+      fallback: 'Idoso não informado',
+    );
+
+    final sexoIdoso = _t(vaga['SexoIdoso']);
+    final nascimentoIdoso = _formatarData(vaga['DataNascimentoIdoso']);
+    final cuidadosMedicos = _t(vaga['CuidadosMedicos']);
+    final descricaoExtra = _t(vaga['DescricaoExtra']);
+    final mobilidade = _t(vaga['Mobilidade']);
+    final autonomia = _t(vaga['NivelAutonomia']);
 
     final responsavel = _t(
       vaga['NomeResponsavel'] ?? vaga['Nome'],
@@ -676,6 +711,8 @@ class DetalheVagaAceitaPage extends StatelessWidget {
                 const SizedBox(height: 10),
                 _detalheLinha(Icons.signpost_outlined, 'Rua', rua),
                 const SizedBox(height: 10),
+                _detalheLinha(Icons.markunread_mailbox_outlined, 'CEP', cep),
+                const SizedBox(height: 10),
                 _detalheLinha(Icons.calendar_today_outlined, 'Data', data),
                 const SizedBox(height: 10),
                 _detalheLinha(
@@ -690,7 +727,7 @@ class DetalheVagaAceitaPage extends StatelessWidget {
               ],
             ),
             _card(
-              titulo: 'Descrição',
+              titulo: 'Descrição da vaga',
               children: [
                 Text(
                   descricao,
@@ -699,6 +736,44 @@ class DetalheVagaAceitaPage extends StatelessWidget {
                     height: 1.5,
                     color: Colors.black87,
                   ),
+                ),
+              ],
+            ),
+            _card(
+              titulo: 'Dados do idoso',
+              children: [
+                _detalheLinha(Icons.elderly_outlined, 'Nome', nomeIdoso),
+                const SizedBox(height: 10),
+                _detalheLinha(Icons.wc_outlined, 'Sexo', sexoIdoso),
+                const SizedBox(height: 10),
+                _detalheLinha(
+                  Icons.cake_outlined,
+                  'Nascimento',
+                  nascimentoIdoso,
+                ),
+                const SizedBox(height: 10),
+                _detalheLinha(
+                  Icons.medical_services_outlined,
+                  'Cuidados médicos',
+                  cuidadosMedicos,
+                ),
+                const SizedBox(height: 10),
+                _detalheLinha(
+                  Icons.accessibility_new_outlined,
+                  'Mobilidade',
+                  mobilidade,
+                ),
+                const SizedBox(height: 10),
+                _detalheLinha(
+                  Icons.health_and_safety_outlined,
+                  'Nível de autonomia',
+                  autonomia,
+                ),
+                const SizedBox(height: 10),
+                _detalheLinha(
+                  Icons.description_outlined,
+                  'Observações',
+                  descricaoExtra,
                 ),
               ],
             ),
@@ -723,9 +798,10 @@ class DetalheVagaAceitaPage extends StatelessWidget {
                     icon: const Icon(Icons.chat_outlined),
                     label: const Text('Chamar no WhatsApp'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
+                      backgroundColor: verde,
+                      foregroundColor: Colors.black,
                       disabledBackgroundColor: Colors.grey.shade400,
+                      elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),

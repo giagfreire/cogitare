@@ -241,22 +241,30 @@ class ApiCuidador {
     return getStatusPlano(idCuidador);
   }
 
-  static Future<List<Map<String, dynamic>>> getMinhasVagasAceitas() async {
-    try {
-      final response = await ApiClient.get('/api/cuidador/minhas-vagas');
+static Future<List<Map<String, dynamic>>> getMinhasVagasAceitas() async {
+  try {
+    final token = await ServicoAutenticacao.getToken();
 
-      if (response['success'] == true && response['data'] is List) {
-        final data = response['data'] as List;
-
-        return data
-            .whereType<Map>()
-            .map((item) => Map<String, dynamic>.from(item))
-            .toList();
-      }
-
-      return [];
-    } catch (_) {
-      return [];
+    if (token != null && token.isNotEmpty) {
+      ApiClient.setToken(token);
     }
+
+    final response = await ApiClient.get('/api/cuidador/minhas-vagas');
+
+    print('RESPOSTA MINHAS VAGAS ACEITAS: $response');
+
+    if (response['success'] == true && response['data'] is List) {
+      final data = response['data'] as List;
+
+      return data
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList();
+    }
+
+    return [];
+  } catch (e) {
+    print('ERRO MINHAS VAGAS ACEITAS: $e');
+    return [];
   }
-}
+}}

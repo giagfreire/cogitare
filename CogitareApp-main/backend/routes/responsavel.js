@@ -3,6 +3,7 @@ const db = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
+const bcrypt = require('bcryptjs');
 
 function getResponsavelId(req) {
   return req.user?.id || req.user?.IdResponsavel || req.user?.userId;
@@ -13,6 +14,127 @@ function normalizarRows(resultado) {
   if (resultado && Array.isArray(resultado.rows)) return resultado.rows;
   return resultado ? [resultado] : [];
 }
+
+router.post('/completo', async (req, res) => {
+  try {
+    const {
+      cidade,
+      bairro,
+      rua,
+      numero,
+      complemento,
+      cep,
+      cpf,
+      nome,
+      email,
+      telefone,
+      dataNascimento,
+      senha,
+      fotoUrl
+    } = req.body;
+
+    // ========================
+    // VALIDAÇÕES
+    // ========================
+
+    if (!nome || !email || !senha || !cpf || !telefone || !dataNascimento) {
+      return res.status(400).json({
+        success: false,
+        message: 'Campos obrigatórios faltando'
+      });
+    }
+
+    // 👉 IDADE (18+)
+    const nascimento = new Date(dataNascimento);
+    const hoje = new Date();
+    const idade = hoje.getFullYear() - nascimento.getFullYear();
+
+    if (idade < 18) {
+      return res.status(400).json({
+        success: false,
+        message: 'Você precisa ser maior de 18 anos'
+      });
+    }
+
+    // 👉 SENHA FORTE
+    const senhaForte =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+
+    if (!senhaForte.test(senha)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          'Senha fraca. Use 8+ caracteres com maiúscula, minúscula, número e símbolo.'
+      });
+    }
+
+    // 👉 EMAIL DUPLICADO
+    const existeEmail = await db.query(
+      `SELECT IdResponsavel FROM responsavel WHERE Email = ?`,
+      [email]
+    );
+
+    if (existeEmail.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'E-mail já cadastrado'
+      });
+    }
+
+    // ========================
+    // CRIAR ENDEREÇO
+    // ========================
+
+    const enderecoResult = await db.query(
+      `
+      INSERT INTO endereco (Cidade, Bairro, Rua, Numero, Complemento, Cep)
+      VALUES (?, ?, ?, ?, ?, ?)
+      `,
+      [cidade, bairro, rua, numero, complemento, cep]
+    );
+
+    const idEndereco = enderecoResult.insertId;
+
+    // ========================
+    // CRIAR RESPONSÁVEL
+    // ========================
+
+    const bcrypt = require('bcryptjs');
+    const senhaHash = await bcrypt.hash(senha, 10);
+
+    const result = await db.query(
+      `
+      INSERT INTO responsavel
+      (IdEndereco, Nome, Email, Senha, Telefone, Cpf, DataNascimento, FotoUrl)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        idEndereco,
+        nome,
+        email,
+        senhaHash,
+        telefone,
+        cpf,
+        dataNascimento,
+        fotoUrl || null
+      ]
+    );
+
+    return res.json({
+      success: true,
+      message: 'Cadastro realizado com sucesso',
+      guardianId: result.insertId
+    });
+
+  } catch (error) {
+    console.error('ERRO CADASTRO COMPLETO:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Erro ao cadastrar responsável'
+    });
+  }
+});
 
 /* =========================
    CRIAR VAGA (CORRIGIDO)

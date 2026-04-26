@@ -174,57 +174,182 @@ class _PerfilIdosoPageState extends State<PerfilIdosoPage> {
     );
   }
 
-  Widget _cardIdoso(Idoso idoso) {
-    final idade = _idade(idoso.birthDate);
+ Widget _linhaInfo(IconData icon, String titulo, String valor) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: rosa),
+        const SizedBox(width: 8),
+        Expanded(
+          child: RichText(
+            text: TextSpan(
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.black87,
+                height: 1.35,
+              ),
+              children: [
+                TextSpan(
+                  text: '$titulo: ',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: roxo,
+                  ),
+                ),
+                TextSpan(text: valor),
+              ],
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+Widget _cardIdoso(Idoso idoso) {
+  final idade = _idade(idoso.birthDate);
+
+  return Container(
+    margin: const EdgeInsets.only(bottom: 14),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(22),
+      gradient: LinearGradient(
+        colors: [
+          rosa.withOpacity(0.18),
+          verde.withOpacity(0.18),
+        ],
+      ),
+    ),
+    child: Container(
+      margin: const EdgeInsets.all(1.3),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: roxo.withOpacity(0.08)),
+        borderRadius: BorderRadius.circular(21),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            idoso.name,
-            style: const TextStyle(
-              color: roxo,
-              fontSize: 17,
-              fontWeight: FontWeight.bold,
+          Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: rosa.withOpacity(0.14),
+                child: const Icon(Icons.elderly_outlined, color: rosa),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  idoso.name,
+                  style: const TextStyle(
+                    color: roxo,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          _linhaInfo(
+            Icons.cake_outlined,
+            'Idade',
+            idade > 0 ? '$idade anos' : 'Não informada',
+          ),
+          _linhaInfo(
+            Icons.wc_outlined,
+            'Sexo',
+            _texto(idoso.gender),
+          ),
+          _linhaInfo(
+            Icons.accessibility_new_outlined,
+            'Mobilidade',
+            idoso.mobilityId?.toString() ?? 'Não informada',
+          ),
+          _linhaInfo(
+            Icons.health_and_safety_outlined,
+            'Nível de autonomia',
+            idoso.autonomyLevelId?.toString() ?? 'Não informado',
+          ),
+          _linhaInfo(
+            Icons.medical_services_outlined,
+            'Cuidados médicos',
+            _texto(
+              idoso.medicalCare,
+              fallback: 'Cuidados médicos não informados.',
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            idade > 0
-                ? '${idoso.gender ?? 'Sexo não informado'} • $idade anos'
-                : idoso.gender ?? 'Sexo não informado',
-            style: const TextStyle(color: Colors.black54),
+          _linhaInfo(
+            Icons.description_outlined,
+            'Descrição extra',
+            _texto(idoso.extraDescription),
           ),
-          const SizedBox(height: 8),
-          Text(
-            _texto(idoso.medicalCare, fallback: 'Cuidados médicos não informados.'),
-            style: const TextStyle(height: 1.4),
+          _linhaInfo(
+            Icons.medication_outlined,
+            'Usa medicação',
+            _texto(idoso.usaMedicacao),
           ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerRight,
-            child: OutlinedButton.icon(
+          _linhaInfo(
+            Icons.notes_outlined,
+            'Detalhes da medicação',
+            _texto(idoso.medicacaoDetalhes),
+          ),
+          _linhaInfo(
+            Icons.bathtub_outlined,
+            'Precisa de banho',
+            _texto(idoso.precisaBanho),
+          ),
+          _linhaInfo(
+            Icons.notes_outlined,
+            'Detalhes do banho',
+            _texto(idoso.banhoDetalhes),
+          ),
+          _linhaInfo(
+            Icons.restaurant_outlined,
+            'Precisa de alimentação',
+            _texto(idoso.precisaAlimentacao),
+          ),
+          _linhaInfo(
+            Icons.notes_outlined,
+            'Detalhes da alimentação',
+            _texto(idoso.alimentacaoDetalhes),
+          ),
+          _linhaInfo(
+            Icons.groups_outlined,
+            'Precisa de acompanhamento',
+            _texto(idoso.precisaAcompanhamento),
+          ),
+          _linhaInfo(
+            Icons.notes_outlined,
+            'Detalhes do acompanhamento',
+            _texto(idoso.acompanhamentoDetalhes),
+          ),
+
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: ElevatedButton.icon(
               onPressed: () => _editarIdoso(idoso),
               icon: const Icon(Icons.edit_outlined),
-              label: const Text('Editar perfil'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: roxo,
-                side: const BorderSide(color: roxo),
+              label: const Text('Editar dados do idoso'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: verde,
+                foregroundColor: Colors.black,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
             ),
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _listaIdosos() {
     if (_isLoading) {

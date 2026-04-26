@@ -10,6 +10,7 @@ import 'perfil_cuidador_page.dart';
 import 'planos_cuidador_page.dart';
 import 'vagas_cuidador_page.dart';
 import 'tela_configuracoes.dart';
+import 'minhas_vagas_aceitas_page.dart';
 
 class DashboardCuidador extends StatefulWidget {
   static const route = '/dashboard-cuidador';
@@ -274,6 +275,16 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
     await _carregarDados();
   }
 
+  Future<void> _abrirVagasAceitas() async {
+  await Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => const MinhasVagasAceitasPage(),
+    ),
+  );
+  await _carregarDados();
+}
+
   Future<void> _abrirAgenda() async {
     await Navigator.push(
       context,
@@ -390,12 +401,12 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                           textoEscuro: true,
                           onTap: _abrirPlanos,
                         ),
-                        _buildActionBox(
-                          titulo: 'Meu perfil',
-                          icon: Icons.person_outline,
-                          cor: rosa,
-                          onTap: _abrirPerfil,
-                        ),
+_buildActionBox(
+  titulo: 'Vagas aceitas',
+  icon: Icons.assignment_turned_in_outlined,
+cor: roxo.withOpacity(0.85),
+  onTap: _abrirVagasAceitas,
+),
                       ],
                     ),
                     const SizedBox(height: 24),
@@ -434,7 +445,6 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                     const SizedBox(height: 24),
                     _buildCompletarPerfilCard(),
                     const SizedBox(height: 24),
-                    _buildSobreCard(),
                   ],
                 ),
               ),
@@ -896,41 +906,6 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
               color: roxo,
               fontWeight: FontWeight.bold,
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSobreCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: _cardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Biografia',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: roxo,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            getBiografiaCurta(),
-            style: TextStyle(
-              fontSize: 15,
-              height: 1.5,
-              color: roxo.withOpacity(0.82),
-            ),
-          ),
-          const SizedBox(height: 14),
-          TextButton(
-            onPressed: _abrirPerfil,
-            child: const Text('Ver perfil completo'),
           ),
         ],
       ),

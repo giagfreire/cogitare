@@ -19,17 +19,25 @@ router.post('/cadastro', authenticateToken, async (req, res) => {
   try {
     await connection.beginTransaction();
 
-    const {
-      IdResponsavel,
-      IdMobilidade,
-      IdNivelAutonomia,
-      Nome,
-      DataNascimento,
-      Sexo,
-      CuidadosMedicos,
-      DescricaoExtra,
-      ServicosDetalhados,
-    } = req.body;
+const {
+  IdResponsavel,
+  IdMobilidade,
+  IdNivelAutonomia,
+  Nome,
+  DataNascimento,
+  Sexo,
+  CuidadosMedicos,
+  DescricaoExtra,
+  UsaMedicacao,
+  MedicacaoDetalhes,
+  PrecisaBanho,
+  BanhoDetalhes,
+  PrecisaAlimentacao,
+  AlimentacaoDetalhes,
+  PrecisaAcompanhamento,
+  AcompanhamentoDetalhes,
+  ServicosDetalhados,
+} = req.body;
 
     const idResponsavelFinal = IdResponsavel || getResponsavelId(req);
 
@@ -42,31 +50,47 @@ router.post('/cadastro', authenticateToken, async (req, res) => {
     }
 
     const [idosoResult] = await connection.query(
-      `
-      INSERT INTO idoso 
-      (
-        IdResponsavel,
-        IdMobilidade,
-        IdNivelAutonomia,
-        Nome,
-        DataNascimento,
-        Sexo,
-        CuidadosMedicos,
-        DescricaoExtra
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-      [
-        idResponsavelFinal,
-        IdMobilidade || null,
-        IdNivelAutonomia || null,
-        Nome,
-        DataNascimento || null,
-        Sexo || null,
-        CuidadosMedicos || null,
-        DescricaoExtra || null,
-      ]
-    );
+  `
+  INSERT INTO idoso 
+  (
+    IdResponsavel,
+    IdMobilidade,
+    IdNivelAutonomia,
+    Nome,
+    DataNascimento,
+    Sexo,
+    CuidadosMedicos,
+    DescricaoExtra,
+    UsaMedicacao,
+    MedicacaoDetalhes,
+    PrecisaBanho,
+    BanhoDetalhes,
+    PrecisaAlimentacao,
+    AlimentacaoDetalhes,
+    PrecisaAcompanhamento,
+    AcompanhamentoDetalhes
+  )
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `,
+  [
+    idResponsavelFinal,
+    IdMobilidade || null,
+    IdNivelAutonomia || null,
+    Nome,
+    DataNascimento || null,
+    Sexo || null,
+    CuidadosMedicos || null,
+    DescricaoExtra || null,
+    UsaMedicacao || null,
+    MedicacaoDetalhes || null,
+    PrecisaBanho || null,
+    BanhoDetalhes || null,
+    PrecisaAlimentacao || null,
+    AlimentacaoDetalhes || null,
+    PrecisaAcompanhamento || null,
+    AcompanhamentoDetalhes || null,
+  ]
+);
 
     const idIdoso = idosoResult.insertId;
 
@@ -295,6 +319,98 @@ router.get('/:idIdoso', async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Erro ao buscar idoso.',
+      error: error.message,
+    });
+  }
+});
+
+router.put('/:idIdoso', authenticateToken, async (req, res) => {
+  try {
+    const { idIdoso } = req.params;
+    const idResponsavel = getResponsavelId(req);
+
+    const {
+      IdMobilidade,
+      IdNivelAutonomia,
+      Nome,
+      DataNascimento,
+      Sexo,
+      CuidadosMedicos,
+      DescricaoExtra,
+      UsaMedicacao,
+      MedicacaoDetalhes,
+      PrecisaBanho,
+      BanhoDetalhes,
+      PrecisaAlimentacao,
+      AlimentacaoDetalhes,
+      PrecisaAcompanhamento,
+      AcompanhamentoDetalhes,
+    } = req.body;
+
+    const existe = await db.query(
+      `SELECT IdIdoso FROM idoso WHERE IdIdoso = ? AND IdResponsavel = ? LIMIT 1`,
+      [idIdoso, idResponsavel]
+    );
+
+    if (!existe || existe.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Idoso não encontrado ou sem permissão para editar.',
+      });
+    }
+
+    await db.query(
+      `
+      UPDATE idoso
+      SET
+        IdMobilidade = ?,
+        IdNivelAutonomia = ?,
+        Nome = ?,
+        DataNascimento = ?,
+        Sexo = ?,
+        CuidadosMedicos = ?,
+        DescricaoExtra = ?,
+        UsaMedicacao = ?,
+        MedicacaoDetalhes = ?,
+        PrecisaBanho = ?,
+        BanhoDetalhes = ?,
+        PrecisaAlimentacao = ?,
+        AlimentacaoDetalhes = ?,
+        PrecisaAcompanhamento = ?,
+        AcompanhamentoDetalhes = ?
+      WHERE IdIdoso = ? AND IdResponsavel = ?
+      `,
+      [
+        IdMobilidade || null,
+        IdNivelAutonomia || null,
+        Nome,
+        DataNascimento || null,
+        Sexo || null,
+        CuidadosMedicos || null,
+        DescricaoExtra || null,
+        UsaMedicacao || null,
+        MedicacaoDetalhes || null,
+        PrecisaBanho || null,
+        BanhoDetalhes || null,
+        PrecisaAlimentacao || null,
+        AlimentacaoDetalhes || null,
+        PrecisaAcompanhamento || null,
+        AcompanhamentoDetalhes || null,
+        idIdoso,
+        idResponsavel,
+      ]
+    );
+
+    return res.json({
+      success: true,
+      message: 'Dados do idoso atualizados com sucesso.',
+    });
+  } catch (error) {
+    console.error('Erro ao atualizar idoso:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Erro ao atualizar idoso.',
       error: error.message,
     });
   }
