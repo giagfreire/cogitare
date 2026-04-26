@@ -371,32 +371,55 @@ router.post('/aceitar-vaga', authenticateToken, async (req, res) => {
 
 /**
  * MINHAS VAGAS ACEITAS
+ * Retorna somente as vagas aceitas pelo cuidador logado.
+ * Aqui o WhatsApp do responsável é liberado.
  */
 router.get('/minhas-vagas', authenticateToken, async (req, res) => {
   try {
     const idCuidador = req.user.id;
 
     const rows = await db.query(
-      `SELECT
+      `
+      SELECT
         vc.IdVagaCuidador,
         vc.IdVaga,
         vc.IdCuidador,
         vc.DataAceite,
+
+        v.IdResponsavel,
+        v.IdIdoso,
         v.Titulo,
         v.Descricao,
+        v.Cep,
         v.Cidade,
+        v.Bairro,
+        v.Rua,
         v.DataServico,
         v.HoraInicio,
         v.HoraFim,
         v.Valor,
         v.Status,
+        v.WhatsappContato,
+
         r.Nome AS NomeResponsavel,
-        r.Telefone AS TelefoneResponsavel
+        r.Telefone AS TelefoneResponsavel,
+        r.Email AS EmailResponsavel,
+
+        i.Nome AS NomeIdoso,
+        i.DataNascimento AS DataNascimentoIdoso,
+        i.Sexo AS SexoIdoso,
+        i.CuidadosMedicos,
+        i.DescricaoExtra,
+        i.IdMobilidade AS Mobilidade,
+        i.IdNivelAutonomia AS NivelAutonomia
+
       FROM vagacuidador vc
       INNER JOIN vaga v ON v.IdVaga = vc.IdVaga
       INNER JOIN responsavel r ON r.IdResponsavel = v.IdResponsavel
+      LEFT JOIN idoso i ON i.IdIdoso = v.IdIdoso
       WHERE vc.IdCuidador = ?
-      ORDER BY vc.IdVagaCuidador DESC`,
+      ORDER BY vc.IdVagaCuidador DESC
+      `,
       [idCuidador]
     );
 
@@ -413,7 +436,6 @@ router.get('/minhas-vagas', authenticateToken, async (req, res) => {
     });
   }
 });
-
 /**
  * STATUS DO PLANO DO CUIDADOR LOGADO
  */

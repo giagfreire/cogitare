@@ -60,8 +60,9 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
   }
 
   String getSaudacao() {
-    final sexo =
-        (_cuidador?['sexo'] ?? _cuidador?['Sexo'] ?? '').toString().toLowerCase();
+    final sexo = (_cuidador?['sexo'] ?? _cuidador?['Sexo'] ?? '')
+        .toString()
+        .toLowerCase();
 
     if (sexo == 'feminino') return 'Bem-vinda';
     if (sexo == 'masculino') return 'Bem-vindo';
@@ -79,39 +80,37 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
   }
 
   String _fotoTexto() {
-    return (_cuidador?['fotoUrl'] ??
-            _cuidador?['FotoUrl'] ??
+    return (_cuidador?['FotoUrl'] ??
+            _cuidador?['fotoUrl'] ??
             _cuidador?['foto_url'] ??
             '')
         .toString()
         .trim();
   }
 
-ImageProvider? _fotoProvider() {
-  final foto = _cuidador?['FotoUrl'] ??
-      _cuidador?['fotoUrl'] ??
-      _cuidador?['foto_url'];
+  ImageProvider? _fotoProvider() {
+    final texto = _fotoTexto();
 
-  if (foto == null) return null;
-
-  final texto = foto.toString().trim();
-
-  if (texto.isEmpty || texto.toLowerCase() == 'null') return null;
-
-  if (texto.startsWith('data:image')) {
-    try {
-      return MemoryImage(base64Decode(texto.split(',').last));
-    } catch (_) {
+    if (texto.isEmpty || texto.toLowerCase() == 'null') {
       return null;
     }
+
+    if (texto.startsWith('data:image')) {
+      try {
+        final Uint8List bytes = base64Decode(texto.split(',').last);
+        return MemoryImage(bytes);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    if (texto.startsWith('http://') || texto.startsWith('https://')) {
+      return NetworkImage(texto);
+    }
+
+    return null;
   }
 
-  if (texto.startsWith('http://') || texto.startsWith('https://')) {
-    return NetworkImage(texto);
-  }
-
-  return null;
-}
   Future<void> _carregarDados() async {
     setState(() {
       _isLoading = true;
@@ -183,30 +182,31 @@ ImageProvider? _fotoProvider() {
     final restante = _limitePlano - _usosPlano;
     return restante < 0 ? 0 : restante;
   }
-double getUsoPercentual() {
-  if (_limitePlano <= 0) return 0.0;
 
-  final valor = _usosPlano / _limitePlano;
+  double getUsoPercentual() {
+    if (_limitePlano <= 0) return 0.0;
 
-  if (valor > 1) return 1.0;
-  if (valor < 0) return 0.0;
+    final valor = _usosPlano / _limitePlano;
 
-  return valor.toDouble();
-}
+    if (valor > 1) return 1.0;
+    if (valor < 0) return 0.0;
 
-bool get _planoGratuito {
-  return _planoAtual.toLowerCase() == 'gratuito' || _limitePlano <= 0;
-}
+    return valor.toDouble();
+  }
 
-bool get _limiteAtingido {
-  return !_planoGratuito && _usosPlano >= _limitePlano;
-}
+  bool get _planoGratuito {
+    return _planoAtual.toLowerCase() == 'gratuito' || _limitePlano <= 0;
+  }
 
-String get _nomePlanoExibicao {
-  if (_planoGratuito) return 'Plano Gratuito';
-  if (_planoAtual.toLowerCase() == 'premium') return 'Plano Premium';
-  return 'Plano Básico';
-}
+  bool get _limiteAtingido {
+    return !_planoGratuito && _usosPlano >= _limitePlano;
+  }
+
+  String get _nomePlanoExibicao {
+    if (_planoGratuito) return 'Plano Gratuito';
+    if (_planoAtual.toLowerCase() == 'premium') return 'Plano Premium';
+    return 'Plano Básico';
+  }
 
   int getPerfilCompletoPercentual() {
     int preenchidos = 0;
@@ -215,7 +215,7 @@ String get _nomePlanoExibicao {
     final cidade = _cuidador?['cidade'] ?? _cuidador?['Cidade'];
     final telefone = _cuidador?['telefone'] ?? _cuidador?['Telefone'];
     final bio = _cuidador?['biografia'] ?? _cuidador?['Biografia'];
-    final foto = _fotoProvider();
+    final foto = _fotoTexto();
 
     if (cidade != null && cidade.toString().trim().isNotEmpty) preenchidos++;
     if (telefone != null && telefone.toString().trim().isNotEmpty) preenchidos++;
@@ -248,13 +248,6 @@ String get _nomePlanoExibicao {
     if (inicio.isEmpty) return fim;
 
     return '$inicio às $fim';
-  }
-
-  String _formatarValor(dynamic valor) {
-    if (valor == null) return 'R\$ 0,00';
-
-    final numero = double.tryParse(valor.toString()) ?? 0;
-    return 'R\$ ${numero.toStringAsFixed(2).replaceAll('.', ',')}';
   }
 
   Future<void> _abrirPerfil() async {
@@ -382,7 +375,7 @@ String get _nomePlanoExibicao {
                           titulo: 'Vagas disponíveis',
                           icon: Icons.work_outline,
                           cor: roxo,
-                         onTap: _abrirVagas,
+                          onTap: _abrirVagas,
                         ),
                         _buildActionBox(
                           titulo: 'Agenda',
@@ -440,6 +433,8 @@ String get _nomePlanoExibicao {
                     _buildResumoPerfilCard(),
                     const SizedBox(height: 24),
                     _buildCompletarPerfilCard(),
+                    const SizedBox(height: 24),
+                    _buildSobreCard(),
                   ],
                 ),
               ),
@@ -535,79 +530,87 @@ String get _nomePlanoExibicao {
     );
   }
 
-Widget _buildPlanoStatusCard() {
-  final restante = getContatosRestantes();
+  Widget _buildPlanoStatusCard() {
+    final restante = getContatosRestantes();
 
-  String titulo;
-  String descricao;
-  Color corIcone;
-  IconData icone;
+    String titulo;
+    String descricao;
+    Color corIcone;
+    IconData icone;
 
-  if (_planoGratuito) {
-    titulo = 'Plano gratuito';
-    descricao =
-        'Você ainda não pode acessar vagas. Escolha um plano para liberar contatos.';
-    corIcone = Colors.grey;
-    icone = Icons.lock_outline;
-  } else if (_limiteAtingido) {
-    titulo = 'Limite do plano atingido';
-    descricao =
-        'Você usou todos os contatos disponíveis. Compre um novo plano para continuar aceitando vagas.';
-    corIcone = Colors.orange;
-    icone = Icons.warning_amber_rounded;
-  } else {
-    titulo = 'Plano ativo';
-    descricao = 'Você ainda pode aceitar vagas normalmente.';
-    corIcone = verde;
-    icone = Icons.check_circle;
-  }
+    if (_planoGratuito) {
+      titulo = 'Plano gratuito';
+      descricao =
+          'Você ainda não pode acessar vagas. Escolha um plano para liberar contatos.';
+      corIcone = Colors.grey;
+      icone = Icons.lock_outline;
+    } else if (_limiteAtingido) {
+      titulo = 'Limite do plano atingido';
+      descricao =
+          'Você usou todos os contatos disponíveis. Compre um novo plano para continuar aceitando vagas.';
+      corIcone = Colors.orange;
+      icone = Icons.warning_amber_rounded;
+    } else {
+      titulo = 'Plano ativo';
+      descricao = 'Você ainda pode aceitar vagas normalmente. Restam $restante contatos.';
+      corIcone = verde;
+      icone = Icons.check_circle;
+    }
 
-  return Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(18),
-    decoration: _cardDecoration(),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            CircleAvatar(
-              backgroundColor: corIcone.withOpacity(0.2),
-              child: Icon(icone, color: roxo),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                titulo,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: roxo,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: corIcone.withOpacity(0.2),
+                child: Icon(icone, color: roxo),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  titulo,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: roxo,
+                  ),
                 ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Text(
-          descricao,
-          style: TextStyle(color: roxo.withOpacity(0.7)),
-        ),
-        const SizedBox(height: 16),
-        ElevatedButton(
-          onPressed: _abrirPlanos,
-          child: Text(
-            _planoGratuito
-                ? 'Escolher plano'
-                : _limiteAtingido
-                    ? 'Comprar novo plano'
-                    : 'Gerenciar plano',
+            ],
           ),
-        ),
-      ],
-    ),
-  );
-}
+          const SizedBox(height: 16),
+          Text(
+            descricao,
+            style: TextStyle(color: roxo.withOpacity(0.7)),
+          ),
+          const SizedBox(height: 16),
+          LinearProgressIndicator(
+            value: getUsoPercentual(),
+            minHeight: 8,
+            backgroundColor: roxo.withOpacity(0.08),
+            valueColor: const AlwaysStoppedAnimation(rosa),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _abrirPlanos,
+            child: Text(
+              _planoGratuito
+                  ? 'Escolher plano'
+                  : _limiteAtingido
+                      ? 'Comprar novo plano'
+                      : 'Gerenciar plano',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildNextServiceCard() {
     if (_servicosAceitos.isEmpty) {
@@ -628,7 +631,7 @@ Widget _buildPlanoStatusCard() {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Nenhum atendimento agendado',
+                    'Nenhum atendimento aceito',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -637,7 +640,7 @@ Widget _buildPlanoStatusCard() {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Assim que você aceitar uma vaga, ela vai aparecer aqui.',
+                    'Quando você aceitar uma vaga, ela vai aparecer aqui.',
                     style: TextStyle(
                       fontSize: 14,
                       color: roxo.withOpacity(0.72),
@@ -675,7 +678,7 @@ Widget _buildPlanoStatusCard() {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  servico['Titulo']?.toString() ?? 'Atendimento agendado',
+                  servico['Titulo']?.toString() ?? 'Atendimento aceito',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -705,9 +708,9 @@ Widget _buildPlanoStatusCard() {
           ),
           const SizedBox(height: 8),
           _linhaServico(
-            Icons.attach_money,
-            'Valor',
-            _formatarValor(servico['Valor']),
+            Icons.location_on_outlined,
+            'Cidade',
+            valorOuPadrao(servico['Cidade']),
           ),
           const SizedBox(height: 14),
           SizedBox(

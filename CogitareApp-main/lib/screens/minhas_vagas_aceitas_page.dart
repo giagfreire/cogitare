@@ -108,33 +108,37 @@ class _MinhasVagasAceitasPageState extends State<MinhasVagasAceitasPage> {
   }
 
   Future<void> _abrirWhatsapp(String numero) async {
-    final telefone = _somenteNumeros(numero);
+  String telefone = _somenteNumeros(numero);
 
-    if (telefone.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('WhatsApp não informado para esta vaga.'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    final uri = Uri.parse('https://wa.me/55$telefone');
-
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Não foi possível abrir o WhatsApp.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+  if (telefone.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('WhatsApp não informado para esta vaga.'),
+        backgroundColor: Colors.orange,
+      ),
+    );
+    return;
   }
+
+  if (!telefone.startsWith('55')) {
+    telefone = '55$telefone';
+  }
+
+  final uri = Uri.parse('https://wa.me/$telefone');
+
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  } else {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Não foi possível abrir o WhatsApp.'),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+}
 
   Color _corStatus(String status) {
     final s = status.toLowerCase();
@@ -539,31 +543,35 @@ class DetalheVagaAceitaPage extends StatelessWidget {
   }
 
   Future<void> _abrirWhatsapp(BuildContext context, String numero) async {
-    final telefone = _somenteNumeros(numero);
+  String telefone = _somenteNumeros(numero);
 
-    if (telefone.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('WhatsApp não informado para esta vaga.'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    final uri = Uri.parse('https://wa.me/55$telefone');
-
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Não foi possível abrir o WhatsApp.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+  if (telefone.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('WhatsApp não informado para esta vaga.'),
+        backgroundColor: Colors.orange,
+      ),
+    );
+    return;
   }
+
+  if (!telefone.startsWith('55')) {
+    telefone = '55$telefone';
+  }
+
+  final uri = Uri.parse('https://wa.me/$telefone');
+
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  } else {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Não foi possível abrir o WhatsApp.'),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+}
 
   Widget _detalheLinha(IconData icon, String label, String valor) {
     return Row(
