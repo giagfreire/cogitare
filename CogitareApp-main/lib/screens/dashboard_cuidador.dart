@@ -87,36 +87,31 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
         .trim();
   }
 
-  ImageProvider? _fotoProvider() {
-    final fotoUrl = _fotoTexto();
+ImageProvider? _fotoProvider() {
+  final foto = _cuidador?['FotoUrl'] ??
+      _cuidador?['fotoUrl'] ??
+      _cuidador?['foto_url'];
 
-    if (fotoUrl.isEmpty || fotoUrl.toLowerCase() == 'null') {
-      return null;
-    }
+  if (foto == null) return null;
 
-    if (fotoUrl.startsWith('data:image')) {
-      try {
-        final base64String = fotoUrl.split(',').last;
-        final Uint8List bytes = base64Decode(base64String);
-        return MemoryImage(bytes);
-      } catch (e) {
-        debugPrint('Erro ao carregar imagem base64: $e');
-        return null;
-      }
-    }
+  final texto = foto.toString().trim();
 
-    if (fotoUrl.startsWith('http://') || fotoUrl.startsWith('https://')) {
-      return NetworkImage(fotoUrl);
-    }
+  if (texto.isEmpty || texto.toLowerCase() == 'null') return null;
 
+  if (texto.startsWith('data:image')) {
     try {
-      final Uint8List bytes = base64Decode(fotoUrl);
-      return MemoryImage(bytes);
+      return MemoryImage(base64Decode(texto.split(',').last));
     } catch (_) {
       return null;
     }
   }
 
+  if (texto.startsWith('http://') || texto.startsWith('https://')) {
+    return NetworkImage(texto);
+  }
+
+  return null;
+}
   Future<void> _carregarDados() async {
     setState(() {
       _isLoading = true;
@@ -188,14 +183,30 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
     final restante = _limitePlano - _usosPlano;
     return restante < 0 ? 0 : restante;
   }
+double getUsoPercentual() {
+  if (_limitePlano <= 0) return 0.0;
 
-  double getUsoPercentual() {
-    if (_limitePlano <= 0) return 0;
-    final valor = _usosPlano / _limitePlano;
-    if (valor > 1) return 1;
-    if (valor < 0) return 0;
-    return valor;
-  }
+  final valor = _usosPlano / _limitePlano;
+
+  if (valor > 1) return 1.0;
+  if (valor < 0) return 0.0;
+
+  return valor.toDouble();
+}
+
+bool get _planoGratuito {
+  return _planoAtual.toLowerCase() == 'gratuito' || _limitePlano <= 0;
+}
+
+bool get _limiteAtingido {
+  return !_planoGratuito && _usosPlano >= _limitePlano;
+}
+
+String get _nomePlanoExibicao {
+  if (_planoGratuito) return 'Plano Gratuito';
+  if (_planoAtual.toLowerCase() == 'premium') return 'Plano Premium';
+  return 'Plano Básico';
+}
 
   int getPerfilCompletoPercentual() {
     int preenchidos = 0;
@@ -204,7 +215,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
     final cidade = _cuidador?['cidade'] ?? _cuidador?['Cidade'];
     final telefone = _cuidador?['telefone'] ?? _cuidador?['Telefone'];
     final bio = _cuidador?['biografia'] ?? _cuidador?['Biografia'];
-    final foto = _fotoTexto();
+    final foto = _fotoProvider();
 
     if (cidade != null && cidade.toString().trim().isNotEmpty) preenchidos++;
     if (telefone != null && telefone.toString().trim().isNotEmpty) preenchidos++;
@@ -371,7 +382,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                           titulo: 'Vagas disponíveis',
                           icon: Icons.work_outline,
                           cor: roxo,
-                          onTap: _abrirVagas,
+                         onTap: _abrirVagas,
                         ),
                         _buildActionBox(
                           titulo: 'Agenda',
@@ -427,17 +438,6 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                     ),
                     const SizedBox(height: 12),
                     _buildResumoPerfilCard(),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'Sobre você',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: roxo,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildSobreCard(),
                     const SizedBox(height: 24),
                     _buildCompletarPerfilCard(),
                   ],
@@ -502,7 +502,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
                   borderRadius: BorderRadius.circular(30),
                 ),
                 child: Text(
-                  _planoAtual,
+                  _nomePlanoExibicao,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: _planoAtual.toLowerCase() == 'premium'
@@ -535,90 +535,79 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
     );
   }
 
-  Widget _buildPlanoStatusCard() {
-    final restante = getContatosRestantes();
-    final premium = _planoAtual.toLowerCase() == 'premium';
+Widget _buildPlanoStatusCard() {
+  final restante = getContatosRestantes();
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: _cardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              CircleAvatar(
-                backgroundColor:
-                    premium ? verde.withOpacity(0.22) : rosa.withOpacity(0.12),
-                child: Icon(
-                  premium
-                      ? Icons.workspace_premium_rounded
-                      : Icons.star_border_rounded,
-                  color: premium ? Colors.black : roxo,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  premium ? 'Premium ativo' : 'Plano básico ativo',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: roxo,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(child: _miniResumoItem('Usados', '$_usosPlano')),
-              const SizedBox(width: 10),
-              Expanded(child: _miniResumoItem('Limite', '$_limitePlano')),
-              const SizedBox(width: 10),
-              Expanded(child: _miniResumoItem('Restantes', '$restante')),
-            ],
-          ),
-          const SizedBox(height: 16),
-          LinearProgressIndicator(
-            value: getUsoPercentual(),
-            minHeight: 8,
-            backgroundColor: roxo.withOpacity(0.08),
-            valueColor: AlwaysStoppedAnimation(premium ? verde : rosa),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            premium
-                ? 'Seu plano Premium aumenta seu alcance e libera mais contatos.'
-                : 'Quer acessar mais contatos? Atualize para Premium.',
-            style: TextStyle(
-              fontSize: 14,
-              color: roxo.withOpacity(0.76),
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _abrirPlanos,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: premium ? roxo : rosa,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              child: Text(premium ? 'Gerenciar plano' : 'Atualizar plano'),
-            ),
-          ),
-        ],
-      ),
-    );
+  String titulo;
+  String descricao;
+  Color corIcone;
+  IconData icone;
+
+  if (_planoGratuito) {
+    titulo = 'Plano gratuito';
+    descricao =
+        'Você ainda não pode acessar vagas. Escolha um plano para liberar contatos.';
+    corIcone = Colors.grey;
+    icone = Icons.lock_outline;
+  } else if (_limiteAtingido) {
+    titulo = 'Limite do plano atingido';
+    descricao =
+        'Você usou todos os contatos disponíveis. Compre um novo plano para continuar aceitando vagas.';
+    corIcone = Colors.orange;
+    icone = Icons.warning_amber_rounded;
+  } else {
+    titulo = 'Plano ativo';
+    descricao = 'Você ainda pode aceitar vagas normalmente.';
+    corIcone = verde;
+    icone = Icons.check_circle;
   }
+
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(18),
+    decoration: _cardDecoration(),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            CircleAvatar(
+              backgroundColor: corIcone.withOpacity(0.2),
+              child: Icon(icone, color: roxo),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                titulo,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: roxo,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Text(
+          descricao,
+          style: TextStyle(color: roxo.withOpacity(0.7)),
+        ),
+        const SizedBox(height: 16),
+        ElevatedButton(
+          onPressed: _abrirPlanos,
+          child: Text(
+            _planoGratuito
+                ? 'Escolher plano'
+                : _limiteAtingido
+                    ? 'Comprar novo plano'
+                    : 'Gerenciar plano',
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildNextServiceCard() {
     if (_servicosAceitos.isEmpty) {

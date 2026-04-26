@@ -21,10 +21,12 @@ class PerfilCuidadorPage extends StatefulWidget {
 class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
   bool _isLoading = true;
   bool _isUploadingFoto = false;
+
   String? _errorMessage;
   Map<String, dynamic>? _cuidador;
-  String _planoAtual = 'Básico';
 
+  String _planoAtual = 'Básico';
+  int? _cuidadorId;
   Uint8List? _fotoSelecionada;
 
   static const Color roxo = Color(0xFF42124C);
@@ -49,8 +51,10 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
     if (data == null) return 'Não informado';
 
     final texto = data.toString();
+
     if (texto.length >= 10 && texto.contains('-')) {
       final partes = texto.substring(0, 10).split('-');
+
       if (partes.length == 3) {
         return '${partes[2]}/${partes[1]}/${partes[0]}';
       }
@@ -65,26 +69,46 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
     return int.tryParse(valor.toString());
   }
 
+dynamic _campo(String a, [String? b, String? c]) {
+  if (_cuidador == null) return null;
+
+  if (_cuidador!.containsKey(a)) {
+    return _cuidador![a];
+  }
+
+  if (b != null && _cuidador!.containsKey(b)) {
+    return _cuidador![b];
+  }
+
+  if (c != null && _cuidador!.containsKey(c)) {
+    return _cuidador![c];
+  }
+
+  return null;
+}
+
   ImageProvider? _fotoProvider() {
     if (_fotoSelecionada != null) {
       return MemoryImage(_fotoSelecionada!);
     }
 
-    final fotoUrl = _cuidador?['fotoUrl']?.toString();
+    final fotoUrl = (_campo('fotoUrl', 'FotoUrl', 'foto_url'))?.toString().trim();
 
-    if (fotoUrl != null && fotoUrl.isNotEmpty) {
-      if (fotoUrl.startsWith('data:image')) {
+    if (fotoUrl == null || fotoUrl.isEmpty || fotoUrl.toLowerCase() == 'null') {
+      return null;
+    }
+
+    if (fotoUrl.startsWith('data:image')) {
+      try {
         final base64String = fotoUrl.split(',').last;
-        try {
-          return MemoryImage(base64Decode(base64String));
-        } catch (_) {
-          return null;
-        }
+        return MemoryImage(base64Decode(base64String));
+      } catch (_) {
+        return null;
       }
+    }
 
-      if (fotoUrl.startsWith('http://') || fotoUrl.startsWith('https://')) {
-        return NetworkImage(fotoUrl);
-      }
+    if (fotoUrl.startsWith('http://') || fotoUrl.startsWith('https://')) {
+      return NetworkImage(fotoUrl);
     }
 
     return null;
@@ -106,6 +130,7 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
       }
 
       if (userType != 'cuidador' || userData == null) {
+        if (!mounted) return;
         setState(() {
           _errorMessage = 'Não foi possível identificar o cuidador logado.';
           _isLoading = false;
@@ -113,15 +138,18 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
         return;
       }
 
-      final dynamic cuidadorIdDinamico = userData['IdCuidador'] ??
-          userData['idCuidador'] ??
-          userData['cuidadorId'] ??
-          userData['id'] ??
-          userData['Id'];
+      final cuidadorId = _parseInt(
+        userData['IdCuidador'] ??
+            userData['idCuidador'] ??
+            userData['cuidadorId'] ??
+            userData['id'] ??
+            userData['Id'],
+      );
 
-      final int? cuidadorId = _parseInt(cuidadorIdDinamico);
+      _cuidadorId = cuidadorId;
 
       if (cuidadorId == null) {
+        if (!mounted) return;
         setState(() {
           _errorMessage = 'ID do cuidador não encontrado.';
           _isLoading = false;
@@ -131,24 +159,21 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
 
       final responseCuidador = await ServicoApi.get('/api/cuidador/$cuidadorId');
 
-      if (responseCuidador['success'] == true &&
-          responseCuidador['data'] != null) {
+      if (responseCuidador['success'] == true && responseCuidador['data'] != null) {
         _cuidador = Map<String, dynamic>.from(responseCuidador['data']);
       } else {
-        _errorMessage =
-            responseCuidador['message'] ?? 'Erro ao carregar perfil.';
+        _errorMessage = responseCuidador['message'] ?? 'Erro ao carregar perfil.';
       }
 
       try {
-        final responsePlano =
-            await ServicoApi.get('/api/cuidador/$cuidadorId/plano');
+        final responsePlano = await ServicoApi.get('/api/cuidador/$cuidadorId/plano');
 
-        if (responsePlano['success'] == true &&
-            responsePlano['data'] != null) {
-          _planoAtual =
-              (responsePlano['data']['PlanoAtual'] ?? 'Básico').toString();
+        if (responsePlano['success'] == true && responsePlano['data'] != null) {
+          _planoAtual = (responsePlano['data']['PlanoAtual'] ?? 'Básico').toString();
         }
-      } catch (_) {}
+      } catch (_) {
+        _planoAtual = 'Básico';
+      }
 
       if (!mounted) return;
       setState(() {
@@ -177,17 +202,53 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
       if (imagem == null) return;
 
       final bytes = await imagem.readAsBytes();
+      final base64Foto = base64Encode(bytes);
+      final fotoUrl = 'data:image/jpeg;base64,$base64Foto';
 
       setState(() {
         _fotoSelecionada = bytes;
         _isUploadingFoto = true;
       });
 
-      final base64Foto = base64Encode(bytes);
-      final fotoUrl = 'data:image/jpeg;base64,$base64Foto';
+      final token = await ServicoAutenticacao.getToken();
+      final userData = await ServicoAutenticacao.getUserData();
 
-      final response = await ServicoApi.put('/api/cuidador/foto', {
+      if (token != null && token.isNotEmpty) {
+        ServicoApi.setToken(token);
+      }
+
+      final cuidadorId = _cuidadorId ??
+          _parseInt(
+            userData?['IdCuidador'] ??
+                userData?['idCuidador'] ??
+                userData?['cuidadorId'] ??
+                userData?['id'] ??
+                userData?['Id'],
+          );
+
+      if (cuidadorId == null) {
+        throw Exception('ID do cuidador não encontrado.');
+      }
+
+      final response = await ServicoApi.put('/api/cuidador/$cuidadorId', {
+        'nome': _campo('Nome', 'nome'),
+        'telefone': _campo('Telefone', 'telefone'),
+        'cpf': _campo('Cpf', 'CPF', 'cpf'),
+        'dataNascimento': _campo('DataNascimento', 'dataNascimento'),
+        'sexo': _campo('Sexo', 'sexo'),
+        'cidade': _campo('Cidade', 'cidade'),
+        'biografia': _campo('Biografia', 'biografia'),
         'fotoUrl': fotoUrl,
+        'escolaridade': _campo('Escolaridade', 'escolaridade'),
+        'experienciaProfissional': _campo(
+          'ExperienciaProfissional',
+          'experienciaProfissional',
+        ),
+        'trabalhosFeitos': _campo('TrabalhosFeitos', 'trabalhosFeitos'),
+        'diplomasCertificados': _campo(
+          'DiplomasCertificados',
+          'diplomasCertificados',
+        ),
       });
 
       if (!mounted) return;
@@ -197,9 +258,14 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
           _cuidador = {
             ...?_cuidador,
             'fotoUrl': fotoUrl,
+            'FotoUrl': fotoUrl,
           };
           _isUploadingFoto = false;
         });
+
+        await _carregarDados();
+
+        if (!mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Foto atualizada com sucesso!')),
@@ -412,43 +478,38 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
 
   @override
   Widget build(BuildContext context) {
-    final nome = _textoSeguro(
-      _cuidador?['Nome'] ?? _cuidador?['nome'],
-      fallback: 'Cuidador',
-    );
-    final email = _textoSeguro(_cuidador?['Email'] ?? _cuidador?['email']);
-    final telefone = _textoSeguro(
-      _cuidador?['Telefone'] ?? _cuidador?['telefone'],
-    );
-    final cpf = _textoSeguro(_cuidador?['CPF'] ?? _cuidador?['cpf']);
-    final cidade = _textoSeguro(_cuidador?['Cidade'] ?? _cuidador?['cidade']);
-    final sexo = _textoSeguro(
-      _cuidador?['Sexo'] ?? _cuidador?['sexo'],
-    );
+    final nome = _textoSeguro(_campo('Nome', 'nome'), fallback: 'Cuidador');
+    final email = _textoSeguro(_campo('Email', 'email'));
+    final telefone = _textoSeguro(_campo('Telefone', 'telefone'));
+    final cpf = _textoSeguro(_campo('Cpf', 'CPF', 'cpf'));
+    final cidade = _textoSeguro(_campo('Cidade', 'cidade'));
+    final sexo = _textoSeguro(_campo('Sexo', 'sexo'));
     final biografia = _textoSeguro(
-      _cuidador?['Biografia'] ?? _cuidador?['biografia'],
+      _campo('Biografia', 'biografia'),
       fallback: 'Você ainda não cadastrou uma biografia.',
     );
+
     final dataNascimento = _formatarData(
-      _cuidador?['DataNascimento'] ?? _cuidador?['dataNascimento'],
+      _campo('DataNascimento', 'dataNascimento'),
     );
 
     final escolaridade = _textoSeguro(
-      _cuidador?['Escolaridade'] ?? _cuidador?['escolaridade'],
+      _campo('Escolaridade', 'escolaridade'),
       fallback: 'Escolaridade ainda não informada.',
     );
+
     final experienciaProfissional = _textoSeguro(
-      _cuidador?['ExperienciaProfissional'] ??
-          _cuidador?['experienciaProfissional'],
+      _campo('ExperienciaProfissional', 'experienciaProfissional'),
       fallback: 'Experiência profissional ainda não informada.',
     );
+
     final trabalhosFeitos = _textoSeguro(
-      _cuidador?['TrabalhosFeitos'] ?? _cuidador?['trabalhosFeitos'],
+      _campo('TrabalhosFeitos', 'trabalhosFeitos'),
       fallback: 'Trabalhos anteriores ainda não informados.',
     );
+
     final diplomasCertificados = _textoSeguro(
-      _cuidador?['DiplomasCertificados'] ??
-          _cuidador?['diplomasCertificados'],
+      _campo('DiplomasCertificados', 'diplomasCertificados'),
       fallback: 'Diplomas e certificados ainda não informados.',
     );
 

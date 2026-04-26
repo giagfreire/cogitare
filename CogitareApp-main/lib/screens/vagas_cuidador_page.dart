@@ -1,8 +1,10 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 import '../services/api_cuidador.dart';
-import 'planos_cuidador_page.dart';
 import 'minhas_vagas_aceitas_page.dart';
+import 'planos_cuidador_page.dart';
 
 class VagasCuidadorPage extends StatefulWidget {
   const VagasCuidadorPage({super.key});
@@ -14,7 +16,7 @@ class VagasCuidadorPage extends StatefulWidget {
 class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
   List<Map<String, dynamic>> vagas = [];
 
-  String _planoAtual = 'Básico';
+  String _planoAtual = 'Gratuito';
   int _usosPlano = 0;
   int _limitePlano = 0;
 
@@ -43,17 +45,13 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
         if (response['success'] == true && response['data'] != null) {
           final data = Map<String, dynamic>.from(response['data']);
 
-          _planoAtual = (data['PlanoAtual'] ?? 'Básico').toString();
+          _planoAtual = (data['PlanoAtual'] ?? 'Gratuito').toString();
           _usosPlano = int.tryParse('${data['UsosPlano'] ?? 0}') ?? 0;
           _limitePlano = int.tryParse('${data['LimitePlano'] ?? 0}') ?? 0;
-
-          if (_limitePlano <= 0) {
-            _limitePlano = _planoAtual.toLowerCase() == 'premium' ? 20 : 5;
-          }
         } else {
-          _planoAtual = 'Básico';
+          _planoAtual = 'Gratuito';
           _usosPlano = 0;
-          _limitePlano = 5;
+          _limitePlano = 0;
         }
 
         _isLoadingPlano = false;
@@ -62,9 +60,9 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
       if (!mounted) return;
 
       setState(() {
-        _planoAtual = 'Básico';
+        _planoAtual = 'Gratuito';
         _usosPlano = 0;
-        _limitePlano = 5;
+        _limitePlano = 0;
         _isLoadingPlano = false;
       });
     }
@@ -102,9 +100,20 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
     ]);
   }
 
+  bool get _planoGratuito {
+    final plano = _planoAtual.toLowerCase();
+    return plano == 'gratuito' ||
+        plano == 'sem plano' ||
+        plano == 'nenhum' ||
+        _limitePlano <= 0;
+  }
+
+  bool get _limiteAtingido {
+    return !_planoGratuito && _usosPlano >= _limitePlano;
+  }
+
   bool get _bloqueadoPorPlano {
-    if (_limitePlano <= 0) return false;
-    return _usosPlano >= _limitePlano;
+    return _planoGratuito || _limiteAtingido;
   }
 
   int get _contatosRestantes {
@@ -113,14 +122,14 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
   }
 
   double get _usoPercentual {
-    if (_limitePlano <= 0) return 0;
+    if (_limitePlano <= 0) return 0.0;
 
     final valor = _usosPlano / _limitePlano;
 
-    if (valor > 1) return 1;
-    if (valor < 0) return 0;
+    if (valor > 1) return 1.0;
+    if (valor < 0) return 0.0;
 
-    return valor;
+    return valor.toDouble();
   }
 
   Future<void> _abrirPlanos() async {
@@ -136,18 +145,14 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
 
   String _texto(dynamic valor, {String fallback = '-'}) {
     if (valor == null) return fallback;
-
     final texto = valor.toString().trim();
-
     if (texto.isEmpty || texto.toLowerCase() == 'null') return fallback;
-
     return texto;
   }
 
   int _toInt(dynamic valor) {
     if (valor == null) return 0;
     if (valor is int) return valor;
-
     return int.tryParse(valor.toString()) ?? 0;
   }
 
@@ -229,21 +234,23 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
     );
   }
 
-  void _mostrarUpgrade() {
+  void _mostrarBloqueioPlano() {
     showDialog(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Limite do plano atingido'),
+          title: Text(
+            _planoGratuito ? 'Plano necessário' : 'Limite do plano atingido',
+          ),
           content: Text(
-            _planoAtual.toLowerCase() == 'premium'
-                ? 'Você atingiu o limite atual do seu plano.'
-                : 'Você atingiu o limite do Plano Básico. Faça upgrade para Premium e desbloqueie mais oportunidades.',
+            _planoGratuito
+                ? 'Para aceitar vagas e liberar o WhatsApp dos responsáveis, escolha um plano.'
+                : 'Você usou todos os contatos disponíveis neste plano. Compre um novo plano ou faça upgrade para continuar aceitando vagas.',
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Agora não'),
+              child: const Text('Fechar'),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -254,7 +261,7 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
                 backgroundColor: rosa,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('Ver planos'),
+              child: Text(_planoGratuito ? 'Ver planos' : 'Comprar plano'),
             ),
           ],
         );
@@ -264,7 +271,7 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
 
   Future<void> _aceitarVaga(Map<String, dynamic> vaga) async {
     if (_bloqueadoPorPlano) {
-      _mostrarUpgrade();
+      _mostrarBloqueioPlano();
       return;
     }
 
@@ -331,7 +338,7 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
         if (mensagem.toLowerCase().contains('premium') ||
             mensagem.toLowerCase().contains('plano') ||
             mensagem.toLowerCase().contains('limite')) {
-          _mostrarUpgrade();
+          _mostrarBloqueioPlano();
         }
       }
     } catch (e) {
@@ -366,41 +373,17 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
           ),
         ),
         const SizedBox(height: 12),
-        _infoLinha(
-          Icons.work_outline,
-          'Título',
-          _texto(vaga['Titulo']),
-        ),
-        _infoLinha(
-          Icons.location_on_outlined,
-          'Cidade',
-          _texto(vaga['Cidade']),
-        ),
-        _infoLinha(
-          Icons.location_city_outlined,
-          'Bairro',
-          _texto(vaga['Bairro']),
-        ),
-        _infoLinha(
-          Icons.signpost_outlined,
-          'Rua',
-          _texto(vaga['Rua']),
-        ),
+        _infoLinha(Icons.work_outline, 'Título', _texto(vaga['Titulo'])),
+        _infoLinha(Icons.location_on_outlined, 'Cidade', _texto(vaga['Cidade'])),
+        _infoLinha(Icons.location_city_outlined, 'Bairro', _texto(vaga['Bairro'])),
+        _infoLinha(Icons.signpost_outlined, 'Rua', _texto(vaga['Rua'])),
         _infoLinha(
           Icons.calendar_today_outlined,
           'Data',
           _formatarData(vaga['DataServico']),
         ),
-        _infoLinha(
-          Icons.access_time_outlined,
-          'Horário',
-          _formatarHorario(vaga),
-        ),
-        _infoLinha(
-          Icons.attach_money,
-          'Valor',
-          _formatarValor(vaga['Valor']),
-        ),
+        _infoLinha(Icons.access_time_outlined, 'Horário', _formatarHorario(vaga)),
+        _infoLinha(Icons.attach_money, 'Valor', _formatarValor(vaga['Valor'])),
         const SizedBox(height: 12),
         const Text(
           'Descrição da vaga',
@@ -432,21 +415,9 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
           ),
         ),
         const SizedBox(height: 12),
-        _infoLinha(
-          Icons.elderly_outlined,
-          'Nome',
-          _texto(vaga['NomeIdoso']),
-        ),
-        _infoLinha(
-          Icons.cake_outlined,
-          'Idade',
-          _idade(vaga['DataNascimentoIdoso']),
-        ),
-        _infoLinha(
-          Icons.wc_outlined,
-          'Sexo',
-          _texto(vaga['SexoIdoso']),
-        ),
+        _infoLinha(Icons.elderly_outlined, 'Nome', _texto(vaga['NomeIdoso'])),
+        _infoLinha(Icons.cake_outlined, 'Idade', _idade(vaga['DataNascimentoIdoso'])),
+        _infoLinha(Icons.wc_outlined, 'Sexo', _texto(vaga['SexoIdoso'])),
         _infoLinha(
           Icons.accessibility_new_outlined,
           'Mobilidade',
@@ -462,11 +433,7 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
           'Condições médicas',
           _texto(vaga['CuidadosMedicos']),
         ),
-        _infoLinha(
-          Icons.notes_outlined,
-          'Observações',
-          _texto(vaga['DescricaoExtra']),
-        ),
+        _infoLinha(Icons.notes_outlined, 'Observações', _texto(vaga['DescricaoExtra'])),
         const SizedBox(height: 18),
         Container(
           width: double.infinity,
@@ -492,7 +459,11 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
           width: double.infinity,
           height: 52,
           child: ElevatedButton.icon(
-            onPressed: aceitando ? null : () => _aceitarVaga(vaga),
+            onPressed: aceitando
+                ? null
+                : (_planoGratuito || _limiteAtingido)
+                    ? _mostrarBloqueioPlano
+                    : () => _aceitarVaga(vaga),
             icon: aceitando
                 ? const SizedBox(
                     height: 20,
@@ -504,7 +475,13 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
                   )
                 : const Icon(Icons.check_circle_outline),
             label: Text(
-              aceitando ? 'Aceitando...' : 'Aceitar vaga',
+              aceitando
+                  ? 'Aceitando...'
+                  : _planoGratuito
+                      ? 'Ver planos'
+                      : _limiteAtingido
+                          ? 'Comprar plano'
+                          : 'Aceitar vaga',
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
@@ -527,7 +504,7 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
 
   void _verDetalhes(Map<String, dynamic> vaga) {
     if (_bloqueadoPorPlano) {
-      _mostrarUpgrade();
+      _mostrarBloqueioPlano();
       return;
     }
 
@@ -590,278 +567,244 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
       },
     );
   }
+Widget _vagaCard(Map<String, dynamic> vaga) {
+  final bloqueado = _bloqueadoPorPlano;
 
-  Widget _vagaCard(Map<String, dynamic> vaga) {
-    final bloqueado = _bloqueadoPorPlano;
-
-    return Stack(
+  return AnimatedContainer(
+    duration: const Duration(milliseconds: 260),
+    curve: Curves.easeOut,
+    margin: const EdgeInsets.only(bottom: 18),
+    child: Stack(
       children: [
-        Card(
-          elevation: 2,
-          margin: const EdgeInsets.only(bottom: 14),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
+        Container(
+          height: bloqueado ? 270 : null,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: bloqueado
+                  ? rosa.withOpacity(0.5)
+                  : roxo.withOpacity(0.08),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: bloqueado
+                    ? rosa.withOpacity(0.12)
+                    : roxo.withOpacity(0.05),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
-          child: Opacity(
-            opacity: bloqueado ? 0.38 : 1,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _texto(
-                      vaga['Titulo'],
-                      fallback: 'Vaga disponível',
-                    ),
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: roxo,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    bloqueado
-                        ? 'Detalhes bloqueados pelo plano'
-                        : 'Contato liberado somente após aceitar a vaga',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.black54,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  _infoLinha(
-                    Icons.location_on_outlined,
-                    'Cidade',
-                    _texto(vaga['Cidade']),
-                  ),
-                  if (!bloqueado) ...[
-                    _infoLinha(
-                      Icons.calendar_today_outlined,
-                      'Data',
-                      _formatarData(vaga['DataServico']),
-                    ),
-                    _infoLinha(
-                      Icons.access_time_outlined,
-                      'Horário',
-                      _formatarHorario(vaga),
-                    ),
-                    _infoLinha(
-                      Icons.attach_money,
-                      'Valor',
-                      _formatarValor(vaga['Valor']),
-                    ),
-                  ],
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: bloqueado
-                          ? _abrirPlanos
-                          : () => _verDetalhes(vaga),
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(
-                          color: bloqueado ? rosa : roxo,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: Container(
+              padding: const EdgeInsets.all(18),
+              color: Colors.white,
+              child: Opacity(
+                opacity: bloqueado ? 0.3 : 1,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: rosa.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(999),
                       ),
-                      child: Text(
-                        bloqueado ? 'Ver planos' : 'Ver detalhes',
+                      child: const Text(
+                        'Cuidado de idoso',
                         style: TextStyle(
-                          color: bloqueado ? rosa : roxo,
-                          fontWeight: FontWeight.w600,
+                          color: rosa,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 10),
+                    Text(
+                      bloqueado
+                          ? 'Cuidador para idoso'
+                          : _texto(vaga['Titulo']),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: roxo,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _infoLinha(
+                      Icons.location_on_outlined,
+                      'Cidade',
+                      bloqueado
+                          ? 'São Paulo - SP'
+                          : _texto(vaga['Cidade']),
+                    ),
+                    if (!bloqueado) ...[
+                      _infoLinha(
+                        Icons.calendar_today_outlined,
+                        'Data',
+                        _formatarData(vaga['DataServico']),
+                      ),
+                      _infoLinha(
+                        Icons.access_time_outlined,
+                        'Horário',
+                        _formatarHorario(vaga),
+                      ),
+                      _infoLinha(
+                        Icons.attach_money,
+                        'Valor',
+                        _formatarValor(vaga['Valor']),
+                      ),
+                    ] else
+                      const Text(
+                        'R\$ 150,00 / diária',
+                        style: TextStyle(
+                          color: verde,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
+
+        /// 🔥 OVERLAY BLOQUEADO (CORRIGIDO)
         if (bloqueado)
           Positioned.fill(
-            child: IgnorePointer(
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 14),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
-                  color: Colors.white.withOpacity(0.42),
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.lock_outline,
-                    color: roxo,
-                    size: 34,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                child: Container(
+                  color: Colors.white.withOpacity(0.6),
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Container(
+                          height: 58,
+                          width: 58,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              colors: [rosa, roxo],
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.lock_outline_rounded,
+                            color: Colors.white,
+                            size: 28,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Detalhes bloqueados',
+                          style: TextStyle(
+                            color: roxo,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          _planoGratuito
+                              ? 'Adquira um plano para visualizar'
+                              : 'Compre um novo plano',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: roxo.withOpacity(0.7),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        ElevatedButton(
+                          onPressed: _abrirPlanos,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: rosa,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                          ),
+                          child: const Text('Ver planos'),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
           ),
       ],
-    );
-  }
+    ),
+  );
+}
+Widget _buildEmptyState() {
+  return const Center(
+    child: Text(
+      'Nenhuma vaga disponível no momento.',
+      style: TextStyle(fontSize: 16),
+    ),
+  );
+}
 
-  Widget _buildEmptyState() {
-    return RefreshIndicator(
-      onRefresh: _recarregarTudo,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        children: const [
-          SizedBox(height: 140),
-          Padding(
-            padding: EdgeInsets.all(24),
-            child: Center(
-              child: Text(
-                'Nenhuma vaga disponível no momento.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.black54,
-                ),
-              ),
-            ),
-          ),
-        ],
+Widget _buildPlanoResumoTopo() {
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(20),
+    decoration: const BoxDecoration(
+      color: roxo,
+      borderRadius: BorderRadius.only(
+        bottomLeft: Radius.circular(24),
+        bottomRight: Radius.circular(24),
       ),
-    );
-  }
-
-  Widget _buildPlanoResumoTopo() {
-    final premium = _planoAtual.toLowerCase() == 'premium';
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
-      decoration: const BoxDecoration(
-        color: roxo,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(24),
-          bottomRight: Radius.circular(24),
-        ),
+    ),
+    child: const Text(
+      'Vagas disponíveis para você',
+      style: TextStyle(
+        color: Colors.white,
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
       ),
-      child: Column(
-        children: [
-          Row(
+    ),
+  );
+}
+
+@override
+Widget build(BuildContext context) {
+  final isLoading = _isLoadingPlano || _isLoadingVagas;
+
+  return Scaffold(
+    backgroundColor: fundo,
+    appBar: AppBar(
+      title: const Text('Vagas disponíveis'),
+      backgroundColor: roxo,
+      foregroundColor: Colors.white,
+    ),
+    body: isLoading
+        ? const Center(
+            child: CircularProgressIndicator(color: rosa),
+          )
+        : Column(
             children: [
+              _buildPlanoResumoTopo(),
               Expanded(
-                child: Text(
-                  '${vagas.length} vaga(s) encontrada(s) para você',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: premium ? verde : Colors.white.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: premium ? verde : Colors.white.withOpacity(0.35),
-                  ),
-                ),
-                child: Text(
-                  premium ? 'Premium' : 'Básico',
-                  style: TextStyle(
-                    color: premium ? Colors.black : Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                  ),
-                ),
+                child: vagas.isEmpty
+                    ? _buildEmptyState()
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: vagas.length,
+                        itemBuilder: (context, index) {
+                          return _vagaCard(vagas[index]);
+                        },
+                      ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.10),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Uso do plano: $_usosPlano de $_limitePlano',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                LinearProgressIndicator(
-                  value: _usoPercentual,
-                  minHeight: 8,
-                  backgroundColor: Colors.white24,
-                  valueColor: AlwaysStoppedAnimation(
-                    premium ? verde : rosa,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'Restantes: $_contatosRestantes vaga(s)',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isLoading = _isLoadingPlano || _isLoadingVagas;
-
-    return Scaffold(
-      backgroundColor: fundo,
-      appBar: AppBar(
-        title: const Text('Vagas disponíveis'),
-        backgroundColor: roxo,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: isLoading
-          ? const Center(
-              child: CircularProgressIndicator(
-                color: rosa,
-              ),
-            )
-          : Column(
-              children: [
-                _buildPlanoResumoTopo(),
-                Expanded(
-                  child: vagas.isEmpty
-                      ? _buildEmptyState()
-                      : RefreshIndicator(
-                          onRefresh: _recarregarTudo,
-                          child: ListView.builder(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.all(16),
-                            itemCount: vagas.length,
-                            itemBuilder: (context, index) {
-                              return _vagaCard(vagas[index]);
-                            },
-                          ),
-                        ),
-                ),
-              ],
-            ),
-    );
-  }
+  );
+}
 }

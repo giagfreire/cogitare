@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../controllers/login_controller.dart';
 import '../utils/navigation_utils.dart';
+import 'tela_cadastro_cuidador.dart';
 
 class TelaLoginUnificada extends StatefulWidget {
   static const route = '/login-unificado';
@@ -265,18 +266,40 @@ class _TelaLoginUnificadaState extends State<TelaLoginUnificada> {
                     ),
 
                     const SizedBox(height: 16),
+const Center(
+  child: Text(
+    'Entre com seu e-mail e senha para continuar.',
+    textAlign: TextAlign.center,
+    style: TextStyle(
+      fontSize: 13,
+      color: Colors.grey,
+    ),
+  ),
+),
 
-                    const Center(
-                      child: Text(
-                        'Entre com seu e-mail e senha para continuar.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ),
-                  ],
+const SizedBox(height: 16),
+
+Row(
+  children: [
+    Expanded(
+      child: OutlinedButton(
+        onPressed: () {
+          Navigator.pushNamed(context, TelaCadastroCuidador.route);
+        },
+        child: const Text('Sou cuidador'),
+      ),
+    ),
+    const SizedBox(width: 12),
+    Expanded(
+      child: OutlinedButton(
+        onPressed: () {
+          Navigator.pushNamed(context, '/cadastro-responsavel');
+        },
+        child: const Text('Sou responsável'),
+      ),
+    ),
+  ],
+), ],
                 ),
               ),
             ),

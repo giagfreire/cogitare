@@ -756,15 +756,16 @@ class _TelaCadastroCuidadorState extends State<TelaCadastroCuidador> {
             color: verde.withOpacity(0.18),
             borderRadius: BorderRadius.circular(16),
           ),
-          child: const Text(
-            'Depois do cadastro, você poderá completar seu perfil com foto, experiência, diplomas, escolaridade e valor por hora.',
-            style: TextStyle(
-              color: roxo,
-              height: 1.4,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+child: const Text(
+  'Depois do cadastro, você poderá completar seu perfil com foto, experiência, diplomas, escolaridade e informações profissionais.',
+  style: TextStyle(
+    color: roxo,
+    height: 1.4,
+    fontWeight: FontWeight.w600,
+  ),
+),
         ),
+      
         const SizedBox(height: 12),
         CheckboxListTile(
           value: _aceitouTermos,

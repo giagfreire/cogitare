@@ -89,36 +89,36 @@ router.post('/cadastro', async (req, res) => {
 
     const senhaHash = await bcrypt.hash(senha, 10);
 
-    const result = await db.query(
-      `INSERT INTO cuidador
-      (
-        IdEndereco, Nome, Email, Senha, Telefone, Cpf, DataNascimento,
-        FotoUrl, Biografia, Fumante, TemFilhos, PossuiCNH, TemCarro,
-       UsosPlano, Sexo, Escolaridade, ExperienciaProfissional,
-        TrabalhosFeitos, DiplomasCertificados
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`,
-      [
-        idEndereco,
-        nome,
-        email,
-        senhaHash,
-        telefone,
-        cpf,
-        dataNascimento || null,
-        fotoUrl || null,
-        biografia || null,
-        fumante || 'Não',
-        temFilhos || 'Não',
-        possuiCnh || 'Não',
-        temCarro || 'Não',
-        sexo || null,
-        escolaridade || null,
-        experienciaProfissional || null,
-        trabalhosFeitos || null,
-        diplomasCertificados || null,
-      ]
-    );
+   const result = await db.query(
+  `INSERT INTO cuidador
+  (
+    IdEndereco, Nome, Email, Senha, Telefone, Cpf, DataNascimento,
+    FotoUrl, Biografia, Fumante, TemFilhos, PossuiCNH, TemCarro,
+    UsosPlano, Sexo, Escolaridade, ExperienciaProfissional,
+    TrabalhosFeitos, DiplomasCertificados
+  )
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`,
+  [
+    idEndereco,
+    nome,
+    email,
+    senhaHash,
+    telefone,
+    cpf,
+    dataNascimento || null,
+    fotoUrl || null,
+    biografia || null,
+    fumante || 'Não',
+    temFilhos || 'Não',
+    possuiCnh || 'Não',
+    temCarro || 'Não',
+    sexo || null,
+    escolaridade || null,
+    experienciaProfissional || null,
+    trabalhosFeitos || null,
+    diplomasCertificados || null,
+  ]
+);
 
     return res.status(201).json({
       success: true,
@@ -460,9 +460,9 @@ router.get('/status-plano', authenticateToken, async (req, res) => {
     return res.status(200).json({
       success: true,
       data: {
-        PlanoAtual: 'Básico',
-        UsosPlano: Number(cuidador?.[0]?.UsosPlano) || 0,
-        LimitePlano: 5,
+        PlanoAtual: 'Gratuito',
+        UsosPlano: 0,
+        LimitePlano: 0,
       },
     });
   } catch (error) {
@@ -519,6 +519,21 @@ router.get('/:id/plano', async (req, res) => {
   try {
     const { id } = req.params;
 
+    const cuidadorRows = await db.query(
+      `SELECT PlanoAtual, COALESCE(UsosPlano, 0) AS UsosPlano
+       FROM cuidador
+       WHERE IdCuidador = ?
+       LIMIT 1`,
+      [id]
+    );
+
+    if (!cuidadorRows || cuidadorRows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Cuidador não encontrado',
+      });
+    }
+
     const assinaturaAtiva = await db.query(
       `SELECT
         a.IdAssinatura,
@@ -540,27 +555,35 @@ router.get('/:id/plano', async (req, res) => {
       return res.status(200).json({
         success: true,
         data: {
-          PlanoAtual: normalizarPlano(row.PlanoAtual),
+          PlanoAtual: row.PlanoAtual || 'Premium',
           UsosPlano: Number(row.UsosPlano) || 0,
           LimitePlano: Number(row.LimitePlano) || 20,
         },
       });
     }
 
-    const cuidador = await db.query(
-      `SELECT COALESCE(UsosPlano, 0) AS UsosPlano
-       FROM cuidador
-       WHERE IdCuidador = ?
-       LIMIT 1`,
-      [id]
-    );
+    const cuidador = cuidadorRows[0];
+    const planoAtual = (cuidador.PlanoAtual || 'Gratuito').toString();
+
+    let limitePlano = 0;
+
+    if (
+      planoAtual.toLowerCase() === 'basico' ||
+      planoAtual.toLowerCase() === 'básico'
+    ) {
+      limitePlano = 5;
+    } else if (planoAtual.toLowerCase() === 'premium') {
+      limitePlano = 20;
+    } else {
+      limitePlano = 0;
+    }
 
     return res.status(200).json({
       success: true,
       data: {
-        PlanoAtual: 'Básico',
-        UsosPlano: Number(cuidador?.[0]?.UsosPlano) || 0,
-        LimitePlano: 5,
+        PlanoAtual: planoAtual,
+        UsosPlano: Number(cuidador.UsosPlano) || 0,
+        LimitePlano: limitePlano,
       },
     });
   } catch (error) {
