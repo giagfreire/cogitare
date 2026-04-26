@@ -34,7 +34,6 @@ router.post('/cadastro', async (req, res) => {
       possuiCnh,
       temCarro,
       biografia,
-      valorHora,
       fotoUrl,
       sexo,
       escolaridade,
@@ -95,7 +94,7 @@ router.post('/cadastro', async (req, res) => {
       (
         IdEndereco, Nome, Email, Senha, Telefone, Cpf, DataNascimento,
         FotoUrl, Biografia, Fumante, TemFilhos, PossuiCNH, TemCarro,
-        ValorHora, UsosPlano, Sexo, Escolaridade, ExperienciaProfissional,
+       UsosPlano, Sexo, Escolaridade, ExperienciaProfissional,
         TrabalhosFeitos, DiplomasCertificados
       )
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`,
@@ -113,7 +112,6 @@ router.post('/cadastro', async (req, res) => {
         temFilhos || 'Não',
         possuiCnh || 'Não',
         temCarro || 'Não',
-        valorHora || null,
         sexo || null,
         escolaridade || null,
         experienciaProfissional || null,
@@ -141,18 +139,46 @@ router.post('/cadastro', async (req, res) => {
 
 /**
  * VAGAS ABERTAS
+ * IMPORTANTE: não retorna WhatsappContato antes do cuidador aceitar a vaga.
  */
 router.get('/vagas-abertas', async (req, res) => {
   try {
     const rows = await db.query(
-      `SELECT
-        v.*,
+      `
+      SELECT
+        v.IdVaga,
+        v.IdResponsavel,
+        v.IdIdoso,
+        v.Titulo,
+        v.Descricao,
+        v.Cep,
+        v.Cidade,
+        v.Bairro,
+        v.Rua,
+        v.DataServico,
+        v.HoraInicio,
+        v.HoraFim,
+        v.Valor,
+        v.Status,
+        v.DataCriacao,
+
         r.Nome AS NomeResponsavel,
-        r.Telefone AS TelefoneResponsavel
-       FROM vaga v
-       INNER JOIN responsavel r ON v.IdResponsavel = r.IdResponsavel
-       WHERE v.Status = 'Aberta'
-       ORDER BY v.IdVaga DESC`
+
+        i.Nome AS NomeIdoso,
+        i.DataNascimento AS DataNascimentoIdoso,
+        i.Sexo AS SexoIdoso,
+        i.CuidadosMedicos,
+        i.DescricaoExtra,
+
+      i.IdMobilidade AS Mobilidade,
+i.IdNivelAutonomia AS NivelAutonomia
+
+      FROM vaga v
+      INNER JOIN responsavel r ON v.IdResponsavel = r.IdResponsavel
+      LEFT JOIN idoso i ON i.IdIdoso = v.IdIdoso
+      WHERE v.Status = 'Aberta'
+      ORDER BY v.IdVaga DESC
+      `
     );
 
     return res.status(200).json({
@@ -297,12 +323,6 @@ router.post('/aceitar-vaga', authenticateToken, async (req, res) => {
       [idVaga, idCuidador]
     );
 
-    await connection.execute(
-      `UPDATE vaga
-       SET Status = 'Aceita'
-       WHERE IdVaga = ?`,
-      [idVaga]
-    );
 
     if (usaAssinatura && idAssinatura) {
       await connection.execute(
@@ -574,7 +594,6 @@ router.get('/:id', async (req, res) => {
         c.TemFilhos AS temFilhos,
         c.PossuiCNH AS possuiCNH,
         c.TemCarro AS temCarro,
-        c.ValorHora AS valorHora,
         c.IdEndereco AS idEndereco,
         c.Sexo AS sexo,
         c.Escolaridade AS escolaridade,
@@ -630,20 +649,20 @@ router.put('/:id', authenticateToken, async (req, res) => {
       });
     }
 
-    const {
-      nome,
-      telefone,
-      cpf,
-      dataNascimento,
-      sexo,
-      cidade,
-      biografia,
-      valorHora,
-      escolaridade,
-      experienciaProfissional,
-      trabalhosFeitos,
-      diplomasCertificados,
-    } = req.body;
+const {
+  nome,
+  telefone,
+  cpf,
+  dataNascimento,
+  sexo,
+  cidade,
+  biografia,
+  fotoUrl,
+  escolaridade,
+  experienciaProfissional,
+  trabalhosFeitos,
+  diplomasCertificados,
+} = req.body;
 
     const cuidador = await db.query(
       'SELECT IdEndereco FROM cuidador WHERE IdCuidador = ? LIMIT 1',
@@ -657,36 +676,23 @@ router.put('/:id', authenticateToken, async (req, res) => {
       });
     }
 
-    await db.query(
-      `UPDATE cuidador
-       SET
-        Nome = ?,
-        Telefone = ?,
-        Cpf = ?,
-        DataNascimento = ?,
-        Sexo = ?,
-        Biografia = ?,
-        ValorHora = ?,
-        Escolaridade = ?,
-        ExperienciaProfissional = ?,
-        TrabalhosFeitos = ?,
-        DiplomasCertificados = ?
-       WHERE IdCuidador = ?`,
-      [
-        nome || null,
-        telefone || null,
-        cpf || null,
-        dataNascimento || null,
-        sexo || null,
-        biografia || null,
-        valorHora || null,
-        escolaridade || null,
-        experienciaProfissional || null,
-        trabalhosFeitos || null,
-        diplomasCertificados || null,
-        id,
-      ]
-    );
+await db.query(
+  `UPDATE cuidador
+   SET
+    Nome = ?,
+    Telefone = ?,
+    Cpf = ?,
+    DataNascimento = ?,
+    Sexo = ?,
+    Biografia = ?,
+    ${fotoUrl ? 'FotoUrl = ?,' : ''}
+    Escolaridade = ?,
+    ExperienciaProfissional = ?,
+    TrabalhosFeitos = ?,
+    DiplomasCertificados = ?
+   WHERE IdCuidador = ?`,
+  valores
+);
 
     if (cidade && cuidador[0].IdEndereco) {
       await db.query(

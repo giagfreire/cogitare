@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/api_cuidador.dart';
 import 'planos_cuidador_page.dart';
+import 'minhas_vagas_aceitas_page.dart';
 
 class VagasCuidadorPage extends StatefulWidget {
   const VagasCuidadorPage({super.key});
@@ -47,8 +48,7 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
           _limitePlano = int.tryParse('${data['LimitePlano'] ?? 0}') ?? 0;
 
           if (_limitePlano <= 0) {
-            _limitePlano =
-                _planoAtual.toLowerCase() == 'premium' ? 20 : 5;
+            _limitePlano = _planoAtual.toLowerCase() == 'premium' ? 20 : 5;
           }
         } else {
           _planoAtual = 'Básico';
@@ -103,7 +103,8 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
   }
 
   bool get _bloqueadoPorPlano {
-    return _limitePlano > 0 && _usosPlano >= _limitePlano;
+    if (_limitePlano <= 0) return false;
+    return _usosPlano >= _limitePlano;
   }
 
   int get _contatosRestantes {
@@ -113,9 +114,12 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
 
   double get _usoPercentual {
     if (_limitePlano <= 0) return 0;
+
     final valor = _usosPlano / _limitePlano;
+
     if (valor > 1) return 1;
     if (valor < 0) return 0;
+
     return valor;
   }
 
@@ -128,6 +132,101 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
     );
 
     await _loadPlano();
+  }
+
+  String _texto(dynamic valor, {String fallback = '-'}) {
+    if (valor == null) return fallback;
+
+    final texto = valor.toString().trim();
+
+    if (texto.isEmpty || texto.toLowerCase() == 'null') return fallback;
+
+    return texto;
+  }
+
+  int _toInt(dynamic valor) {
+    if (valor == null) return 0;
+    if (valor is int) return valor;
+
+    return int.tryParse(valor.toString()) ?? 0;
+  }
+
+  String _formatarData(dynamic data) {
+    if (data == null) return '-';
+
+    final texto = data.toString();
+
+    if (texto.length >= 10 && texto.contains('-')) {
+      final partes = texto.substring(0, 10).split('-');
+
+      if (partes.length == 3) {
+        return '${partes[2]}/${partes[1]}/${partes[0]}';
+      }
+    }
+
+    return texto;
+  }
+
+  String _formatarHorario(Map<String, dynamic> vaga) {
+    final inicio = vaga['HoraInicio']?.toString() ?? '';
+    final fim = vaga['HoraFim']?.toString() ?? '';
+
+    if (inicio.isEmpty && fim.isEmpty) return '-';
+    if (fim.isEmpty) return inicio;
+    if (inicio.isEmpty) return fim;
+
+    return '$inicio às $fim';
+  }
+
+  String _formatarValor(dynamic valor) {
+    if (valor == null) return 'R\$ 0,00';
+
+    final numero = double.tryParse(valor.toString()) ?? 0;
+    final texto = numero.toStringAsFixed(2).replaceAll('.', ',');
+
+    return 'R\$ $texto';
+  }
+
+  String _idade(dynamic dataNascimento) {
+    if (dataNascimento == null) return '-';
+
+    try {
+      final nascimento = DateTime.parse(dataNascimento.toString());
+      final hoje = DateTime.now();
+
+      int idade = hoje.year - nascimento.year;
+
+      if (hoje.month < nascimento.month ||
+          (hoje.month == nascimento.month && hoje.day < nascimento.day)) {
+        idade--;
+      }
+
+      return '$idade anos';
+    } catch (_) {
+      return '-';
+    }
+  }
+
+  Widget _infoLinha(IconData icon, String label, String valor) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: roxo),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              '$label: $valor',
+              style: const TextStyle(
+                fontSize: 15,
+                color: roxo,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _mostrarUpgrade() {
@@ -163,17 +262,13 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
     );
   }
 
-  Future<void> _aceitarVaga(
-    BuildContext sheetContext,
-    Map<String, dynamic> vaga,
-  ) async {
+  Future<void> _aceitarVaga(Map<String, dynamic> vaga) async {
     if (_bloqueadoPorPlano) {
-      Navigator.pop(sheetContext);
       _mostrarUpgrade();
       return;
     }
 
-    final idVaga = int.tryParse('${vaga['IdVaga'] ?? 0}') ?? 0;
+    final idVaga = _toInt(vaga['IdVaga']);
 
     if (idVaga <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -185,83 +280,245 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
       return;
     }
 
-    Navigator.pop(sheetContext);
-
     setState(() {
       _vagaSendoAceita = idVaga;
     });
 
-    final response = await ApiCuidador.aceitarVaga(idVaga);
+    try {
+      final response = await ApiCuidador.aceitarVaga(idVaga);
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    setState(() {
-      _vagaSendoAceita = null;
-    });
+      setState(() {
+        _vagaSendoAceita = null;
+      });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(response['message'] ?? 'Resposta recebida'),
-        backgroundColor:
-            response['success'] == true ? Colors.green : Colors.red,
-      ),
-    );
+      if (response['success'] == true) {
+        Navigator.pop(context);
 
-    if (response['success'] == true) {
-      await _recarregarTudo();
-    } else if ((response['message'] ?? '')
-        .toString()
-        .toLowerCase()
-        .contains('premium')) {
-      _mostrarUpgrade();
-    }
-  }
+        await _recarregarTudo();
 
-  String _formatarData(dynamic data) {
-    if (data == null) return '-';
+        if (!mounted) return;
 
-    final texto = data.toString();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Vaga aceita! 1 uso foi descontado do seu plano. O WhatsApp está liberado em Minhas vagas aceitas.',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
 
-    if (texto.length >= 10 && texto.contains('-')) {
-      final partes = texto.substring(0, 10).split('-');
-      if (partes.length == 3) {
-        return '${partes[2]}/${partes[1]}/${partes[0]}';
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const MinhasVagasAceitasPage(),
+          ),
+        );
+
+        await _recarregarTudo();
+      } else {
+        final mensagem =
+            response['message']?.toString() ?? 'Erro ao aceitar vaga.';
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(mensagem),
+            backgroundColor: Colors.red,
+          ),
+        );
+
+        if (mensagem.toLowerCase().contains('premium') ||
+            mensagem.toLowerCase().contains('plano') ||
+            mensagem.toLowerCase().contains('limite')) {
+          _mostrarUpgrade();
+        }
       }
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _vagaSendoAceita = null;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao aceitar vaga: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
-
-    return texto;
   }
 
-  String _formatarHorario(Map<String, dynamic> vaga) {
-    final inicio = vaga['HoraInicio']?.toString() ?? '';
-    final fim = vaga['HoraFim']?.toString() ?? '';
+  Widget _detalhesVagaLiberada(Map<String, dynamic> vaga) {
+    final idVaga = _toInt(vaga['IdVaga']);
+    final aceitando = _vagaSendoAceita == idVaga;
 
-    if (inicio.isEmpty && fim.isEmpty) return '-';
-    if (fim.isEmpty) return inicio;
-    if (inicio.isEmpty) return fim;
-
-    return '$inicio às $fim';
-  }
-
-  String _formatarValor(dynamic valor) {
-    if (valor == null) return 'R\$ 0,00';
-
-    final numero = double.tryParse(valor.toString()) ?? 0;
-    final texto = numero.toStringAsFixed(2).replaceAll('.', ',');
-
-    return 'R\$ $texto';
-  }
-
-  Widget _infoLinha(IconData icon, String label, String valor) {
-    return Row(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 20, color: roxo),
-        const SizedBox(width: 10),
-        Expanded(
+        const Text(
+          'Dados da vaga',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: roxo,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _infoLinha(
+          Icons.work_outline,
+          'Título',
+          _texto(vaga['Titulo']),
+        ),
+        _infoLinha(
+          Icons.location_on_outlined,
+          'Cidade',
+          _texto(vaga['Cidade']),
+        ),
+        _infoLinha(
+          Icons.location_city_outlined,
+          'Bairro',
+          _texto(vaga['Bairro']),
+        ),
+        _infoLinha(
+          Icons.signpost_outlined,
+          'Rua',
+          _texto(vaga['Rua']),
+        ),
+        _infoLinha(
+          Icons.calendar_today_outlined,
+          'Data',
+          _formatarData(vaga['DataServico']),
+        ),
+        _infoLinha(
+          Icons.access_time_outlined,
+          'Horário',
+          _formatarHorario(vaga),
+        ),
+        _infoLinha(
+          Icons.attach_money,
+          'Valor',
+          _formatarValor(vaga['Valor']),
+        ),
+        const SizedBox(height: 12),
+        const Text(
+          'Descrição da vaga',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: roxo,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          _texto(
+            vaga['Descricao'],
+            fallback: 'Sem descrição informada.',
+          ),
+          style: const TextStyle(
+            fontSize: 15,
+            color: Colors.black87,
+            height: 1.4,
+          ),
+        ),
+        const SizedBox(height: 20),
+        const Text(
+          'Dados do idoso',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: roxo,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _infoLinha(
+          Icons.elderly_outlined,
+          'Nome',
+          _texto(vaga['NomeIdoso']),
+        ),
+        _infoLinha(
+          Icons.cake_outlined,
+          'Idade',
+          _idade(vaga['DataNascimentoIdoso']),
+        ),
+        _infoLinha(
+          Icons.wc_outlined,
+          'Sexo',
+          _texto(vaga['SexoIdoso']),
+        ),
+        _infoLinha(
+          Icons.accessibility_new_outlined,
+          'Mobilidade',
+          _texto(vaga['Mobilidade']),
+        ),
+        _infoLinha(
+          Icons.health_and_safety_outlined,
+          'Nível de autonomia',
+          _texto(vaga['NivelAutonomia']),
+        ),
+        _infoLinha(
+          Icons.medical_services_outlined,
+          'Condições médicas',
+          _texto(vaga['CuidadosMedicos']),
+        ),
+        _infoLinha(
+          Icons.notes_outlined,
+          'Observações',
+          _texto(vaga['DescricaoExtra']),
+        ),
+        const SizedBox(height: 18),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: verde.withOpacity(0.16),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: verde.withOpacity(0.45),
+            ),
+          ),
           child: Text(
-            '$label: $valor',
-            style: const TextStyle(fontSize: 15, color: roxo),
+            'O WhatsApp do responsável só será liberado depois que você aceitar a vaga. Ao aceitar, 1 uso será descontado do seu plano.',
+            style: TextStyle(
+              color: roxo.withOpacity(0.9),
+              height: 1.4,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        const SizedBox(height: 18),
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton.icon(
+            onPressed: aceitando ? null : () => _aceitarVaga(vaga),
+            icon: aceitando
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : const Icon(Icons.check_circle_outline),
+            label: Text(
+              aceitando ? 'Aceitando...' : 'Aceitar vaga',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: roxo,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: roxo.withOpacity(0.5),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
           ),
         ),
       ],
@@ -269,278 +526,183 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
   }
 
   void _verDetalhes(Map<String, dynamic> vaga) {
-    final idVaga = int.tryParse('${vaga['IdVaga'] ?? 0}') ?? 0;
+    if (_bloqueadoPorPlano) {
+      _mostrarUpgrade();
+      return;
+    }
 
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(24),
+        ),
       ),
-      builder: (sheetContext) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
-          child: Wrap(
-            children: [
-              Center(
-                child: Container(
-                  width: 42,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 20),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                ),
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      vaga['NomeResponsavel']?.toString() ?? 'Responsável',
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: roxo,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
+      builder: (_) {
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.86,
+          minChildSize: 0.55,
+          maxChildSize: 0.95,
+          builder: (_, scrollController) {
+            return ListView(
+              controller: scrollController,
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
+              children: [
+                Center(
+                  child: Container(
+                    width: 42,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
                     decoration: BoxDecoration(
-                      color: _planoAtual.toLowerCase() == 'premium'
-                          ? verde
-                          : Colors.white,
+                      color: Colors.grey.shade300,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: _planoAtual.toLowerCase() == 'premium'
-                            ? verde
-                            : Colors.grey.shade400,
-                      ),
-                    ),
-                    child: Text(
-                      _planoAtual.toLowerCase() == 'premium'
-                          ? 'Plano Premium'
-                          : 'Plano Básico',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: _planoAtual.toLowerCase() == 'premium'
-                            ? Colors.black
-                            : Colors.black87,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _infoLinha(
-                Icons.work_outline,
-                'Título',
-                vaga['Titulo']?.toString() ?? '-',
-              ),
-              const SizedBox(height: 12),
-              _infoLinha(
-                Icons.location_on_outlined,
-                'Cidade',
-                vaga['Cidade']?.toString() ?? '-',
-              ),
-              const SizedBox(height: 12),
-              _infoLinha(
-                Icons.calendar_today_outlined,
-                'Data',
-                _formatarData(vaga['DataServico']),
-              ),
-              const SizedBox(height: 12),
-              _infoLinha(
-                Icons.access_time_outlined,
-                'Horário',
-                _formatarHorario(vaga),
-              ),
-              const SizedBox(height: 12),
-              _infoLinha(
-                Icons.attach_money,
-                'Valor',
-                _formatarValor(vaga['Valor']),
-              ),
-              const SizedBox(height: 12),
-              _infoLinha(
-                Icons.phone_outlined,
-                'Contato',
-                vaga['TelefoneResponsavel']?.toString() ?? '-',
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Descrição',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: roxo,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                vaga['Descricao']?.toString() ?? '',
-                style: const TextStyle(
-                  fontSize: 15,
-                  color: Colors.black87,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 24),
-              if (_bloqueadoPorPlano)
-                Container(
-                  width: double.infinity,
-                  margin: const EdgeInsets.only(bottom: 14),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: rosa.withOpacity(0.10),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: rosa.withOpacity(0.20)),
-                  ),
-                  child: const Text(
-                    'Você atingiu o limite do seu plano atual. Faça upgrade para continuar aceitando vagas.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: roxo,
-                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
-              if (!_bloqueadoPorPlano && _limitePlano > 0)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
-                  child: Text(
-                    'Uso do plano: $_usosPlano de $_limitePlano contatos',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: roxo,
-                    ),
+                Text(
+                  _texto(
+                    vaga['Titulo'],
+                    fallback: 'Detalhes da vaga',
+                  ),
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: roxo,
                   ),
                 ),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _vagaSendoAceita != null
-                      ? null
-                      : () => _aceitarVaga(sheetContext, vaga),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _bloqueadoPorPlano ? rosa : roxo,
-                    disabledBackgroundColor: roxo.withOpacity(0.5),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+                const SizedBox(height: 6),
+                Text(
+                  'O contato do responsável não aparece aqui. Ele será liberado somente depois que você aceitar a vaga.',
+                  style: TextStyle(
+                    color: roxo.withOpacity(0.65),
+                    height: 1.3,
                   ),
-                  child: _vagaSendoAceita == idVaga
-                      ? const SizedBox(
-                          height: 22,
-                          width: 22,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : Text(
-                          _bloqueadoPorPlano
-                              ? 'Desbloquear com Premium'
-                              : 'Aceitar vaga',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
                 ),
-              ),
-            ],
-          ),
+                const SizedBox(height: 18),
+                _detalhesVagaLiberada(vaga),
+              ],
+            );
+          },
         );
       },
     );
   }
 
   Widget _vagaCard(Map<String, dynamic> vaga) {
-    return Card(
-      elevation: 2,
-      margin: const EdgeInsets.only(bottom: 14),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              vaga['Titulo']?.toString() ?? '',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: roxo,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              vaga['NomeResponsavel']?.toString() ?? '',
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.black54,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 10),
-            _infoLinha(
-              Icons.location_on_outlined,
-              'Cidade',
-              vaga['Cidade']?.toString() ?? '-',
-            ),
-            const SizedBox(height: 8),
-            _infoLinha(
-              Icons.calendar_today_outlined,
-              'Data',
-              _formatarData(vaga['DataServico']),
-            ),
-            const SizedBox(height: 8),
-            _infoLinha(
-              Icons.access_time_outlined,
-              'Horário',
-              _formatarHorario(vaga),
-            ),
-            const SizedBox(height: 8),
-            _infoLinha(
-              Icons.attach_money,
-              'Valor',
-              _formatarValor(vaga['Valor']),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: () => _verDetalhes(vaga),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: roxo),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+    final bloqueado = _bloqueadoPorPlano;
+
+    return Stack(
+      children: [
+        Card(
+          elevation: 2,
+          margin: const EdgeInsets.only(bottom: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Opacity(
+            opacity: bloqueado ? 0.38 : 1,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _texto(
+                      vaga['Titulo'],
+                      fallback: 'Vaga disponível',
+                    ),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: roxo,
+                    ),
                   ),
-                ),
-                child: const Text(
-                  'Ver detalhes',
-                  style: TextStyle(
-                    color: roxo,
-                    fontWeight: FontWeight.w600,
+                  const SizedBox(height: 6),
+                  Text(
+                    bloqueado
+                        ? 'Detalhes bloqueados pelo plano'
+                        : 'Contato liberado somente após aceitar a vaga',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.black54,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 10),
+                  _infoLinha(
+                    Icons.location_on_outlined,
+                    'Cidade',
+                    _texto(vaga['Cidade']),
+                  ),
+                  if (!bloqueado) ...[
+                    _infoLinha(
+                      Icons.calendar_today_outlined,
+                      'Data',
+                      _formatarData(vaga['DataServico']),
+                    ),
+                    _infoLinha(
+                      Icons.access_time_outlined,
+                      'Horário',
+                      _formatarHorario(vaga),
+                    ),
+                    _infoLinha(
+                      Icons.attach_money,
+                      'Valor',
+                      _formatarValor(vaga['Valor']),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: bloqueado
+                          ? _abrirPlanos
+                          : () => _verDetalhes(vaga),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(
+                          color: bloqueado ? rosa : roxo,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        bloqueado ? 'Ver planos' : 'Ver detalhes',
+                        style: TextStyle(
+                          color: bloqueado ? rosa : roxo,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
-      ),
+        if (bloqueado)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 14),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  color: Colors.white.withOpacity(0.42),
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.lock_outline,
+                    color: roxo,
+                    size: 34,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -648,7 +810,7 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Restantes: $_contatosRestantes contato(s)',
+                  'Restantes: $_contatosRestantes vaga(s)',
                   style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 13,
@@ -675,7 +837,11 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
         elevation: 0,
       ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(
+                color: rosa,
+              ),
+            )
           : Column(
               children: [
                 _buildPlanoResumoTopo(),
@@ -688,8 +854,9 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
                             physics: const AlwaysScrollableScrollPhysics(),
                             padding: const EdgeInsets.all(16),
                             itemCount: vagas.length,
-                            itemBuilder: (context, index) =>
-                                _vagaCard(vagas[index]),
+                            itemBuilder: (context, index) {
+                              return _vagaCard(vagas[index]);
+                            },
                           ),
                         ),
                 ),

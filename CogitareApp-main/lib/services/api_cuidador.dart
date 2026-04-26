@@ -45,7 +45,6 @@ class ApiCuidador {
         'possuiCnh': caregiver.hasLicense,
         'temCarro': caregiver.hasCar,
         'biografia': caregiver.biography,
-        'valorHora': caregiver.hourlyRate,
         'fotoUrl': caregiver.photoUrl,
       });
 

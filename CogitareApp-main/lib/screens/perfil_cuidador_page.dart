@@ -425,10 +425,6 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
     final sexo = _textoSeguro(
       _cuidador?['Sexo'] ?? _cuidador?['sexo'],
     );
-    final valorHora = _textoSeguro(
-      _cuidador?['ValorHora'] ?? _cuidador?['valorHora'],
-      fallback: 'A definir',
-    );
     final biografia = _textoSeguro(
       _cuidador?['Biografia'] ?? _cuidador?['biografia'],
       fallback: 'Você ainda não cadastrou uma biografia.',
@@ -633,12 +629,6 @@ class _PerfilCuidadorPageState extends State<PerfilCuidadorPage> {
                         icon: Icons.location_on_outlined,
                         titulo: 'Cidade',
                         valor: cidade,
-                      ),
-                      const SizedBox(height: 10),
-                      _infoTile(
-                        icon: Icons.attach_money_outlined,
-                        titulo: 'Valor por hora',
-                        valor: valorHora,
                       ),
                       const SizedBox(height: 18),
                       const Text(

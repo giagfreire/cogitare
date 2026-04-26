@@ -2126,14 +2126,13 @@ CREATE TABLE `cuidador` (
   `TemFilhos` varchar(3) DEFAULT 'Não',
   `PossuiCNH` varchar(3) DEFAULT 'Não',
   `TemCarro` varchar(3) DEFAULT 'Não',
-  `ValorHora` decimal(10,2) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `cuidador`
 --
 
-INSERT INTO `cuidador` (`IdCuidador`, `IdEndereco`, `Cpf`, `Nome`, `Email`, `Telefone`, `Senha`, `DataNascimento`, `FotoUrl`, `Biografia`, `Fumante`, `TemFilhos`, `PossuiCNH`, `TemCarro`, `ValorHora`) VALUES
+INSERT INTO `cuidador` (`IdCuidador`, `IdEndereco`, `Cpf`, `Nome`, `Email`, `Telefone`, `Senha`, `DataNascimento`, `FotoUrl`, `Biografia`, `Fumante`, `TemFilhos`, `PossuiCNH`, `TemCarro`) VALUES
 (2, 2, NULL, 'Fernanda Lima', 'fernanda.lima@email.com', '(11) 88888-2222', NULL, '1990-07-12', '/avatar/cuidador.png', 'Especialista em cuidados com idosos.', 'Não', 'Sim', 'Sim', 'Não', NULL),
 (3, 3, '999.000.111-22', 'Roberto Alves', 'roberto.alves@email.com', '(11) 88888-3333', '$2b$10$example', '1988-11-30', '/avatar/cuidador.png', 'Enfermeiro com especialização em geriatria', 'Não', 'Sim', 'Sim', 'Sim', NULL),
 (4, 12, '11122233344', 'Lucia Mendes', 'lucia.mendes@email.com', '(11) 88888-4444', '$2b$10$example', '1983-06-20', '/avatar/cuidador.png', 'Enfermeira com 8 anos de experiência em cuidados geriátricos', 'Não', 'Sim', 'Sim', 'Sim', NULL),

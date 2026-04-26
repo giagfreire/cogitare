@@ -306,7 +306,6 @@ class _TelaCadastroCuidadorState extends State<TelaCadastroCuidador> {
         'possuiCnh': possuiCnh,
         'temCarro': temCarro,
         'biografia': '',
-        'valorHora': null,
       };
 
       final response = await ServicoApi.post('/api/cuidador/cadastro', body);

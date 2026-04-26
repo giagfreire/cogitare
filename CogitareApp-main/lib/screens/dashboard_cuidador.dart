@@ -60,9 +60,8 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
   }
 
   String getSaudacao() {
-    final sexo = (_cuidador?['sexo'] ?? _cuidador?['Sexo'] ?? '')
-        .toString()
-        .toLowerCase();
+    final sexo =
+        (_cuidador?['sexo'] ?? _cuidador?['Sexo'] ?? '').toString().toLowerCase();
 
     if (sexo == 'feminino') return 'Bem-vinda';
     if (sexo == 'masculino') return 'Bem-vindo';
@@ -79,12 +78,19 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
     return '${bio.substring(0, 120)}...';
   }
 
-  ImageProvider? _fotoProvider() {
-    final fotoUrl = (_cuidador?['fotoUrl'] ?? _cuidador?['FotoUrl'])
-        ?.toString()
+  String _fotoTexto() {
+    return (_cuidador?['fotoUrl'] ??
+            _cuidador?['FotoUrl'] ??
+            _cuidador?['foto_url'] ??
+            '')
+        .toString()
         .trim();
+  }
 
-    if (fotoUrl == null || fotoUrl.isEmpty || fotoUrl.toLowerCase() == 'null') {
+  ImageProvider? _fotoProvider() {
+    final fotoUrl = _fotoTexto();
+
+    if (fotoUrl.isEmpty || fotoUrl.toLowerCase() == 'null') {
       return null;
     }
 
@@ -93,7 +99,8 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
         final base64String = fotoUrl.split(',').last;
         final Uint8List bytes = base64Decode(base64String);
         return MemoryImage(bytes);
-      } catch (_) {
+      } catch (e) {
+        debugPrint('Erro ao carregar imagem base64: $e');
         return null;
       }
     }
@@ -102,7 +109,12 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
       return NetworkImage(fotoUrl);
     }
 
-    return null;
+    try {
+      final Uint8List bytes = base64Decode(fotoUrl);
+      return MemoryImage(bytes);
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> _carregarDados() async {
@@ -127,6 +139,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
       );
 
       if (id == null) {
+        if (!mounted) return;
         setState(() => _isLoading = false);
         return;
       }
@@ -135,7 +148,8 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
       final responsePlano = await ServicoApi.get('/api/cuidador/$id/plano');
 
       try {
-        final responseServicos = await ServicoApi.get('/api/cuidador/minhas-vagas');
+        final responseServicos =
+            await ServicoApi.get('/api/cuidador/minhas-vagas');
 
         if (responseServicos['success'] == true &&
             responseServicos['data'] != null) {
@@ -185,23 +199,17 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
 
   int getPerfilCompletoPercentual() {
     int preenchidos = 0;
-    const int total = 5;
+    const int total = 4;
 
     final cidade = _cuidador?['cidade'] ?? _cuidador?['Cidade'];
-    final valorHora = _cuidador?['valorHora'] ?? _cuidador?['ValorHora'];
     final telefone = _cuidador?['telefone'] ?? _cuidador?['Telefone'];
     final bio = _cuidador?['biografia'] ?? _cuidador?['Biografia'];
-    final foto = _cuidador?['fotoUrl'] ?? _cuidador?['FotoUrl'];
+    final foto = _fotoTexto();
 
     if (cidade != null && cidade.toString().trim().isNotEmpty) preenchidos++;
-    if (valorHora != null && valorHora.toString().trim().isNotEmpty) {
-      preenchidos++;
-    }
-    if (telefone != null && telefone.toString().trim().isNotEmpty) {
-      preenchidos++;
-    }
+    if (telefone != null && telefone.toString().trim().isNotEmpty) preenchidos++;
     if (bio != null && bio.toString().trim().isNotEmpty) preenchidos++;
-    if (foto != null && foto.toString().trim().isNotEmpty) preenchidos++;
+    if (foto.isNotEmpty && foto.toLowerCase() != 'null') preenchidos++;
 
     return ((preenchidos / total) * 100).round();
   }
@@ -281,6 +289,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
   @override
   Widget build(BuildContext context) {
     final nome = getNome();
+    final foto = _fotoProvider();
 
     return Scaffold(
       backgroundColor: fundo,
@@ -320,8 +329,8 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
               child: CircleAvatar(
                 radius: 18,
                 backgroundColor: Colors.white,
-                backgroundImage: _fotoProvider(),
-                child: _fotoProvider() == null
+                backgroundImage: foto,
+                child: foto == null
                     ? const Icon(Icons.person, color: Colors.grey)
                     : null,
               ),
@@ -330,7 +339,7 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: rosa))
           : RefreshIndicator(
               onRefresh: _carregarDados,
               child: SingleChildScrollView(
@@ -540,9 +549,8 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
           Row(
             children: [
               CircleAvatar(
-                backgroundColor: premium
-                    ? verde.withOpacity(0.22)
-                    : rosa.withOpacity(0.12),
+                backgroundColor:
+                    premium ? verde.withOpacity(0.22) : rosa.withOpacity(0.12),
                 child: Icon(
                   premium
                       ? Icons.workspace_premium_rounded
@@ -827,10 +835,9 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
               const SizedBox(width: 10),
               Expanded(
                 child: _miniResumoItem(
-                  'Valor/hora',
+                  'Telefone',
                   valorOuPadrao(
-                    _cuidador?['valorHora'] ?? _cuidador?['ValorHora'],
-                    padrao: 'A definir',
+                    _cuidador?['telefone'] ?? _cuidador?['Telefone'],
                   ),
                 ),
               ),

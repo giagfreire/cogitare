@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../services/api_service.dart';
 import '../services/servico_autenticacao.dart';
 import 'criar_vaga_page.dart';
@@ -45,7 +46,7 @@ class _MinhasVagasResponsavelPageState
 
       final response = await ServicoApi.get('/api/responsavel/minhas-vagas');
 
-      debugPrint('RESPOSTA MINHAS VAGAS: $response');
+      debugPrint('RESPOSTA MINHAS VAGAS RESPONSAVEL: $response');
 
       if (!mounted) return;
 
@@ -86,6 +87,7 @@ class _MinhasVagasResponsavelPageState
   int _toInt(dynamic valor) {
     if (valor == null) return 0;
     if (valor is int) return valor;
+
     return int.tryParse(valor.toString()) ?? 0;
   }
 
@@ -99,6 +101,17 @@ class _MinhasVagasResponsavelPageState
     }
 
     return texto;
+  }
+
+  String _whatsappVaga(Map<String, dynamic> vaga) {
+    return _texto(
+      vaga['WhatsappContato'] ??
+          vaga['WhatsAppContato'] ??
+          vaga['WhatsappResponsavel'] ??
+          vaga['ContatoWhatsapp'] ??
+          vaga['whatsapp'],
+      fallback: '-',
+    );
   }
 
   Color getStatusColor(String status) {
@@ -153,6 +166,16 @@ class _MinhasVagasResponsavelPageState
     }
 
     return texto;
+  }
+
+  String formatarValor(dynamic valor) {
+    if (valor == null) return 'A combinar';
+
+    final numero = double.tryParse(valor.toString());
+
+    if (numero == null) return valor.toString();
+
+    return 'R\$ ${numero.toStringAsFixed(2).replaceAll('.', ',')}';
   }
 
   Future<void> excluirVaga(int idVaga) async {
@@ -273,9 +296,9 @@ class _MinhasVagasResponsavelPageState
         builder: (_) {
           return DraggableScrollableSheet(
             expand: false,
-            initialChildSize: lista.isEmpty ? 0.35 : 0.65,
+            initialChildSize: lista.isEmpty ? 0.35 : 0.68,
             minChildSize: 0.25,
-            maxChildSize: 0.9,
+            maxChildSize: 0.92,
             builder: (_, scrollController) {
               return Padding(
                 padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
@@ -300,7 +323,7 @@ class _MinhasVagasResponsavelPageState
                           ),
                           SizedBox(height: 8),
                           Text(
-                            'Quando algum cuidador demonstrar interesse, ele aparecerá aqui.',
+                            'Quando algum cuidador aceitar esta vaga, ele aparecerá aqui.',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Colors.black54,
@@ -321,7 +344,7 @@ class _MinhasVagasResponsavelPageState
                                   const Icon(Icons.people, color: roxo),
                                   const SizedBox(width: 8),
                                   Text(
-                                    'Interessados (${lista.length})',
+                                    'Cuidadores interessados (${lista.length})',
                                     style: const TextStyle(
                                       color: roxo,
                                       fontSize: 20,
@@ -350,11 +373,6 @@ class _MinhasVagasResponsavelPageState
                             fallback: '',
                           );
 
-                          final valorHora = _texto(
-                            c['ValorHora'] ?? c['valorHora'],
-                            fallback: '',
-                          );
-
                           return Container(
                             margin: const EdgeInsets.only(bottom: 10),
                             decoration: BoxDecoration(
@@ -364,35 +382,32 @@ class _MinhasVagasResponsavelPageState
                                 color: roxo.withOpacity(0.08),
                               ),
                             ),
-                            child: ListTile(
-                              contentPadding: const EdgeInsets.all(12),
-                              leading: const CircleAvatar(
-                                backgroundColor: roxo,
-                                child: Icon(
-                                  Icons.person,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              title: Text(
-                                nome,
-                                style: const TextStyle(
-                                  color: roxo,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              subtitle: Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Text(
-                                  [
-                                    telefone,
-                                    if (email.isNotEmpty) email,
-                                    if (valorHora.isNotEmpty)
-                                      'Valor/hora: R\$ $valorHora',
-                                  ].join('\n'),
-                                ),
-                              ),
-                              isThreeLine: true,
-                            ),
+child: ListTile(
+  contentPadding: const EdgeInsets.all(12),
+  leading: const CircleAvatar(
+    backgroundColor: roxo,
+    child: Icon(
+      Icons.person,
+      color: Colors.white,
+    ),
+  ),
+  title: Text(
+    nome,
+    style: const TextStyle(
+      color: roxo,
+      fontWeight: FontWeight.bold,
+    ),
+  ),
+  subtitle: Padding(
+    padding: const EdgeInsets.only(top: 4),
+    child: Text(
+      [
+        telefone,
+        if (email.isNotEmpty) email,
+      ].join('\n'),
+    ),
+  ),
+)
                           );
                         },
                       ),
@@ -424,16 +439,20 @@ class _MinhasVagasResponsavelPageState
     }
   }
 
-Future<void> abrirCriarVaga() async {
-  await Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (_) => const CriarVagaPage(),
-    ),
-  );
+  Future<void> abrirCriarVaga() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const CriarVagaPage(),
+      ),
+    );
 
-  await fetchVagas();
-}
+    if (result == true) {
+      await fetchVagas();
+    } else {
+      await fetchVagas();
+    }
+  }
 
   void abrirDetalhes(Map<String, dynamic> v) {
     final status = _texto(v['Status'], fallback: 'Aberta');
@@ -442,11 +461,16 @@ Future<void> abrirCriarVaga() async {
     final totalInteressados = _toInt(v['TotalInteressados']);
 
     final titulo = _texto(v['Titulo'], fallback: 'Vaga sem título');
+    final descricao = _texto(v['Descricao'], fallback: 'Sem descrição.');
     final nomeIdoso = _texto(v['NomeIdoso'], fallback: 'Não informado');
+
     final cidade = _texto(v['Cidade']);
     final bairro = _texto(v['Bairro']);
     final rua = _texto(v['Rua']);
     final cep = _texto(v['Cep']);
+
+    final whatsapp = _whatsappVaga(v);
+    final valor = formatarValor(v['Valor']);
 
     showModalBottomSheet(
       context: context,
@@ -458,11 +482,15 @@ Future<void> abrirCriarVaga() async {
         ),
       ),
       builder: (_) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(18, 14, 18, 28),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.82,
+          minChildSize: 0.45,
+          maxChildSize: 0.94,
+          builder: (_, scrollController) {
+            return ListView(
+              controller: scrollController,
+              padding: const EdgeInsets.fromLTRB(18, 14, 18, 28),
               children: [
                 Center(
                   child: Container(
@@ -475,7 +503,6 @@ Future<void> abrirCriarVaga() async {
                     ),
                   ),
                 ),
-
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -492,41 +519,60 @@ Future<void> abrirCriarVaga() async {
                     _statusChip(status),
                   ],
                 ),
-
-                const SizedBox(height: 12),
-
-                _linhaDetalhe(
-                  Icons.elderly_outlined,
-                  'Idoso: $nomeIdoso',
+                const SizedBox(height: 16),
+                _secaoDetalhes(
+                  titulo: 'Informações da vaga',
+                  children: [
+                    _linhaDetalhe(Icons.elderly_outlined, 'Idoso: $nomeIdoso'),
+                    _linhaDetalhe(Icons.description_outlined, descricao),
+                    _linhaDetalhe(Icons.attach_money, 'Valor: $valor'),
+                    _linhaDetalhe(
+                      Icons.location_on_outlined,
+                      [
+                        if (rua != '-') rua,
+                        if (bairro != '-') bairro,
+                        if (cidade != '-') cidade,
+                        if (cep != '-') 'CEP $cep',
+                      ].join(' - '),
+                    ),
+                    _linhaDetalhe(
+                      Icons.calendar_today_outlined,
+                      formatarData(v['DataServico']),
+                    ),
+                    _linhaDetalhe(
+                      Icons.access_time_outlined,
+                      '${formatarHora(v['HoraInicio'])} às ${formatarHora(v['HoraFim'])}',
+                    ),
+                  ],
                 ),
-
-                _linhaDetalhe(
-                  Icons.location_on_outlined,
-                  [
-                    if (rua != '-') rua,
-                    if (bairro != '-') bairro,
-                    if (cidade != '-') cidade,
-                    if (cep != '-') 'CEP $cep',
-                  ].join(' - '),
+                _secaoDetalhes(
+                  titulo: 'Contato cadastrado para a vaga',
+                  children: [
+                    _linhaDetalhe(
+                      Icons.chat_outlined,
+                      'WhatsApp: $whatsapp',
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Esse WhatsApp só aparece para o cuidador depois que ele aceita a vaga e consome 1 uso do plano.',
+                      style: TextStyle(
+                        color: roxo.withOpacity(0.65),
+                        fontSize: 13,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
                 ),
-
-                _linhaDetalhe(
-                  Icons.calendar_today_outlined,
-                  formatarData(v['DataServico']),
+                _secaoDetalhes(
+                  titulo: 'Interesses',
+                  children: [
+                    _linhaDetalhe(
+                      Icons.people_outline,
+                      '$totalInteressados cuidador(es) interessado(s)',
+                    ),
+                  ],
                 ),
-
-                _linhaDetalhe(
-                  Icons.access_time_outlined,
-                  '${formatarHora(v['HoraInicio'])} às ${formatarHora(v['HoraFim'])}',
-                ),
-
-                _linhaDetalhe(
-                  Icons.people_outline,
-                  '$totalInteressados interessado(s)',
-                ),
-
-                const SizedBox(height: 18),
-
+                const SizedBox(height: 8),
                 _botaoAcao(
                   icon: Icons.people,
                   texto: 'Ver interessados ($totalInteressados)',
@@ -536,7 +582,6 @@ Future<void> abrirCriarVaga() async {
                     verInteressados(idVaga);
                   },
                 ),
-
                 _botaoAcao(
                   icon: Icons.edit_outlined,
                   texto: 'Editar vaga',
@@ -546,7 +591,6 @@ Future<void> abrirCriarVaga() async {
                     abrirEditarVaga(v);
                   },
                 ),
-
                 _botaoAcao(
                   icon: aberta ? Icons.lock_outline : Icons.lock_open_outlined,
                   texto: aberta ? 'Encerrar vaga' : 'Reabrir vaga',
@@ -556,7 +600,6 @@ Future<void> abrirCriarVaga() async {
                     alterarStatus(idVaga, aberta);
                   },
                 ),
-
                 SizedBox(
                   width: double.infinity,
                   child: TextButton.icon(
@@ -575,10 +618,41 @@ Future<void> abrirCriarVaga() async {
                   ),
                 ),
               ],
-            ),
-          ),
+            );
+          },
         );
       },
+    );
+  }
+
+  Widget _secaoDetalhes({
+    required String titulo,
+    required List<Widget> children,
+  }) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: roxo.withOpacity(0.07)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            titulo,
+            style: const TextStyle(
+              color: roxo,
+              fontWeight: FontWeight.w900,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 10),
+          ...children,
+        ],
+      ),
     );
   }
 
@@ -681,6 +755,7 @@ Future<void> abrirCriarVaga() async {
     final nomeIdoso = _texto(v['NomeIdoso'], fallback: 'Não informado');
     final cidade = _texto(v['Cidade']);
     final bairro = _texto(v['Bairro']);
+    final whatsapp = _whatsappVaga(v);
 
     return InkWell(
       onTap: () => abrirDetalhes(v),
@@ -721,14 +796,11 @@ Future<void> abrirCriarVaga() async {
                 _statusChip(status),
               ],
             ),
-
             const SizedBox(height: 12),
-
             _linhaDetalhe(
               Icons.elderly_outlined,
               'Idoso: $nomeIdoso',
             ),
-
             _linhaDetalhe(
               Icons.location_on_outlined,
               [
@@ -736,19 +808,19 @@ Future<void> abrirCriarVaga() async {
                 if (cidade != '-') cidade,
               ].join(' - '),
             ),
-
             _linhaDetalhe(
               Icons.calendar_today_outlined,
               formatarData(v['DataServico']),
             ),
-
             _linhaDetalhe(
               Icons.access_time_outlined,
               '${formatarHora(v['HoraInicio'])} às ${formatarHora(v['HoraFim'])}',
             ),
-
+            _linhaDetalhe(
+              Icons.chat_outlined,
+              'WhatsApp da vaga: $whatsapp',
+            ),
             const SizedBox(height: 8),
-
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -759,14 +831,15 @@ Future<void> abrirCriarVaga() async {
                 children: [
                   Icon(Icons.people_outline, color: rosa, size: 20),
                   const SizedBox(width: 8),
-                  Text(
-                    '$totalInteressados interessado(s)',
-                    style: const TextStyle(
-                      color: roxo,
-                      fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: Text(
+                      '$totalInteressados interessado(s)',
+                      style: const TextStyle(
+                        color: roxo,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                  const Spacer(),
                   const Text(
                     'Ver detalhes',
                     style: TextStyle(

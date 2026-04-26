@@ -1,5 +1,9 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../services/api_service.dart';
 import '../services/servico_autenticacao.dart';
@@ -21,7 +25,6 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
   final cpfController = TextEditingController();
   final cidadeController = TextEditingController();
   final biografiaController = TextEditingController();
-  final valorHoraController = TextEditingController();
 
   final escolaridadeController = TextEditingController();
   final experienciaController = TextEditingController();
@@ -30,6 +33,7 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
 
   String? sexoSelecionado;
   DateTime? dataNascimento;
+  String? fotoBase64;
 
   bool _isLoading = true;
   bool _isSaving = false;
@@ -53,7 +57,6 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
     cpfController.dispose();
     cidadeController.dispose();
     biografiaController.dispose();
-    valorHoraController.dispose();
     escolaridadeController.dispose();
     experienciaController.dispose();
     trabalhosController.dispose();
@@ -78,6 +81,32 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
     return valor.replaceAll(RegExp(r'[^0-9]'), '');
   }
 
+  ImageProvider? _fotoProvider() {
+    final foto = fotoBase64?.trim() ?? '';
+
+    if (foto.isEmpty || foto.toLowerCase() == 'null') return null;
+
+    if (foto.startsWith('data:image')) {
+      try {
+        final Uint8List bytes = base64Decode(foto.split(',').last);
+        return MemoryImage(bytes);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    if (foto.startsWith('http://') || foto.startsWith('https://')) {
+      return NetworkImage(foto);
+    }
+
+    try {
+      final Uint8List bytes = base64Decode(foto);
+      return MemoryImage(bytes);
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<int?> _getCuidadorIdLogado() async {
     final token = await ServicoAutenticacao.getToken();
     final userData = await ServicoAutenticacao.getUserData();
@@ -98,11 +127,39 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
     );
   }
 
+  Future<void> _selecionarFoto() async {
+    try {
+      final picker = ImagePicker();
+
+      final XFile? imagem = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70,
+        maxWidth: 800,
+      );
+
+      if (imagem == null) return;
+
+      final bytes = await imagem.readAsBytes();
+      final extensao =
+          imagem.name.toLowerCase().endsWith('.png') ? 'png' : 'jpeg';
+
+      setState(() {
+        fotoBase64 = 'data:image/$extensao;base64,${base64Encode(bytes)}';
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao selecionar foto: $e')),
+      );
+    }
+  }
+
   Future<void> _selecionarDataNascimento() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate:
-          dataNascimento ?? DateTime.now().subtract(const Duration(days: 365 * 25)),
+      initialDate: dataNascimento ??
+          DateTime.now().subtract(const Duration(days: 365 * 25)),
       firstDate: DateTime(1920),
       lastDate: DateTime.now(),
     );
@@ -129,13 +186,16 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
 
         nomeController.text = _textoSeguro(data['nome'] ?? data['Nome']);
         emailController.text = _textoSeguro(data['email'] ?? data['Email']);
-        telefoneController.text = _textoSeguro(data['telefone'] ?? data['Telefone']);
+        telefoneController.text =
+            _textoSeguro(data['telefone'] ?? data['Telefone']);
         cpfController.text = _textoSeguro(data['cpf'] ?? data['Cpf']);
         cidadeController.text = _textoSeguro(data['cidade'] ?? data['Cidade']);
         biografiaController.text =
             _textoSeguro(data['biografia'] ?? data['Biografia']);
-        valorHoraController.text =
-            _textoSeguro(data['valorHora'] ?? data['ValorHora']);
+
+        fotoBase64 = _textoSeguro(
+          data['fotoUrl'] ?? data['FotoUrl'] ?? data['foto_url'],
+        );
 
         sexoSelecionado = _textoSeguro(data['sexo'] ?? data['Sexo']);
         if (sexoSelecionado!.isEmpty) sexoSelecionado = null;
@@ -167,9 +227,11 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
       }
     } catch (e) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erro ao carregar perfil: $e')),
       );
+
       Navigator.pop(context);
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -191,7 +253,8 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
         sexoSelecionado == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Preencha nome, telefone, CPF, sexo e data de nascimento.'),
+          content:
+              Text('Preencha nome, telefone, CPF, sexo e data de nascimento.'),
         ),
       );
       return;
@@ -208,7 +271,7 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
         'sexo': sexoSelecionado,
         'cidade': cidadeController.text.trim(),
         'biografia': biografiaController.text.trim(),
-        'valorHora': valorHoraController.text.trim(),
+        'fotoUrl': fotoBase64,
         'escolaridade': escolaridadeController.text.trim(),
         'experienciaProfissional': experienciaController.text.trim(),
         'trabalhosFeitos': trabalhosController.text.trim(),
@@ -223,14 +286,18 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Perfil atualizado com sucesso!')),
         );
+
         Navigator.pop(context, true);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(response['message'] ?? 'Erro ao atualizar perfil.')),
+          SnackBar(
+            content: Text(response['message'] ?? 'Erro ao atualizar perfil.'),
+          ),
         );
       }
     } catch (e) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erro ao salvar perfil: $e')),
       );
@@ -275,6 +342,8 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
 
   @override
   Widget build(BuildContext context) {
+    final foto = _fotoProvider();
+
     return Scaffold(
       backgroundColor: fundo,
       appBar: AppBar(
@@ -283,15 +352,28 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
         foregroundColor: Colors.white,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: rosa))
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  const CircleAvatar(
-                    radius: 36,
+                  CircleAvatar(
+                    radius: 48,
                     backgroundColor: roxo,
-                    child: Icon(Icons.person, size: 36, color: Colors.white),
+                    backgroundImage: foto,
+                    child: foto == null
+                        ? const Icon(
+                            Icons.person,
+                            size: 48,
+                            color: Colors.white,
+                          )
+                        : null,
+                  ),
+                  const SizedBox(height: 10),
+                  TextButton.icon(
+                    onPressed: _selecionarFoto,
+                    icon: const Icon(Icons.photo_library_outlined),
+                    label: const Text('Alterar foto'),
                   ),
                   const SizedBox(height: 20),
 
@@ -334,8 +416,14 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
                     initialValue: sexoSelecionado,
                     decoration: const InputDecoration(labelText: 'Sexo'),
                     items: const [
-                      DropdownMenuItem(value: 'feminino', child: Text('Feminino')),
-                      DropdownMenuItem(value: 'masculino', child: Text('Masculino')),
+                      DropdownMenuItem(
+                        value: 'feminino',
+                        child: Text('Feminino'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'masculino',
+                        child: Text('Masculino'),
+                      ),
                     ],
                     onChanged: (value) {
                       setState(() => sexoSelecionado = value);
@@ -366,13 +454,6 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
                   ),
                   const SizedBox(height: 12),
 
-                  _campo(
-                    controller: valorHoraController,
-                    label: 'Valor por hora',
-                    hint: 'Ex: 50,00',
-                    keyboard: TextInputType.number,
-                  ),
-
                   const SizedBox(height: 22),
                   _tituloSecao('Perfil profissional'),
                   const SizedBox(height: 12),
@@ -395,7 +476,8 @@ class _TelaEditarPerfilCuidadorState extends State<TelaEditarPerfilCuidador> {
                   _campo(
                     controller: trabalhosController,
                     label: 'Trabalhos já feitos',
-                    hint: 'Ex: cuidados com idosos, acompanhamento hospitalar...',
+                    hint:
+                        'Ex: cuidados com idosos, acompanhamento hospitalar...',
                     maxLines: 4,
                   ),
                   const SizedBox(height: 12),
