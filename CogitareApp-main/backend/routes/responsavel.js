@@ -1,9 +1,9 @@
 const express = require('express');
+const bcrypt = require('bcryptjs');
 const db = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
-const bcrypt = require('bcryptjs');
 
 function getResponsavelId(req) {
   return req.user?.id || req.user?.IdResponsavel || req.user?.userId;
@@ -30,21 +30,16 @@ router.post('/completo', async (req, res) => {
       telefone,
       dataNascimento,
       senha,
-      fotoUrl
+      fotoUrl,
     } = req.body;
-
-    // ========================
-    // VALIDAÇÕES
-    // ========================
 
     if (!nome || !email || !senha || !cpf || !telefone || !dataNascimento) {
       return res.status(400).json({
         success: false,
-        message: 'Campos obrigatórios faltando'
+        message: 'Campos obrigatórios faltando',
       });
     }
 
-    // 👉 IDADE (18+)
     const nascimento = new Date(dataNascimento);
     const hoje = new Date();
     const idade = hoje.getFullYear() - nascimento.getFullYear();
@@ -52,23 +47,20 @@ router.post('/completo', async (req, res) => {
     if (idade < 18) {
       return res.status(400).json({
         success: false,
-        message: 'Você precisa ser maior de 18 anos'
+        message: 'Você precisa ser maior de 18 anos',
       });
     }
 
-    // 👉 SENHA FORTE
-    const senhaForte =
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+    const senhaForte = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
 
     if (!senhaForte.test(senha)) {
       return res.status(400).json({
         success: false,
         message:
-          'Senha fraca. Use 8+ caracteres com maiúscula, minúscula, número e símbolo.'
+          'Senha fraca. Use 8+ caracteres com maiúscula, minúscula, número e símbolo.',
       });
     }
 
-    // 👉 EMAIL DUPLICADO
     const existeEmail = await db.query(
       `SELECT IdResponsavel FROM responsavel WHERE Email = ?`,
       [email]
@@ -77,29 +69,19 @@ router.post('/completo', async (req, res) => {
     if (existeEmail.length > 0) {
       return res.status(400).json({
         success: false,
-        message: 'E-mail já cadastrado'
+        message: 'E-mail já cadastrado',
       });
     }
-
-    // ========================
-    // CRIAR ENDEREÇO
-    // ========================
 
     const enderecoResult = await db.query(
       `
       INSERT INTO endereco (Cidade, Bairro, Rua, Numero, Complemento, Cep)
       VALUES (?, ?, ?, ?, ?, ?)
       `,
-      [cidade, bairro, rua, numero, complemento, cep]
+      [cidade, bairro, rua, numero, complemento || null, cep]
     );
 
     const idEndereco = enderecoResult.insertId;
-
-    // ========================
-    // CRIAR RESPONSÁVEL
-    // ========================
-
-    const bcrypt = require('bcryptjs');
     const senhaHash = await bcrypt.hash(senha, 10);
 
     const result = await db.query(
@@ -116,28 +98,233 @@ router.post('/completo', async (req, res) => {
         telefone,
         cpf,
         dataNascimento,
-        fotoUrl || null
+        fotoUrl || null,
       ]
     );
 
     return res.json({
       success: true,
       message: 'Cadastro realizado com sucesso',
-      guardianId: result.insertId
+      guardianId: result.insertId,
     });
-
   } catch (error) {
     console.error('ERRO CADASTRO COMPLETO:', error);
 
     return res.status(500).json({
       success: false,
-      message: 'Erro ao cadastrar responsável'
+      message: 'Erro ao cadastrar responsável',
+      error: error.message,
     });
   }
 });
 
 /* =========================
-   CRIAR VAGA (CORRIGIDO)
+   PERFIL RESPONSÁVEL
+========================= */
+
+router.get('/perfil', authenticateToken, async (req, res) => {
+  try {
+    const idResponsavel = getResponsavelId(req);
+
+    const resultado = await db.query(
+      `
+      SELECT
+        r.IdResponsavel,
+        r.Nome,
+        r.Email,
+        r.Telefone,
+        r.Cpf,
+        r.DataNascimento,
+        r.FotoUrl,
+        r.IdEndereco,
+
+        e.Cidade,
+        e.Bairro,
+        e.Rua,
+        e.Numero,
+        e.Complemento,
+        e.Cep,
+
+        r.Nome AS nome,
+        r.Email AS email,
+        r.Telefone AS telefone,
+        r.Cpf AS cpf,
+        r.DataNascimento AS dataNascimento,
+        r.FotoUrl AS fotoUrl,
+
+        e.Cidade AS cidade,
+        e.Bairro AS bairro,
+        e.Rua AS rua,
+        e.Numero AS numero,
+        e.Complemento AS complemento,
+        e.Cep AS cep
+      FROM responsavel r
+      LEFT JOIN endereco e ON e.IdEndereco = r.IdEndereco
+      WHERE r.IdResponsavel = ?
+      LIMIT 1
+      `,
+      [idResponsavel]
+    );
+
+    const rows = normalizarRows(resultado);
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Responsável não encontrado.',
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: rows[0],
+    });
+  } catch (error) {
+    console.error('ERRO BUSCAR PERFIL RESPONSÁVEL:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Erro ao buscar perfil.',
+      error: error.message,
+    });
+  }
+});
+
+router.put('/perfil', authenticateToken, async (req, res) => {
+  try {
+    const idResponsavel = getResponsavelId(req);
+
+    const {
+      nome,
+      email,
+      telefone,
+      dataNascimento,
+      fotoUrl,
+      cep,
+      cidade,
+      bairro,
+      rua,
+      numero,
+      complemento,
+    } = req.body;
+
+    if (!nome || !email || !telefone || !dataNascimento) {
+      return res.status(400).json({
+        success: false,
+        message: 'Nome, e-mail, telefone e data de nascimento são obrigatórios.',
+      });
+    }
+
+    const responsavelRows = await db.query(
+      `SELECT IdEndereco FROM responsavel WHERE IdResponsavel = ? LIMIT 1`,
+      [idResponsavel]
+    );
+
+    const responsavel = normalizarRows(responsavelRows)[0];
+
+    if (!responsavel) {
+      return res.status(404).json({
+        success: false,
+        message: 'Responsável não encontrado.',
+      });
+    }
+
+    const camposResponsavel = [
+      'Nome = ?',
+      'Email = ?',
+      'Telefone = ?',
+      'DataNascimento = ?',
+    ];
+
+    const valoresResponsavel = [nome, email, telefone, dataNascimento];
+
+    if (fotoUrl !== undefined && fotoUrl !== null && fotoUrl !== '') {
+      camposResponsavel.push('FotoUrl = ?');
+      valoresResponsavel.push(fotoUrl);
+    }
+
+    valoresResponsavel.push(idResponsavel);
+
+    await db.query(
+      `
+      UPDATE responsavel
+      SET ${camposResponsavel.join(', ')}
+      WHERE IdResponsavel = ?
+      `,
+      valoresResponsavel
+    );
+
+    const temEndereco =
+      cep || cidade || bairro || rua || numero || complemento;
+
+    if (temEndereco) {
+      if (responsavel.IdEndereco) {
+        await db.query(
+          `
+          UPDATE endereco
+          SET
+            Cidade = ?,
+            Bairro = ?,
+            Rua = ?,
+            Numero = ?,
+            Complemento = ?,
+            Cep = ?
+          WHERE IdEndereco = ?
+          `,
+          [
+            cidade || null,
+            bairro || null,
+            rua || null,
+            numero || null,
+            complemento || null,
+            cep || null,
+            responsavel.IdEndereco,
+          ]
+        );
+      } else {
+        const enderecoResult = await db.query(
+          `
+          INSERT INTO endereco (Cidade, Bairro, Rua, Numero, Complemento, Cep)
+          VALUES (?, ?, ?, ?, ?, ?)
+          `,
+          [
+            cidade || null,
+            bairro || null,
+            rua || null,
+            numero || null,
+            complemento || null,
+            cep || null,
+          ]
+        );
+
+        await db.query(
+          `
+          UPDATE responsavel
+          SET IdEndereco = ?
+          WHERE IdResponsavel = ?
+          `,
+          [enderecoResult.insertId, idResponsavel]
+        );
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: 'Perfil atualizado com sucesso.',
+    });
+  } catch (error) {
+    console.error('ERRO ATUALIZAR PERFIL RESPONSÁVEL:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Erro ao atualizar perfil.',
+      error: error.message,
+    });
+  }
+});
+
+/* =========================
+   CRIAR VAGA SEM DATA/HORA/VALOR
 ========================= */
 
 router.post('/vagas', authenticateToken, async (req, res) => {
@@ -152,17 +339,13 @@ router.post('/vagas', authenticateToken, async (req, res) => {
       cidade,
       bairro,
       rua,
-      dataServico,
-      horaInicio,
-      horaFim,
-      valor,
-      whatsappContato
+      whatsappContato,
     } = req.body;
 
-    if (!titulo || !cidade || !dataServico || !horaInicio || !horaFim || !whatsappContato) {
+    if (!titulo || !cidade) {
       return res.status(400).json({
         success: false,
-        message: 'Campos obrigatórios faltando (incluindo WhatsApp)',
+        message: 'Título e cidade são obrigatórios.',
       });
     }
 
@@ -178,29 +361,21 @@ router.post('/vagas', authenticateToken, async (req, res) => {
         Cidade,
         Bairro,
         Rua,
-        DataServico,
-        HoraInicio,
-        HoraFim,
-        Valor,
         Status,
         WhatsappContato
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Aberta', ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Aberta', ?)
       `,
       [
         idResponsavel,
-        idIdoso,
+        idIdoso || null,
         titulo,
         descricao || 'Sem descrição',
-        cep,
+        cep || null,
         cidade,
-        bairro,
-        rua,
-        dataServico,
-        horaInicio,
-        horaFim,
-        valor || 0,
-        whatsappContato
+        bairro || null,
+        rua || null,
+        whatsappContato || null,
       ]
     );
 
@@ -209,18 +384,82 @@ router.post('/vagas', authenticateToken, async (req, res) => {
       message: 'Vaga criada com sucesso',
       data: { idVaga: result.insertId },
     });
-
   } catch (error) {
     console.error('ERRO CRIAR VAGA:', error);
+
     return res.status(500).json({
       success: false,
       message: 'Erro ao criar vaga',
+      error: error.message,
+    });
+  }
+});
+
+router.put('/vaga/:id', authenticateToken, async (req, res) => {
+  try {
+    const idVaga = req.params.id;
+    const idResponsavel = getResponsavelId(req);
+
+    const {
+      titulo,
+      descricao,
+      cep,
+      cidade,
+      bairro,
+      rua,
+      whatsappContato,
+    } = req.body;
+
+    if (!titulo || !cidade) {
+      return res.status(400).json({
+        success: false,
+        message: 'Título e cidade são obrigatórios.',
+      });
+    }
+
+    await db.query(
+      `
+      UPDATE vaga
+      SET
+        Titulo = ?,
+        Descricao = ?,
+        Cep = ?,
+        Cidade = ?,
+        Bairro = ?,
+        Rua = ?,
+        WhatsappContato = ?
+      WHERE IdVaga = ? AND IdResponsavel = ?
+      `,
+      [
+        titulo,
+        descricao || 'Sem descrição',
+        cep || null,
+        cidade,
+        bairro || null,
+        rua || null,
+        whatsappContato || null,
+        idVaga,
+        idResponsavel,
+      ]
+    );
+
+    return res.json({
+      success: true,
+      message: 'Vaga atualizada com sucesso.',
+    });
+  } catch (error) {
+    console.error('ERRO EDITAR VAGA:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Erro ao editar vaga.',
+      error: error.message,
     });
   }
 });
 
 /* =========================
-   MINHAS VAGAS (COM WHATSAPP)
+   MINHAS VAGAS
 ========================= */
 
 router.get('/minhas-vagas', authenticateToken, async (req, res) => {
@@ -229,17 +468,16 @@ router.get('/minhas-vagas', authenticateToken, async (req, res) => {
 
     const resultado = await db.query(
       `
-     SELECT 
-  v.*,
-  i.Nome AS NomeIdoso,
-  COUNT(vc.IdVagaCuidador) AS TotalInteressados
-FROM vaga v
-LEFT JOIN idoso i ON i.IdIdoso = v.IdIdoso
-LEFT JOIN vagacuidador vc ON vc.IdVaga = v.IdVaga
-WHERE v.IdResponsavel = ?
-  AND v.Status != 'Excluída'
-GROUP BY v.IdVaga
-ORDER BY v.IdVaga DESC
+      SELECT 
+        v.*,
+        i.Nome AS NomeIdoso,
+        COUNT(vc.IdVagaCuidador) AS TotalInteressados
+      FROM vaga v
+      LEFT JOIN idoso i ON i.IdIdoso = v.IdIdoso
+      LEFT JOIN vagacuidador vc ON vc.IdVaga = v.IdVaga
+      WHERE v.IdResponsavel = ?
+      GROUP BY v.IdVaga
+      ORDER BY v.IdVaga DESC
       `,
       [idResponsavel]
     );
@@ -248,19 +486,16 @@ ORDER BY v.IdVaga DESC
       success: true,
       data: normalizarRows(resultado),
     });
-
   } catch (error) {
     console.error('ERRO MINHAS VAGAS:', error);
+
     return res.status(500).json({
       success: false,
       message: 'Erro ao listar vagas',
+      error: error.message,
     });
   }
 });
-
-/* =========================
-   EXCLUIR VAGA (FIX)
-========================= */
 
 router.delete('/vaga/:id', authenticateToken, async (req, res) => {
   try {
@@ -281,19 +516,16 @@ router.delete('/vaga/:id', authenticateToken, async (req, res) => {
       success: true,
       message: 'Vaga excluída com sucesso',
     });
-
   } catch (error) {
     console.error('ERRO EXCLUIR VAGA:', error);
+
     return res.status(500).json({
       success: false,
       message: 'Erro ao excluir vaga',
+      error: error.message,
     });
   }
 });
-
-/* =========================
-   ALTERAR STATUS DA VAGA
-========================= */
 
 router.put('/vaga/:id/status', authenticateToken, async (req, res) => {
   try {
@@ -301,10 +533,10 @@ router.put('/vaga/:id/status', authenticateToken, async (req, res) => {
     const idResponsavel = getResponsavelId(req);
     const { status } = req.body;
 
-    if (!status) {
+    if (!status || !['Aberta', 'Interrompida', 'Encerrada'].includes(status)) {
       return res.status(400).json({
         success: false,
-        message: 'Status é obrigatório',
+        message: 'Status inválido.',
       });
     }
 
@@ -321,13 +553,13 @@ router.put('/vaga/:id/status', authenticateToken, async (req, res) => {
       success: true,
       message: 'Status da vaga atualizado',
     });
-
   } catch (error) {
     console.error('ERRO ALTERAR STATUS:', error);
 
     return res.status(500).json({
       success: false,
       message: 'Erro ao alterar status da vaga',
+      error: error.message,
     });
   }
 });

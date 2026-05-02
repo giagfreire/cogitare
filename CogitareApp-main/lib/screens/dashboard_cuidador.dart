@@ -24,9 +24,9 @@ class _DashboardCuidadorState extends State<DashboardCuidador> {
   bool _isLoading = true;
   Map<String, dynamic>? _cuidador;
 
-String _planoAtual = 'Gratuito';
-int _usosPlano = 0;
-int _limitePlano = 0;
+  String _planoAtual = 'Gratuito';
+  int _usosPlano = 0;
+  int _limitePlano = 0;
 
   static const Color roxo = Color(0xFF42124C);
   static const Color rosa = Color(0xFFFE0472);
@@ -132,15 +132,16 @@ int _limitePlano = 0;
         }
 
         final planoData = responsePlano['data'] ?? {};
-      _planoAtual = (planoData['PlanoAtual'] ?? 'Gratuito').toString();
-_usosPlano = _parseInt(planoData['UsosPlano']) ?? 0;
-_limitePlano = _parseInt(planoData['LimitePlano']) ??
-    (_planoAtual.toLowerCase() == 'premium'
-        ? 20
-        : _planoAtual.toLowerCase() == 'básico' ||
-                _planoAtual.toLowerCase() == 'basico'
-            ? 5
-            : 0);
+
+        _planoAtual = (planoData['PlanoAtual'] ?? 'Gratuito').toString();
+        _usosPlano = _parseInt(planoData['UsosPlano']) ?? 0;
+        _limitePlano = _parseInt(planoData['LimitePlano']) ??
+            (_planoAtual.toLowerCase() == 'premium'
+                ? 20
+                : _planoAtual.toLowerCase() == 'básico' ||
+                        _planoAtual.toLowerCase() == 'basico'
+                    ? 5
+                    : 0);
 
         _isLoading = false;
       });
@@ -152,28 +153,8 @@ _limitePlano = _parseInt(planoData['LimitePlano']) ??
     }
   }
 
-  int getContatosRestantes() {
-    final restante = _limitePlano - _usosPlano;
-    return restante < 0 ? 0 : restante;
-  }
-
-  double getUsoPercentual() {
-    if (_limitePlano <= 0) return 0.0;
-
-    final valor = _usosPlano / _limitePlano;
-
-    if (valor > 1) return 1.0;
-    if (valor < 0) return 0.0;
-
-    return valor.toDouble();
-  }
-
   bool get _planoGratuito {
     return _planoAtual.toLowerCase() == 'gratuito' || _limitePlano <= 0;
-  }
-
-  bool get _limiteAtingido {
-    return !_planoGratuito && _usosPlano >= _limitePlano;
   }
 
   String get _nomePlanoExibicao {
@@ -223,148 +204,133 @@ _limitePlano = _parseInt(planoData['LimitePlano']) ??
     );
     await _carregarDados();
   }
-@override
-Widget build(BuildContext context) {
-  final nome = getNome();
-  final foto = _fotoProvider();
 
-  return Scaffold(
-    backgroundColor: fundo,
-    appBar: AppBar(
-      backgroundColor: roxo,
-      elevation: 0,
-      automaticallyImplyLeading: false,
-      centerTitle: true,
-      leadingWidth: 70,
-      leading: Padding(
-        padding: const EdgeInsets.only(left: 14),
-        child: Center(
-          child: Image.asset(
-            'assets/images/logo_cogitare.png',
-            height: 38,
-            fit: BoxFit.contain,
-          ),
-        ),
-      ),
-      title: const Text(
-        'Início',
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-        ),
-      ),
-      actions: [
-        IconButton(
-          tooltip: 'Configurações',
-          icon: const Icon(Icons.settings_outlined, color: Colors.white),
-          onPressed: _abrirConfiguracoes,
-        ),
-        GestureDetector(
-          onTap: _abrirPerfil,
-          child: Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: CircleAvatar(
-              radius: 18,
-              backgroundColor: Colors.white,
-              backgroundImage: foto,
-              child: foto == null
-                  ? const Icon(Icons.person, color: Colors.grey)
-                  : null,
-            ),
-          ),
-        ),
-      ],
-    ),
-    body: Stack(
-      children: [
-        Opacity(
-          opacity: 0.3,
-          child: SizedBox.expand(
+  @override
+  Widget build(BuildContext context) {
+    final nome = getNome();
+    final foto = _fotoProvider();
+
+    return Scaffold(
+      backgroundColor: fundo,
+      appBar: AppBar(
+        backgroundColor: roxo,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        centerTitle: true,
+        leadingWidth: 70,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 14),
+          child: Center(
             child: Image.asset(
-              'assets/images/leopardo.png',
-              fit: BoxFit.cover,
+              'assets/images/logo_cogitare.png',
+              height: 38,
+              fit: BoxFit.contain,
             ),
           ),
         ),
-        _isLoading
-            ? const Center(
-                child: CircularProgressIndicator(color: rosa),
-              )
-            : Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  children: [
-                    _buildHeader(nome),
-                    const SizedBox(height: 14),
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Acesso rápido',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                          color: roxo,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    GridView.count(
-                      crossAxisCount: 2,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      mainAxisSpacing: 8,
-                      crossAxisSpacing: 8,
-                      childAspectRatio: 1.75,
-                      children: [
-                        _buildActionBox(
-                          titulo: 'Vagas disponíveis',
-                          icon: Icons.work_outline,
-                          cor: roxo,
-                          onTap: _abrirVagas,
-                        ),
-                        _buildActionBox(
-                          titulo: 'Meu plano',
-                          icon: Icons.workspace_premium_outlined,
-                          cor: verde,
-                          textoEscuro: true,
-                          onTap: _abrirPlanos,
-                        ),
-                        _buildActionBox(
-                          titulo: 'Vagas visualizadas',
-                          icon: Icons.visibility_outlined,
-                          cor: rosa,
-                          onTap: _abrirVagasVisualizadas,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Meu plano',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                          color: roxo,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Expanded(
-                      child: _buildPlanoStatusCard(),
-                    ),
-                  ],
-                ),
+        title: const Text(
+          'Início',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Configurações',
+            icon: const Icon(Icons.settings_outlined, color: Colors.white),
+            onPressed: _abrirConfiguracoes,
+          ),
+          GestureDetector(
+            onTap: _abrirPerfil,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: CircleAvatar(
+                radius: 18,
+                backgroundColor: Colors.white,
+                backgroundImage: foto,
+                child: foto == null
+                    ? const Icon(Icons.person, color: Colors.grey)
+                    : null,
               ),
-      ],
-    ),
-  );
-}
+            ),
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          Opacity(
+            opacity: 0.3,
+            child: SizedBox.expand(
+              child: Image.asset(
+                'assets/images/leopardo.png',
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          _isLoading
+              ? const Center(
+                  child: CircularProgressIndicator(color: rosa),
+                )
+              : Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    children: [
+                      _buildHeader(nome),
+                      const SizedBox(height: 14),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Acesso rápido',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                            color: roxo,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      GridView.count(
+                        crossAxisCount: 2,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        mainAxisSpacing: 8,
+                        crossAxisSpacing: 8,
+                        childAspectRatio: 1.75,
+                        children: [
+                          _buildActionBox(
+                            titulo: 'Vagas disponíveis',
+                            icon: Icons.work_outline,
+                            cor: roxo,
+                            onTap: _abrirVagas,
+                          ),
+                          _buildActionBox(
+                            titulo: 'Meu plano',
+                            icon: Icons.workspace_premium_outlined,
+                            cor: verde,
+                            textoEscuro: true,
+                            onTap: _abrirPlanos,
+                          ),
+                          _buildActionBox(
+                            titulo: 'Vagas visualizadas',
+                            icon: Icons.visibility_outlined,
+                            cor: rosa,
+                            onTap: _abrirVagasVisualizadas,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildHeader(String nome) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(26),
         gradient: const LinearGradient(
@@ -449,88 +415,6 @@ Widget build(BuildContext context) {
     );
   }
 
-  Widget _buildPlanoStatusCard() {
-    final restante = getContatosRestantes();
-
-    String titulo;
-    String descricao;
-    Color corIcone;
-    IconData icone;
-
-    if (_planoGratuito) {
-      titulo = 'Plano gratuito';
-      descricao =
-          'Você ainda não pode visualizar vagas. Escolha um plano para liberar usos.';
-      corIcone = Colors.grey;
-      icone = Icons.lock_outline;
-    } else if (_limiteAtingido) {
-      titulo = 'Limite do plano atingido';
-      descricao =
-          'Você usou todos os usos disponíveis. Compre um novo plano para continuar visualizando vagas.';
-      corIcone = Colors.orange;
-      icone = Icons.warning_amber_rounded;
-    } else {
-      titulo = 'Plano ativo';
-      descricao = 'Você ainda pode visualizar vagas. Restam $restante usos.';
-      corIcone = verde;
-      icone = Icons.check_circle;
-    }
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: _cardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              CircleAvatar(
-                backgroundColor: corIcone.withOpacity(0.2),
-                child: Icon(icone, color: roxo),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  titulo,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: roxo,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            descricao,
-            style: TextStyle(color: roxo.withOpacity(0.7)),
-          ),
-          const SizedBox(height: 16),
-          LinearProgressIndicator(
-            value: getUsoPercentual(),
-            minHeight: 8,
-            backgroundColor: roxo.withOpacity(0.08),
-            valueColor: const AlwaysStoppedAnimation(rosa),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: _abrirPlanos,
-            child: Text(
-              _planoGratuito
-                  ? 'Escolher plano'
-                  : _limiteAtingido
-                      ? 'Comprar novo plano'
-                      : 'Gerenciar plano',
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildActionBox({
     required String titulo,
     required IconData icon,
@@ -547,7 +431,7 @@ Widget build(BuildContext context) {
         onTap: onTap,
         borderRadius: BorderRadius.circular(18),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(10),
           child: Row(
             children: [
               Icon(icon, color: textColor, size: 24),
@@ -569,19 +453,4 @@ Widget build(BuildContext context) {
       ),
     );
   }
-
-  BoxDecoration _cardDecoration() {
-    return BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(22),
-      border: Border.all(color: roxo.withOpacity(0.08)),
-      boxShadow: [
-        BoxShadow(
-          color: roxo.withOpacity(0.04),
-          blurRadius: 12,
-          offset: const Offset(0, 4),
-        ),
-      ],
-    );
-  } 
 }

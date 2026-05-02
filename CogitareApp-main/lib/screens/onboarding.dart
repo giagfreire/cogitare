@@ -373,48 +373,47 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         ),
                       ],
                     ),
-                    child: Column(
-                      children: [
-                        const Text(
-                          "Bem-vindo ao Cogitare",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: roxo,
-                            height: 1.2,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          "Cuidados com mais praticidade, organização e confiança para a sua rotina.",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey.shade700,
-                            height: 1.45,
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        Image.asset(
-                          'assets/images/idosa_lendo.png',
-                          height: 220,
-                          fit: BoxFit.contain,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
-              ),
-            ),
-          ),
-          _buildWelcomeFooter(context),
-        ],
+child: Column(
+  children: [
+    const Text(
+      "Bem-vindo ao Cogitare",
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        fontSize: 28,
+        fontWeight: FontWeight.bold,
+        color: roxo,
+        height: 1.2,
       ),
-    );
-  }
-
+    ),
+    const SizedBox(height: 12),
+    Text(
+      "Cuidados com mais praticidade, organização e confiança para a sua rotina.",
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        fontSize: 16,
+        color: Colors.grey.shade700,
+        height: 1.45,
+      ),
+    ),
+    const SizedBox(height: 20),
+    Image.asset(
+      'assets/images/velhas.png',
+      height: 200,
+      fit: BoxFit.contain,
+    ),
+  ],
+),
+),
+const SizedBox(height: 20),
+],
+),
+),
+),
+_buildWelcomeFooter(context),
+],
+),
+);
+}
   Widget _buildWelcomeHeader() {
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),

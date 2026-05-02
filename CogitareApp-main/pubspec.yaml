@@ -34,4 +34,7 @@ flutter:
     - assets/images/logo_cogitare.png
     - assets/images/logo_cogitare_horizontal.png
     - assets/images/leopardo.png
+    - assets/images/cuidador.png
+    - assets/images/velhas.png
+    - assets/images/participantes.png
     - .env
