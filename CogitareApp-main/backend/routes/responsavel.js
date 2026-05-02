@@ -229,16 +229,17 @@ router.get('/minhas-vagas', authenticateToken, async (req, res) => {
 
     const resultado = await db.query(
       `
-      SELECT 
-        v.*,
-        i.Nome AS NomeIdoso,
-        COUNT(vc.IdVagaCuidador) AS TotalInteressados
-      FROM vaga v
-      LEFT JOIN idoso i ON i.IdIdoso = v.IdIdoso
-      LEFT JOIN vagacuidador vc ON vc.IdVaga = v.IdVaga
-      WHERE v.IdResponsavel = ?
-      GROUP BY v.IdVaga
-      ORDER BY v.IdVaga DESC
+     SELECT 
+  v.*,
+  i.Nome AS NomeIdoso,
+  COUNT(vc.IdVagaCuidador) AS TotalInteressados
+FROM vaga v
+LEFT JOIN idoso i ON i.IdIdoso = v.IdIdoso
+LEFT JOIN vagacuidador vc ON vc.IdVaga = v.IdVaga
+WHERE v.IdResponsavel = ?
+  AND v.Status != 'Excluída'
+GROUP BY v.IdVaga
+ORDER BY v.IdVaga DESC
       `,
       [idResponsavel]
     );
@@ -286,6 +287,47 @@ router.delete('/vaga/:id', authenticateToken, async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Erro ao excluir vaga',
+    });
+  }
+});
+
+/* =========================
+   ALTERAR STATUS DA VAGA
+========================= */
+
+router.put('/vaga/:id/status', authenticateToken, async (req, res) => {
+  try {
+    const idVaga = req.params.id;
+    const idResponsavel = getResponsavelId(req);
+    const { status } = req.body;
+
+    if (!status) {
+      return res.status(400).json({
+        success: false,
+        message: 'Status é obrigatório',
+      });
+    }
+
+    await db.query(
+      `
+      UPDATE vaga
+      SET Status = ?
+      WHERE IdVaga = ? AND IdResponsavel = ?
+      `,
+      [status, idVaga, idResponsavel]
+    );
+
+    return res.json({
+      success: true,
+      message: 'Status da vaga atualizado',
+    });
+
+  } catch (error) {
+    console.error('ERRO ALTERAR STATUS:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Erro ao alterar status da vaga',
     });
   }
 });

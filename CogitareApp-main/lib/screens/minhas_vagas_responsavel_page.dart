@@ -19,7 +19,6 @@ class _MinhasVagasResponsavelPageState
 
   static const Color roxo = Color(0xFF42124C);
   static const Color rosa = Color(0xFFFE0472);
-  static const Color verde = Color(0xFF8AFF00);
   static const Color fundo = Color(0xFFF6F4F8);
 
   @override
@@ -45,12 +44,9 @@ class _MinhasVagasResponsavelPageState
       await _prepararToken();
 
       final response = await ServicoApi.get('/api/responsavel/minhas-vagas');
-
-      debugPrint('RESPOSTA MINHAS VAGAS RESPONSAVEL: $response');
+      final data = response['data'];
 
       if (!mounted) return;
-
-      final data = response['data'];
 
       setState(() {
         if (response['success'] == true && data is List) {
@@ -63,11 +59,7 @@ class _MinhasVagasResponsavelPageState
       if (!mounted) return;
 
       setState(() => vagas = []);
-
-      _mostrarSnack(
-        'Erro ao carregar vagas: $e',
-        cor: Colors.red,
-      );
+      _mostrarSnack('Erro ao carregar vagas: $e', cor: Colors.red);
     } finally {
       if (mounted) {
         setState(() => isLoading = false);
@@ -87,7 +79,6 @@ class _MinhasVagasResponsavelPageState
   int _toInt(dynamic valor) {
     if (valor == null) return 0;
     if (valor is int) return valor;
-
     return int.tryParse(valor.toString()) ?? 0;
   }
 
@@ -114,68 +105,14 @@ class _MinhasVagasResponsavelPageState
     );
   }
 
-  Color getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'aberta':
-        return Colors.green;
-      case 'encerrada':
-        return Colors.red;
-      case 'concluida':
-      case 'concluída':
-        return Colors.blue;
-      default:
-        return Colors.grey;
-    }
+  bool _vagaAberta(Map<String, dynamic> vaga) {
+    final status = _texto(vaga['Status'], fallback: 'Aberta').toLowerCase();
+    return status == 'aberta';
   }
 
-  IconData getStatusIcon(String status) {
-    switch (status.toLowerCase()) {
-      case 'aberta':
-        return Icons.lock_open_outlined;
-      case 'encerrada':
-        return Icons.lock_outline;
-      case 'concluida':
-      case 'concluída':
-        return Icons.check_circle_outline;
-      default:
-        return Icons.info_outline;
-    }
-  }
-
-  String formatarData(dynamic valor) {
-    if (valor == null) return '-';
-
-    try {
-      final data = DateTime.parse(valor.toString());
-
-      return '${data.day.toString().padLeft(2, '0')}/'
-          '${data.month.toString().padLeft(2, '0')}/'
-          '${data.year}';
-    } catch (_) {
-      return valor.toString();
-    }
-  }
-
-  String formatarHora(dynamic valor) {
-    if (valor == null) return '-';
-
-    final texto = valor.toString();
-
-    if (texto.length >= 5) {
-      return texto.substring(0, 5);
-    }
-
-    return texto;
-  }
-
-  String formatarValor(dynamic valor) {
-    if (valor == null) return 'A combinar';
-
-    final numero = double.tryParse(valor.toString());
-
-    if (numero == null) return valor.toString();
-
-    return 'R\$ ${numero.toStringAsFixed(2).replaceAll('.', ',')}';
+  bool _vagaInterrompida(Map<String, dynamic> vaga) {
+    final status = _texto(vaga['Status'], fallback: '').toLowerCase();
+    return status == 'interrompida' || status == 'pausada';
   }
 
   Future<void> excluirVaga(int idVaga) async {
@@ -230,19 +167,13 @@ class _MinhasVagasResponsavelPageState
       }
     } catch (e) {
       if (!mounted) return;
-
-      _mostrarSnack(
-        'Erro ao excluir vaga: $e',
-        cor: Colors.red,
-      );
+      _mostrarSnack('Erro ao excluir vaga: $e', cor: Colors.red);
     }
   }
 
-  Future<void> alterarStatus(int idVaga, bool aberta) async {
+  Future<void> alterarStatus(int idVaga, String novoStatus) async {
     try {
       await _prepararToken();
-
-      final novoStatus = aberta ? 'Encerrada' : 'Aberta';
 
       final response = await ServicoApi.put(
         '/api/responsavel/vaga/$idVaga/status',
@@ -253,176 +184,21 @@ class _MinhasVagasResponsavelPageState
 
       if (response['success'] == true) {
         _mostrarSnack(
-          novoStatus == 'Aberta' ? 'Vaga reaberta.' : 'Vaga encerrada.',
+          novoStatus == 'Aberta'
+              ? 'Vaga reaberta com sucesso.'
+              : 'Vaga interrompida com sucesso.',
         );
 
         await fetchVagas();
       } else {
         _mostrarSnack(
-          response['message'] ?? 'Erro ao alterar status.',
+          response['message'] ?? 'Erro ao alterar vaga.',
           cor: Colors.red,
         );
       }
     } catch (e) {
       if (!mounted) return;
-
-      _mostrarSnack(
-        'Erro ao alterar status: $e',
-        cor: Colors.red,
-      );
-    }
-  }
-
-  Future<void> verInteressados(int idVaga) async {
-    try {
-      await _prepararToken();
-
-      final response =
-          await ServicoApi.get('/api/responsavel/vaga/$idVaga/interessados');
-
-      if (!mounted) return;
-
-      final lista = response['data'] is List ? response['data'] : [];
-
-      showModalBottomSheet(
-        context: context,
-        backgroundColor: fundo,
-        isScrollControlled: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(26),
-          ),
-        ),
-        builder: (_) {
-          return DraggableScrollableSheet(
-            expand: false,
-            initialChildSize: lista.isEmpty ? 0.35 : 0.68,
-            minChildSize: 0.25,
-            maxChildSize: 0.92,
-            builder: (_, scrollController) {
-              return Padding(
-                padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
-                child: lista.isEmpty
-                    ? const Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.people_outline,
-                            size: 50,
-                            color: roxo,
-                          ),
-                          SizedBox(height: 12),
-                          Text(
-                            'Nenhum interessado ainda',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: roxo,
-                              fontSize: 19,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Quando algum cuidador aceitar esta vaga, ele aparecerá aqui.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.black54,
-                              height: 1.4,
-                            ),
-                          ),
-                        ],
-                      )
-                    : ListView.builder(
-                        controller: scrollController,
-                        itemCount: lista.length + 1,
-                        itemBuilder: (_, i) {
-                          if (i == 0) {
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 14),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.people, color: roxo),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Cuidadores interessados (${lista.length})',
-                                    style: const TextStyle(
-                                      color: roxo,
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w900,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }
-
-                          final c = Map<String, dynamic>.from(lista[i - 1]);
-
-                          final nome = _texto(
-                            c['Nome'] ?? c['nome'],
-                            fallback: 'Cuidador',
-                          );
-
-                          final telefone = _texto(
-                            c['Telefone'] ?? c['telefone'],
-                            fallback: 'Telefone não informado',
-                          );
-
-                          final email = _texto(
-                            c['Email'] ?? c['email'],
-                            fallback: '',
-                          );
-
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 10),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(
-                                color: roxo.withOpacity(0.08),
-                              ),
-                            ),
-child: ListTile(
-  contentPadding: const EdgeInsets.all(12),
-  leading: const CircleAvatar(
-    backgroundColor: roxo,
-    child: Icon(
-      Icons.person,
-      color: Colors.white,
-    ),
-  ),
-  title: Text(
-    nome,
-    style: const TextStyle(
-      color: roxo,
-      fontWeight: FontWeight.bold,
-    ),
-  ),
-  subtitle: Padding(
-    padding: const EdgeInsets.only(top: 4),
-    child: Text(
-      [
-        telefone,
-        if (email.isNotEmpty) email,
-      ].join('\n'),
-    ),
-  ),
-)
-                          );
-                        },
-                      ),
-              );
-            },
-          );
-        },
-      );
-    } catch (e) {
-      if (!mounted) return;
-
-      _mostrarSnack(
-        'Erro ao buscar interessados: $e',
-        cor: Colors.red,
-      );
+      _mostrarSnack('Erro ao alterar vaga: $e', cor: Colors.red);
     }
   }
 
@@ -455,10 +231,7 @@ child: ListTile(
   }
 
   void abrirDetalhes(Map<String, dynamic> v) {
-    final status = _texto(v['Status'], fallback: 'Aberta');
-    final aberta = status.toLowerCase() == 'aberta';
     final idVaga = _toInt(v['IdVaga']);
-    final totalInteressados = _toInt(v['TotalInteressados']);
 
     final titulo = _texto(v['Titulo'], fallback: 'Vaga sem título');
     final descricao = _texto(v['Descricao'], fallback: 'Sem descrição.');
@@ -468,9 +241,10 @@ child: ListTile(
     final bairro = _texto(v['Bairro']);
     final rua = _texto(v['Rua']);
     final cep = _texto(v['Cep']);
-
     final whatsapp = _whatsappVaga(v);
-    final valor = formatarValor(v['Valor']);
+
+    final aberta = _vagaAberta(v);
+    final interrompida = _vagaInterrompida(v);
 
     showModalBottomSheet(
       context: context,
@@ -484,7 +258,7 @@ child: ListTile(
       builder: (_) {
         return DraggableScrollableSheet(
           expand: false,
-          initialChildSize: 0.82,
+          initialChildSize: 0.76,
           minChildSize: 0.45,
           maxChildSize: 0.94,
           builder: (_, scrollController) {
@@ -503,21 +277,13 @@ child: ListTile(
                     ),
                   ),
                 ),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        titulo,
-                        style: const TextStyle(
-                          color: roxo,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                    _statusChip(status),
-                  ],
+                Text(
+                  titulo,
+                  style: const TextStyle(
+                    color: roxo,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 _secaoDetalhes(
@@ -525,7 +291,6 @@ child: ListTile(
                   children: [
                     _linhaDetalhe(Icons.elderly_outlined, 'Idoso: $nomeIdoso'),
                     _linhaDetalhe(Icons.description_outlined, descricao),
-                    _linhaDetalhe(Icons.attach_money, 'Valor: $valor'),
                     _linhaDetalhe(
                       Icons.location_on_outlined,
                       [
@@ -534,14 +299,6 @@ child: ListTile(
                         if (cidade != '-') cidade,
                         if (cep != '-') 'CEP $cep',
                       ].join(' - '),
-                    ),
-                    _linhaDetalhe(
-                      Icons.calendar_today_outlined,
-                      formatarData(v['DataServico']),
-                    ),
-                    _linhaDetalhe(
-                      Icons.access_time_outlined,
-                      '${formatarHora(v['HoraInicio'])} às ${formatarHora(v['HoraFim'])}',
                     ),
                   ],
                 ),
@@ -554,7 +311,7 @@ child: ListTile(
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Esse WhatsApp só aparece para o cuidador depois que ele aceita a vaga e consome 1 uso do plano.',
+                      'Esse WhatsApp aparece para o cuidador depois que ele visualiza a vaga e consome 1 uso do plano.',
                       style: TextStyle(
                         color: roxo.withOpacity(0.65),
                         fontSize: 13,
@@ -563,25 +320,7 @@ child: ListTile(
                     ),
                   ],
                 ),
-                _secaoDetalhes(
-                  titulo: 'Interesses',
-                  children: [
-                    _linhaDetalhe(
-                      Icons.people_outline,
-                      '$totalInteressados cuidador(es) interessado(s)',
-                    ),
-                  ],
-                ),
                 const SizedBox(height: 8),
-                _botaoAcao(
-                  icon: Icons.people,
-                  texto: 'Ver interessados ($totalInteressados)',
-                  cor: roxo,
-                  onPressed: () {
-                    Navigator.pop(context);
-                    verInteressados(idVaga);
-                  },
-                ),
                 _botaoAcao(
                   icon: Icons.edit_outlined,
                   texto: 'Editar vaga',
@@ -591,15 +330,26 @@ child: ListTile(
                     abrirEditarVaga(v);
                   },
                 ),
-                _botaoAcao(
-                  icon: aberta ? Icons.lock_outline : Icons.lock_open_outlined,
-                  texto: aberta ? 'Encerrar vaga' : 'Reabrir vaga',
-                  cor: aberta ? Colors.orange.shade700 : Colors.green,
-                  onPressed: () {
-                    Navigator.pop(context);
-                    alterarStatus(idVaga, aberta);
-                  },
-                ),
+                if (aberta)
+                  _botaoAcao(
+                    icon: Icons.pause_circle_outline,
+                    texto: 'Interromper vaga',
+                    cor: Colors.orange.shade700,
+                    onPressed: () {
+                      Navigator.pop(context);
+                      alterarStatus(idVaga, 'Interrompida');
+                    },
+                  ),
+                if (interrompida)
+                  _botaoAcao(
+                    icon: Icons.lock_open_outlined,
+                    texto: 'Reabrir vaga',
+                    cor: Colors.green,
+                    onPressed: () {
+                      Navigator.pop(context);
+                      alterarStatus(idVaga, 'Aberta');
+                    },
+                  ),
                 SizedBox(
                   width: double.infinity,
                   child: TextButton.icon(
@@ -689,41 +439,6 @@ child: ListTile(
     );
   }
 
-  Widget _statusChip(String status) {
-    final cor = getStatusColor(status);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 6,
-      ),
-      decoration: BoxDecoration(
-        color: cor.withOpacity(0.13),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: cor.withOpacity(0.25)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            getStatusIcon(status),
-            size: 15,
-            color: cor,
-          ),
-          const SizedBox(width: 5),
-          Text(
-            status,
-            style: TextStyle(
-              color: cor,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _linhaDetalhe(IconData icon, String texto) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 9),
@@ -748,14 +463,14 @@ child: ListTile(
   }
 
   Widget cardVaga(Map<String, dynamic> v) {
-    final status = _texto(v['Status'], fallback: 'Aberta');
-    final totalInteressados = _toInt(v['TotalInteressados']);
-
     final titulo = _texto(v['Titulo'], fallback: 'Vaga sem título');
     final nomeIdoso = _texto(v['NomeIdoso'], fallback: 'Não informado');
     final cidade = _texto(v['Cidade']);
     final bairro = _texto(v['Bairro']);
     final whatsapp = _whatsappVaga(v);
+
+    final aberta = _vagaAberta(v);
+    final interrompida = _vagaInterrompida(v);
 
     return InkWell(
       onTap: () => abrirDetalhes(v),
@@ -781,20 +496,13 @@ child: ListTile(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    titulo,
-                    style: const TextStyle(
-                      color: roxo,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-                _statusChip(status),
-              ],
+            Text(
+              titulo,
+              style: const TextStyle(
+                color: roxo,
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+              ),
             ),
             const SizedBox(height: 12),
             _linhaDetalhe(
@@ -809,52 +517,57 @@ child: ListTile(
               ].join(' - '),
             ),
             _linhaDetalhe(
-              Icons.calendar_today_outlined,
-              formatarData(v['DataServico']),
-            ),
-            _linhaDetalhe(
-              Icons.access_time_outlined,
-              '${formatarHora(v['HoraInicio'])} às ${formatarHora(v['HoraFim'])}',
-            ),
-            _linhaDetalhe(
               Icons.chat_outlined,
               'WhatsApp da vaga: $whatsapp',
             ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: rosa.withOpacity(0.07),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.people_outline, color: rosa, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      '$totalInteressados interessado(s)',
-                      style: const TextStyle(
-                        color: roxo,
-                        fontWeight: FontWeight.bold,
-                      ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () => abrirEditarVaga(v),
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  label: const Text('Editar'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: rosa,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+                if (aberta)
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      alterarStatus(_toInt(v['IdVaga']), 'Interrompida');
+                    },
+                    icon: const Icon(Icons.pause_circle_outline, size: 18),
+                    label: const Text('Interromper'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange.shade700,
+                      foregroundColor: Colors.white,
                     ),
                   ),
-                  const Text(
-                    'Ver detalhes',
-                    style: TextStyle(
-                      color: roxo,
-                      fontWeight: FontWeight.w700,
+                if (interrompida)
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      alterarStatus(_toInt(v['IdVaga']), 'Aberta');
+                    },
+                    icon: const Icon(Icons.lock_open_outlined, size: 18),
+                    label: const Text('Reabrir'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
                     ),
                   ),
-                  const SizedBox(width: 4),
-                  const Icon(
-                    Icons.arrow_forward_ios,
-                    size: 14,
-                    color: roxo,
+                OutlinedButton.icon(
+                  onPressed: () => excluirVaga(_toInt(v['IdVaga'])),
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  label: const Text('Excluir'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.red),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ],
         ),
@@ -924,13 +637,6 @@ child: ListTile(
   }
 
   Widget _headerLista() {
-    final abertas = vagas.where((vaga) {
-      final v = Map<String, dynamic>.from(vaga);
-      return _texto(v['Status'], fallback: 'Aberta').toLowerCase() == 'aberta';
-    }).length;
-
-    final encerradas = vagas.length - abertas;
-
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       padding: const EdgeInsets.all(18),
@@ -964,7 +670,7 @@ child: ListTile(
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  '${vagas.length} publicada(s) • $abertas aberta(s) • $encerradas encerrada(s)',
+                  '${vagas.length} vaga(s) publicada(s)',
                   style: const TextStyle(
                     color: Colors.white70,
                     height: 1.3,

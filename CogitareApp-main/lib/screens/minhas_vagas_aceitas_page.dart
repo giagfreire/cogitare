@@ -46,7 +46,7 @@ class _MinhasVagasAceitasPageState extends State<MinhasVagasAceitasPage> {
       if (!mounted) return;
 
       setState(() {
-        _errorMessage = 'Erro ao carregar vagas aceitas.';
+        _errorMessage = 'Erro ao carregar Vagas visualizadas.';
         _isLoading = false;
       });
     }
@@ -186,7 +186,7 @@ class _MinhasVagasAceitasPageState extends State<MinhasVagasAceitasPage> {
           ),
           const SizedBox(height: 16),
           const Text(
-            'Você ainda não aceitou nenhuma vaga.',
+            'Você ainda não visualizou nenhuma vaga.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 18,
@@ -429,7 +429,7 @@ class _MinhasVagasAceitasPageState extends State<MinhasVagasAceitasPage> {
                 borderRadius: BorderRadius.circular(18),
               ),
               child: Text(
-                'Total de vagas aceitas: ${_vagas.length}',
+                'Total de Vagas visualizadas: ${_vagas.length}',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -451,7 +451,7 @@ class _MinhasVagasAceitasPageState extends State<MinhasVagasAceitasPage> {
     return Scaffold(
       backgroundColor: fundo,
       appBar: AppBar(
-        title: const Text('Minhas vagas aceitas'),
+        title: const Text('Vagas Visualizadas'),
         backgroundColor: roxo,
         foregroundColor: Colors.white,
         actions: [

@@ -6,7 +6,7 @@ import '../services/servico_autenticacao.dart';
 import 'criar_vaga_page.dart';
 import 'minhas_vagas_responsavel_page.dart';
 import 'perfil_responsavel_page.dart';
-import 'tela_cadastro_idoso.dart';
+import 'perfil_idoso_page.dart';
 import 'tela_configuracoes.dart';
 
 class TelaDashboardResponsavel extends StatefulWidget {
@@ -85,48 +85,6 @@ class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
     return texto;
   }
 
-  int _toInt(dynamic valor) {
-    if (valor == null) return 0;
-    if (valor is int) return valor;
-    return int.tryParse(valor.toString()) ?? 0;
-  }
-
-  int get _vagasAbertas {
-    return _vagas.where((vaga) {
-      final v = Map<String, dynamic>.from(vaga);
-      return _texto(v['Status'], fallback: 'Aberta').toLowerCase() == 'aberta';
-    }).length;
-  }
-
-  int get _vagasEncerradas {
-    return _vagas.where((vaga) {
-      final v = Map<String, dynamic>.from(vaga);
-      final status = _texto(v['Status'], fallback: '').toLowerCase();
-      return status == 'encerrada' ||
-          status == 'finalizada' ||
-          status == 'cancelada';
-    }).length;
-  }
-
-  int get _vagasInterrompidas {
-    return _vagas.where((vaga) {
-      final v = Map<String, dynamic>.from(vaga);
-      final status = _texto(v['Status'], fallback: '').toLowerCase();
-      return status == 'interrompida' || status == 'pausada';
-    }).length;
-  }
-
-  int get _totalInteressados {
-    int total = 0;
-
-    for (final vaga in _vagas) {
-      final v = Map<String, dynamic>.from(vaga);
-      total += _toInt(v['TotalInteressados'] ?? v['interessados']);
-    }
-
-    return total;
-  }
-
   Future<void> _irParaCriarVaga() async {
     await Navigator.push(
       context,
@@ -157,7 +115,7 @@ class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
   Future<void> _abrirPerfilIdoso() async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const TelaCadastroIdoso()),
+      MaterialPageRoute(builder: (_) => const PerfilIdosoPage()),
     );
 
     await _carregarDashboard();
@@ -313,42 +271,24 @@ class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
 
     return Material(
       color: cor,
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(18),
         child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          padding: const EdgeInsets.all(12),
+          child: Row(
             children: [
-              Icon(icon, color: textColor, size: 30),
-              const Spacer(),
-              Text(
-                titulo,
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 17,
-                  fontWeight: FontWeight.bold,
-                  height: 1.2,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.bottomRight,
-                child: Container(
-                  height: 34,
-                  width: 34,
-                  decoration: BoxDecoration(
-                    color: textoEscuro
-                        ? Colors.black.withOpacity(0.08)
-                        : Colors.white.withOpacity(0.18),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.arrow_forward_rounded,
+              Icon(icon, color: textColor, size: 24),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  titulo,
+                  style: TextStyle(
                     color: textColor,
-                    size: 20,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    height: 1.2,
                   ),
                 ),
               ),
@@ -356,103 +296,6 @@ class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _resumoCard({
-    required IconData icon,
-    required String titulo,
-    required String valor,
-  }) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: roxo.withOpacity(0.08)),
-          boxShadow: [
-            BoxShadow(
-              color: roxo.withOpacity(0.035),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Icon(icon, size: 26, color: roxo),
-            const SizedBox(height: 8),
-            Text(
-              valor,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: roxo,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              titulo,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color: roxo.withOpacity(0.7),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _visaoGeral() {
-    return Column(
-      children: [
-        Row(
-          children: [
-            _resumoCard(
-              icon: Icons.work_outline,
-              titulo: 'Total',
-              valor: _vagas.length.toString(),
-            ),
-            const SizedBox(width: 10),
-            _resumoCard(
-              icon: Icons.check_circle_outline,
-              titulo: 'Abertas',
-              valor: _vagasAbertas.toString(),
-            ),
-            const SizedBox(width: 10),
-            _resumoCard(
-              icon: Icons.people_alt_outlined,
-              titulo: 'Interessados',
-              valor: _totalInteressados.toString(),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            _resumoCard(
-              icon: Icons.pause_circle_outline,
-              titulo: 'Interrompidas',
-              valor: _vagasInterrompidas.toString(),
-            ),
-            const SizedBox(width: 10),
-            _resumoCard(
-              icon: Icons.lock_outline,
-              titulo: 'Encerradas',
-              valor: _vagasEncerradas.toString(),
-            ),
-            const SizedBox(width: 10),
-            _resumoCard(
-              icon: Icons.schedule_outlined,
-              titulo: 'Hoje',
-              valor: '-',
-            ),
-          ],
-        ),
-      ],
     );
   }
 
@@ -498,86 +341,80 @@ class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
           ),
         ],
       ),
-      body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: rosa),
-            )
-          : RefreshIndicator(
-              onRefresh: _carregarDashboard,
-              color: rosa,
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
-                children: [
-                  _cardPrincipal(),
-                  const SizedBox(height: 22),
-
-                  const Text(
-                    'Acesso rápido',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: roxo,
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  GridView.count(
-                    crossAxisCount: 2,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 1.08,
-                    children: [
-                      _actionBox(
-                        titulo: 'Criar vaga',
-                        icon: Icons.add_circle_outline,
-                        cor: rosa,
-                        onTap: _irParaCriarVaga,
-                      ),
-                      _actionBox(
-                        titulo: 'Minhas vagas',
-                        icon: Icons.work_outline,
-                        cor: roxo,
-                        onTap: _abrirMinhasVagas,
-                      ),
-                      _actionBox(
-                        titulo: 'Meu perfil',
-                        icon: Icons.person_outline,
-                        cor: verde,
-                        textoEscuro: true,
-                        onTap: _abrirPerfil,
-                      ),
-                      _actionBox(
-                        titulo: 'Perfil do idoso',
-                        icon: Icons.elderly_outlined,
-                        cor: rosa,
-                        onTap: _abrirPerfilIdoso,
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  const Text(
-                    'Visão geral',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: roxo,
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  _visaoGeral(),
-
-                  const SizedBox(height: 30),
-                ],
+      body: Stack(
+        children: [
+          Opacity(
+            opacity: 0.15,
+            child: SizedBox.expand(
+              child: Image.asset(
+                'assets/images/leopardo.png',
+                fit: BoxFit.cover,
               ),
             ),
+          ),
+          _loading
+              ? const Center(
+                  child: CircularProgressIndicator(color: rosa),
+                )
+              : RefreshIndicator(
+                  onRefresh: _carregarDashboard,
+                  color: rosa,
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
+                    children: [
+                      _cardPrincipal(),
+                      const SizedBox(height: 22),
+                      const Text(
+                        'Acesso rápido',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: roxo,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      GridView.count(
+                        crossAxisCount: 2,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                        childAspectRatio: 1.45,
+                        children: [
+                          _actionBox(
+                            titulo: 'Criar vaga',
+                            icon: Icons.add_circle_outline,
+                            cor: rosa,
+                            onTap: _irParaCriarVaga,
+                          ),
+                          _actionBox(
+                            titulo: 'Minhas vagas',
+                            icon: Icons.work_outline,
+                            cor: roxo,
+                            onTap: _abrirMinhasVagas,
+                          ),
+                          _actionBox(
+                            titulo: 'Meu perfil',
+                            icon: Icons.person_outline,
+                            cor: verde,
+                            textoEscuro: true,
+                            onTap: _abrirPerfil,
+                          ),
+                          _actionBox(
+                            titulo: 'Perfil do idoso',
+                            icon: Icons.elderly_outlined,
+                            cor: rosa,
+                            onTap: _abrirPerfilIdoso,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 30),
+                    ],
+                  ),
+                ),
+        ],
+      ),
     );
   }
 }

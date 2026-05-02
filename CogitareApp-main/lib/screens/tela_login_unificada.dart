@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../controllers/login_controller.dart';
 import '../utils/navigation_utils.dart';
-import 'tela_cadastro_cuidador.dart';
 
 class TelaLoginUnificada extends StatefulWidget {
   static const route = '/login-unificado';
+
   const TelaLoginUnificada({super.key});
 
   @override
@@ -22,64 +23,60 @@ class _TelaLoginUnificadaState extends State<TelaLoginUnificada> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
-
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Column(
-          children: [
-            // Header com logo horizontal e botão voltar
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              child: Row(
-                children: [
-                  IconButton(
-                    onPressed: () {
-                      HapticFeedback.lightImpact();
-                      NavigationUtils.navigateToOnboardingLastPage(context);
-                    },
-                    icon: const Icon(
-                      Icons.arrow_back_ios,
-                      color: Color(0xFF424242),
-                      size: 24,
-                    ),
-                  ),
-                  Expanded(
-                    child: Container(
-                      height: 40,
-                      padding: const EdgeInsets.only(right: 200),
-                      child: Image.asset(
-                        'assets/images/logo_cogitare_horizontal.png',
-                        fit: BoxFit.contain,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.only(bottom: 24),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        NavigationUtils.navigateToOnboardingLastPage(context);
+                      },
+                      icon: const Icon(
+                        Icons.arrow_back_ios,
+                        color: Color(0xFF424242),
+                        size: 24,
                       ),
                     ),
-                  ),
-                ],
+                    Expanded(
+                      child: SizedBox(
+                        height: 40,
+                        child: Image.asset(
+                          'assets/images/logo_cogitare_horizontal.png',
+                          fit: BoxFit.contain,
+                          alignment: Alignment.centerLeft,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
 
-            // Mensagem de boas-vindas
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: const Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Cuidado com carinho.',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Cuidado com carinho.',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
                   ),
                 ),
               ),
-            ),
 
-            const SizedBox(height: 30),
+              const SizedBox(height: 30),
 
-            // Card de login
-            Expanded(
-              child: Container(
+              Container(
                 margin: const EdgeInsets.symmetric(horizontal: 20),
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
@@ -108,9 +105,9 @@ class _TelaLoginUnificadaState extends State<TelaLoginUnificada> {
                         color: Colors.black87,
                       ),
                     ),
+
                     const SizedBox(height: 24),
 
-                    // Campo E-mail
                     const Text(
                       'E-mail',
                       style: TextStyle(
@@ -119,7 +116,9 @@ class _TelaLoginUnificadaState extends State<TelaLoginUnificada> {
                         color: Colors.black87,
                       ),
                     ),
+
                     const SizedBox(height: 8),
+
                     TextField(
                       controller: emailController,
                       keyboardType: TextInputType.emailAddress,
@@ -141,7 +140,6 @@ class _TelaLoginUnificadaState extends State<TelaLoginUnificada> {
 
                     const SizedBox(height: 20),
 
-                    // Campo Tipo de Usuário
                     const Text(
                       'Tipo de usuário',
                       style: TextStyle(
@@ -150,7 +148,9 @@ class _TelaLoginUnificadaState extends State<TelaLoginUnificada> {
                         color: Colors.black87,
                       ),
                     ),
+
                     const SizedBox(height: 8),
+
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       decoration: BoxDecoration(
@@ -186,7 +186,6 @@ class _TelaLoginUnificadaState extends State<TelaLoginUnificada> {
 
                     const SizedBox(height: 20),
 
-                    // Campo Senha
                     const Text(
                       'Senha',
                       style: TextStyle(
@@ -195,7 +194,9 @@ class _TelaLoginUnificadaState extends State<TelaLoginUnificada> {
                         color: Colors.black87,
                       ),
                     ),
+
                     const SizedBox(height: 8),
+
                     TextField(
                       controller: passwordController,
                       obscureText: obscurePassword,
@@ -230,7 +231,6 @@ class _TelaLoginUnificadaState extends State<TelaLoginUnificada> {
 
                     const SizedBox(height: 24),
 
-                    // Botão Entrar
                     SizedBox(
                       width: double.infinity,
                       height: 56,
@@ -266,124 +266,104 @@ class _TelaLoginUnificadaState extends State<TelaLoginUnificada> {
                     ),
 
                     const SizedBox(height: 16),
-const Center(
-  child: Text(
-    'Entre com seu e-mail e senha para continuar.',
-    textAlign: TextAlign.center,
-    style: TextStyle(
-      fontSize: 13,
-      color: Colors.grey,
-    ),
-  ),
-),
 
-const SizedBox(height: 16),
-
-Row(
-  children: [
-    Expanded(
-      child: OutlinedButton(
-        onPressed: () {
-          Navigator.pushNamed(context, TelaCadastroCuidador.route);
-        },
-        child: const Text('Sou cuidador'),
-      ),
-    ),
-    const SizedBox(width: 12),
-    Expanded(
-      child: OutlinedButton(
-        onPressed: () {
-          Navigator.pushNamed(context, '/cadastro-responsavel');
-        },
-        child: const Text('Sou responsável'),
-      ),
-    ),
-  ],
-), ],
+                    const Center(
+                      child: Text(
+                        'Entre com seu e-mail e senha para continuar.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
 
-            // Home indicator
-            Container(
-              margin: EdgeInsets.only(bottom: bottomPadding + 20),
-              width: 134,
-              height: 5,
-              decoration: BoxDecoration(
-                color: Colors.black,
-                borderRadius: BorderRadius.circular(2.5),
+              const SizedBox(height: 24),
+
+              Container(
+                width: 134,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.circular(2.5),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
-Future<void> _handleLogin() async {
-  final validationError = LoginController.validateFields(
-    email: emailController.text,
-    senha: passwordController.text,
-    userType: selectedUserType,
-  );
 
-  if (validationError != null) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(validationError),
-        backgroundColor: Colors.red,
-      ),
-    );
-    return;
-  }
-
-  setState(() {
-    isLoading = true;
-  });
-
-  try {
-    final result = await LoginController.performLogin(
-      email: emailController.text.trim(),
+  Future<void> _handleLogin() async {
+    final validationError = LoginController.validateFields(
+      email: emailController.text,
       senha: passwordController.text,
-      userType: selectedUserType!,
+      userType: selectedUserType,
     );
 
-    if (!mounted) return;
+    if (validationError != null) {
+      if (!mounted) return;
 
-    if (result['success'] == true) {
-      HapticFeedback.lightImpact();
-
-      // NÃO mostra snackbar aqui antes/depois usando o contexto antigo.
-      // Só navega para o dashboard.
-      LoginController.navigateToDashboard(
-        context,
-        result['userType'],
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(validationError),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(result['message'] ?? 'Erro no login'),
-        backgroundColor: Colors.red,
-      ),
-    );
-  } catch (e) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Erro de conexão: $e'),
-        backgroundColor: Colors.red,
-      ),
-    );
-  } finally {
-    if (mounted) {
-      setState(() {
-        isLoading = false;
-      });
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final result = await LoginController.performLogin(
+        email: emailController.text.trim(),
+        senha: passwordController.text,
+        userType: selectedUserType!,
+      );
+
+      if (!mounted) return;
+
+      if (result['success'] == true) {
+        HapticFeedback.lightImpact();
+
+        LoginController.navigateToDashboard(
+          context,
+          result['userType'],
+        );
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['message'] ?? 'Erro no login'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro de conexão: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
-}
+
   @override
   void dispose() {
     emailController.dispose();

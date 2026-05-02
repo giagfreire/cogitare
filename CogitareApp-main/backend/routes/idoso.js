@@ -416,4 +416,41 @@ router.put('/:idIdoso', authenticateToken, async (req, res) => {
   }
 });
 
+router.delete('/:idIdoso', authenticateToken, async (req, res) => {
+  try {
+    const { idIdoso } = req.params;
+    const idResponsavel = getResponsavelId(req);
+
+    const existe = await db.query(
+      `SELECT IdIdoso FROM idoso WHERE IdIdoso = ? AND IdResponsavel = ? LIMIT 1`,
+      [idIdoso, idResponsavel]
+    );
+
+    if (!existe || existe.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Idoso não encontrado ou sem permissão para excluir.',
+      });
+    }
+
+    await db.query(
+      `DELETE FROM idoso WHERE IdIdoso = ? AND IdResponsavel = ?`,
+      [idIdoso, idResponsavel]
+    );
+
+    return res.json({
+      success: true,
+      message: 'Idoso excluído com sucesso.',
+    });
+  } catch (error) {
+    console.error('Erro ao excluir idoso:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Erro ao excluir idoso.',
+      error: error.message,
+    });
+  }
+});
+
 module.exports = router;

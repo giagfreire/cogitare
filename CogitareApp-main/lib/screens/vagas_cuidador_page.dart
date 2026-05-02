@@ -244,7 +244,7 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
           ),
           content: Text(
             _planoGratuito
-                ? 'Para aceitar vagas e liberar o WhatsApp dos responsáveis, escolha um plano.'
+                ? 'Para vizualizar a vaga e liberar o WhatsApp dos responsáveis, escolha um plano.'
                 : 'Você usou todos os contatos disponíveis neste plano. Compre um novo plano ou faça upgrade para continuar aceitando vagas.',
           ),
           actions: [
@@ -326,7 +326,7 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
         await _recarregarTudo();
       } else {
         final mensagem =
-            response['message']?.toString() ?? 'Erro ao aceitar vaga.';
+            response['message']?.toString() ?? 'Erro ao vizualizar vaga.';
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -350,7 +350,7 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Erro ao aceitar vaga: $e'),
+          content: Text('Erro ao vizualizar vaga: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -481,7 +481,7 @@ class _VagasCuidadorPageState extends State<VagasCuidadorPage> {
                       ? 'Ver planos'
                       : _limiteAtingido
                           ? 'Comprar plano'
-                          : 'Aceitar vaga',
+                          : 'Vizualizar vaga',
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,

@@ -30,10 +30,6 @@ class _CriarVagaPageState extends State<CriarVagaPage> {
   final _bairroController = TextEditingController();
   final _ruaController = TextEditingController();
 
-  DateTime? _dataSelecionada;
-  TimeOfDay? _horaInicio;
-  TimeOfDay? _horaFim;
-
   bool _carregando = false;
   bool _buscandoCep = false;
   bool _carregandoIdosos = true;
@@ -64,29 +60,6 @@ class _CriarVagaPageState extends State<CriarVagaPage> {
     _cidadeController.text = vaga['Cidade']?.toString() ?? '';
     _bairroController.text = vaga['Bairro']?.toString() ?? '';
     _ruaController.text = vaga['Rua']?.toString() ?? '';
-
-    if (vaga['DataServico'] != null) {
-      _dataSelecionada = DateTime.tryParse(vaga['DataServico'].toString());
-    }
-
-    _horaInicio = _parseHora(vaga['HoraInicio']);
-    _horaFim = _parseHora(vaga['HoraFim']);
-  }
-
-  TimeOfDay? _parseHora(dynamic valor) {
-    if (valor == null) return null;
-
-    final texto = valor.toString();
-    final partes = texto.split(':');
-
-    if (partes.length < 2) return null;
-
-    final hora = int.tryParse(partes[0]);
-    final minuto = int.tryParse(partes[1]);
-
-    if (hora == null || minuto == null) return null;
-
-    return TimeOfDay(hour: hora, minute: minuto);
   }
 
   @override
@@ -137,7 +110,8 @@ class _CriarVagaPageState extends State<CriarVagaPage> {
 
       setState(() {
         _idosos = lista;
-        _idosoSelecionado = selecionado ?? (_idosos.isNotEmpty ? _idosos.first : null);
+        _idosoSelecionado =
+            selecionado ?? (_idosos.isNotEmpty ? _idosos.first : null);
         _carregandoIdosos = false;
       });
     } catch (_) {
@@ -196,63 +170,11 @@ class _CriarVagaPageState extends State<CriarVagaPage> {
     }
   }
 
-  String _formatarHora(TimeOfDay hora) {
-    final h = hora.hour.toString().padLeft(2, '0');
-    final m = hora.minute.toString().padLeft(2, '0');
-    return '$h:$m:00';
-  }
-
-  String _formatarHoraTela(TimeOfDay? hora) {
-    if (hora == null) return 'Selecionar';
-    final h = hora.hour.toString().padLeft(2, '0');
-    final m = hora.minute.toString().padLeft(2, '0');
-    return '$h:$m';
-  }
-
-  String _formatarData(DateTime data) {
-    final ano = data.year.toString();
-    final mes = data.month.toString().padLeft(2, '0');
-    final dia = data.day.toString().padLeft(2, '0');
-    return '$ano-$mes-$dia';
-  }
-
-  String _formatarDataTela(DateTime? data) {
-    if (data == null) return 'Selecionar';
-    final dia = data.day.toString().padLeft(2, '0');
-    final mes = data.month.toString().padLeft(2, '0');
-    final ano = data.year.toString();
-    return '$dia/$mes/$ano';
-  }
-
-  int _minutos(TimeOfDay hora) {
-    return hora.hour * 60 + hora.minute;
-  }
-
-  bool _horarioValido() {
-    if (_horaInicio == null || _horaFim == null) return false;
-    return _minutos(_horaFim!) > _minutos(_horaInicio!);
-  }
-
   Future<void> _salvarVaga() async {
     if (!_formKey.currentState!.validate()) return;
 
     if (_idosoSelecionado == null) {
       _mostrarSnack('Cadastre ou selecione um idoso para criar a vaga.');
-      return;
-    }
-
-    if (_dataSelecionada == null) {
-      _mostrarSnack('Selecione a data do serviço.');
-      return;
-    }
-
-    if (_horaInicio == null || _horaFim == null) {
-      _mostrarSnack('Preencha a hora de início e fim.');
-      return;
-    }
-
-    if (!_horarioValido()) {
-      _mostrarSnack('A hora final precisa ser maior que a hora inicial.');
       return;
     }
 
@@ -268,9 +190,6 @@ class _CriarVagaPageState extends State<CriarVagaPage> {
         'cidade': _cidadeController.text.trim(),
         'bairro': _bairroController.text.trim(),
         'rua': _ruaController.text.trim(),
-        'dataServico': _formatarData(_dataSelecionada!),
-        'horaInicio': _formatarHora(_horaInicio!),
-        'horaFim': _formatarHora(_horaFim!),
       };
 
       late final Map<String, dynamic> response;
@@ -322,38 +241,6 @@ class _CriarVagaPageState extends State<CriarVagaPage> {
         backgroundColor: rosa,
       ),
     );
-  }
-
-  Future<void> _selecionarData() async {
-    final data = await showDatePicker(
-      context: context,
-      initialDate: _dataSelecionada ?? DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime(2030),
-    );
-
-    if (data != null) {
-      setState(() => _dataSelecionada = data);
-    }
-  }
-
-  Future<void> _selecionarHora(bool inicio) async {
-    final hora = await showTimePicker(
-      context: context,
-      initialTime: inicio
-          ? (_horaInicio ?? TimeOfDay.now())
-          : (_horaFim ?? TimeOfDay.now()),
-    );
-
-    if (hora != null) {
-      setState(() {
-        if (inicio) {
-          _horaInicio = hora;
-        } else {
-          _horaFim = hora;
-        }
-      });
-    }
   }
 
   Widget _campo({
@@ -410,59 +297,6 @@ class _CriarVagaPageState extends State<CriarVagaPage> {
     );
   }
 
-  Widget _seletor({
-    required IconData icon,
-    required String titulo,
-    required String valor,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: roxo.withOpacity(0.12)),
-          ),
-          child: Row(
-            children: [
-              Icon(icon, color: roxo),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      titulo,
-                      style: TextStyle(
-                        color: roxo.withOpacity(0.7),
-                        fontSize: 13,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      valor,
-                      style: const TextStyle(
-                        color: roxo,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.arrow_forward_ios, size: 16, color: roxo),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _header() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -495,7 +329,7 @@ class _CriarVagaPageState extends State<CriarVagaPage> {
           Text(
             editando
                 ? 'Atualize as informações da vaga publicada.'
-                : 'Selecione o idoso, informe a localidade e o horário do serviço.',
+                : 'Selecione o idoso e informe a localidade do serviço.',
             style: const TextStyle(
               color: Colors.white70,
               height: 1.4,
@@ -515,7 +349,9 @@ class _CriarVagaPageState extends State<CriarVagaPage> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(18),
         ),
-        child: const Center(child: CircularProgressIndicator(color: rosa)),
+        child: const Center(
+          child: CircularProgressIndicator(color: rosa),
+        ),
       );
     }
 
@@ -570,7 +406,7 @@ class _CriarVagaPageState extends State<CriarVagaPage> {
         border: Border.all(color: roxo.withOpacity(0.08)),
       ),
       child: DropdownButtonFormField<Idoso>(
-        initialValue: _idosoSelecionado,
+        value: _idosoSelecionado,
         decoration: const InputDecoration(
           labelText: 'Idoso',
           prefixIcon: Icon(Icons.elderly_outlined, color: roxo),
@@ -603,7 +439,7 @@ class _CriarVagaPageState extends State<CriarVagaPage> {
           SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Valor a combinar com o cuidador. O cuidador poderá informar o preço conforme horário, cuidados e deslocamento.',
+              'Valor a combinar com o cuidador. O cuidador poderá informar o preço conforme os cuidados e deslocamento.',
               style: TextStyle(
                 color: roxo,
                 fontWeight: FontWeight.w600,
@@ -618,10 +454,6 @@ class _CriarVagaPageState extends State<CriarVagaPage> {
 
   @override
   Widget build(BuildContext context) {
-    final textoData = _formatarDataTela(_dataSelecionada);
-    final textoInicio = _formatarHoraTela(_horaInicio);
-    final textoFim = _formatarHoraTela(_horaFim);
-
     return Scaffold(
       backgroundColor: fundo,
       appBar: AppBar(
@@ -694,47 +526,6 @@ class _CriarVagaPageState extends State<CriarVagaPage> {
                 hint: 'Rua',
                 icon: Icons.place_outlined,
               ),
-              const SizedBox(height: 4),
-              _seletor(
-                icon: Icons.calendar_today,
-                titulo: 'Data do serviço',
-                valor: textoData,
-                onTap: _selecionarData,
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _seletor(
-                      icon: Icons.access_time,
-                      titulo: 'Início',
-                      valor: textoInicio,
-                      onTap: () => _selecionarHora(true),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _seletor(
-                      icon: Icons.access_time_filled,
-                      titulo: 'Fim',
-                      valor: textoFim,
-                      onTap: () => _selecionarHora(false),
-                    ),
-                  ),
-                ],
-              ),
-              if (_horaInicio != null &&
-                  _horaFim != null &&
-                  !_horarioValido()) ...[
-                const SizedBox(height: 10),
-                const Text(
-                  'A hora final precisa ser maior que a hora inicial.',
-                  style: TextStyle(
-                    color: Colors.redAccent,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
               const SizedBox(height: 14),
               _infoValor(),
             ],

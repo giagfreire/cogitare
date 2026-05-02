@@ -46,8 +46,6 @@ class ApiIdoso {
 
       final response = await ApiClient.get('/api/idoso/meus');
 
-      print('RESPOSTA API IDOSO MEUS: $response');
-
       if (response['success'] == true && response['data'] is List) {
         final List<dynamic> data = response['data'];
         return data.map((json) => Idoso.fromJson(json)).toList();
@@ -55,7 +53,6 @@ class ApiIdoso {
 
       return [];
     } catch (e) {
-      print('ERRO AO LISTAR IDOSOS: $e');
       return [];
     }
   }
@@ -97,6 +94,31 @@ class ApiIdoso {
       return {
         'success': false,
         'message': response['message'] ?? 'Erro ao atualizar perfil do idoso',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Erro de conexão: $e',
+      };
+    }
+  }
+
+  static Future<Map<String, dynamic>> delete(int id) async {
+    try {
+      await _prepararToken();
+
+      final response = await ApiClient.delete('/api/idoso/$id');
+
+      if (response['success'] == true) {
+        return {
+          'success': true,
+          'message': response['message'] ?? 'Idoso excluído com sucesso',
+        };
+      }
+
+      return {
+        'success': false,
+        'message': response['message'] ?? 'Erro ao excluir perfil do idoso',
       };
     } catch (e) {
       return {

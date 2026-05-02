@@ -27,35 +27,32 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   final List<Map<String, dynamic>> onboardingData = [
     {
-      "title": "Conecte-se a cuidadores de confiança",
-      "subtitle":
-          "Encontre profissionais verificados perto de você, com experiência e avaliações reais.",
+      "title": "Cuidado com mais segurança",
+      "subtitle": "Encontre cuidadores disponíveis para apoiar a rotina do idoso.",
       "benefits": [
-        "Perfis verificados e com certificados.",
-        "Avaliações e comentários de famílias.",
-        "Contato simples e rápido pelo app."
+        "Perfis com informações básicas.",
+        "Facilidade para encontrar cuidadores.",
+        "Mais organização na busca por apoio."
       ],
       "image": "assets/images/onboarding1.png"
     },
     {
-      "title": "Organize a rotina e a saúde",
-      "subtitle":
-          "Lembretes de remédio, agendamentos e o histórico de atendimentos em um só lugar.",
+      "title": "Organize tudo em um só lugar",
+      "subtitle": "Cadastre informações importantes do idoso e gerencie suas vagas.",
       "benefits": [
-        "Lembretes automáticos para medicação e consultas.",
-        "Agenda com dias, horários e quem vai cuidar.",
-        "Histórico de serviços e anotações do cuidador."
+        "Dados de saúde e mobilidade.",
+        "Necessidades do dia a dia.",
+        "Controle das vagas criadas."
       ],
       "image": "assets/images/onboarding2.png"
     },
     {
-      "title": "Encontre cuidado com mais praticidade",
-      "subtitle":
-          "Visual intuitivo, navegação simples e recursos pensados para facilitar sua rotina.",
+      "title": "Conecte famílias e cuidadores",
+      "subtitle": "Publique vagas e encontre profissionais disponíveis.",
       "benefits": [
-        "Publicação de vagas de forma rápida.",
-        "Acompanhamento das informações em um só lugar.",
-        "Experiência mais organizada para a família."
+        "Criação rápida de vagas.",
+        "Visualização de oportunidades.",
+        "Processo simples e direto."
       ],
       "image": "assets/images/onboarding3.png"
     },
@@ -178,12 +175,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   children: [
                     _buildHeader(),
                     Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
                         child: Column(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
                             Container(
+                              width: double.infinity,
                               padding: const EdgeInsets.all(22),
                               decoration: BoxDecoration(
                                 color: Colors.white,
@@ -202,72 +199,64 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                     data["title"] as String,
                                     textAlign: TextAlign.center,
                                     style: const TextStyle(
-                                      fontSize: 28,
+                                      fontSize: 26,
                                       fontWeight: FontWeight.bold,
                                       color: roxo,
                                       height: 1.2,
                                     ),
                                   ),
-                                  const SizedBox(height: 16),
-                                  if (data["subtitle"] != null &&
-                                      (data["subtitle"] as String).isNotEmpty)
-                                    Text(
-                                      data["subtitle"] as String,
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        color: Colors.grey.shade700,
-                                        height: 1.5,
+                                  const SizedBox(height: 14),
+                                  Text(
+                                    data["subtitle"] as String,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.grey.shade700,
+                                      height: 1.45,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  ...((data["benefits"] as List).map(
+                                    (benefit) => Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 5,
+                                      ),
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Padding(
+                                            padding: EdgeInsets.only(top: 2),
+                                            child: Icon(
+                                              Icons.check_circle,
+                                              size: 18,
+                                              color: rosa,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Expanded(
+                                            child: Text(
+                                              benefit as String,
+                                              style: TextStyle(
+                                                fontSize: 15,
+                                                color: Colors.grey.shade800,
+                                                height: 1.35,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                  if (data["benefits"] != null &&
-                                      (data["benefits"] as List).isNotEmpty) ...[
-                                    const SizedBox(height: 24),
-                                    ...((data["benefits"] as List).map(
-                                      (benefit) => Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 6,
-                                        ),
-                                        child: Row(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            const Padding(
-                                              padding: EdgeInsets.only(top: 2),
-                                              child: Icon(
-                                                Icons.check_circle,
-                                                size: 18,
-                                                color: rosa,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 10),
-                                            Expanded(
-                                              child: Text(
-                                                benefit as String,
-                                                style: TextStyle(
-                                                  fontSize: 15,
-                                                  color: Colors.grey.shade800,
-                                                  height: 1.45,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    )),
-                                  ],
+                                  )),
                                 ],
                               ),
                             ),
-                            if (data["image"] != null)
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                child: Image.asset(
-                                  data["image"] as String,
-                                  fit: BoxFit.contain,
-                                  height: 260,
-                                ),
-                              ),
+                            const SizedBox(height: 24),
+                            Image.asset(
+                              data["image"] as String,
+                              fit: BoxFit.contain,
+                              height: 210,
+                            ),
                           ],
                         ),
                       ),
@@ -285,7 +274,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
       child: Row(
         children: [
           SizedBox(
@@ -338,7 +327,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
     return Container(
       color: fundo,
-      padding: EdgeInsets.fromLTRB(0, 4, 0, bottomPadding + 20),
+      padding: EdgeInsets.fromLTRB(0, 4, 0, bottomPadding + 14),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: List.generate(
@@ -365,12 +354,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         children: [
           _buildWelcomeHeader(),
           Expanded(
-            child: Padding(
+            child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  const SizedBox(height: 12),
                   Container(
+                    width: double.infinity,
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       color: Colors.white,
@@ -389,7 +379,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           "Bem-vindo ao Cogitare",
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 30,
+                            fontSize: 28,
                             fontWeight: FontWeight.bold,
                             color: roxo,
                             height: 1.2,
@@ -402,18 +392,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           style: TextStyle(
                             fontSize: 16,
                             color: Colors.grey.shade700,
-                            height: 1.5,
+                            height: 1.45,
                           ),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 20),
                         Image.asset(
                           'assets/images/idosa_lendo.png',
-                          height: 260,
+                          height: 220,
                           fit: BoxFit.contain,
                         ),
                       ],
                     ),
                   ),
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
@@ -426,7 +417,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   Widget _buildWelcomeHeader() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
       child: Row(
         children: [
           SizedBox(
@@ -446,8 +437,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
 
     return Container(
-      padding: EdgeInsets.fromLTRB(24, 12, 24, bottomPadding + 32),
+      padding: EdgeInsets.fromLTRB(24, 10, 24, bottomPadding + 18),
+      color: fundo,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           SizedBox(
             width: double.infinity,
@@ -456,7 +449,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: rosa,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
+                padding: const EdgeInsets.symmetric(vertical: 15),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
@@ -470,7 +463,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Wrap(
             alignment: WrapAlignment.center,
             crossAxisAlignment: WrapCrossAlignment.center,
@@ -504,14 +497,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           RichText(
             textAlign: TextAlign.center,
             text: TextSpan(
               style: TextStyle(
                 fontSize: 12,
                 color: Colors.grey.shade600,
-                height: 1.5,
+                height: 1.4,
               ),
               children: [
                 const TextSpan(text: "Ao prosseguir você concorda com os "),

@@ -7,8 +7,20 @@ const router = express.Router();
 
 function normalizarPlano(nome) {
   const texto = (nome || '').toString().toLowerCase();
+
   if (texto.includes('premium')) return 'Premium';
-  return 'Básico';
+  if (texto.includes('basico') || texto.includes('básico')) return 'Básico';
+
+  return 'Gratuito';
+}
+
+function limitePorPlano(plano) {
+  const planoNormalizado = normalizarPlano(plano);
+
+  if (planoNormalizado === 'Premium') return 20;
+  if (planoNormalizado === 'Básico') return 5;
+
+  return 0;
 }
 
 /**
@@ -89,42 +101,45 @@ router.post('/cadastro', async (req, res) => {
 
     const senhaHash = await bcrypt.hash(senha, 10);
 
-   const result = await db.query(
-  `INSERT INTO cuidador
-  (
-    IdEndereco, Nome, Email, Senha, Telefone, Cpf, DataNascimento,
-    FotoUrl, Biografia, Fumante, TemFilhos, PossuiCNH, TemCarro,
-    UsosPlano, Sexo, Escolaridade, ExperienciaProfissional,
-    TrabalhosFeitos, DiplomasCertificados
-  )
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`,
-  [
-    idEndereco,
-    nome,
-    email,
-    senhaHash,
-    telefone,
-    cpf,
-    dataNascimento || null,
-    fotoUrl || null,
-    biografia || null,
-    fumante || 'Não',
-    temFilhos || 'Não',
-    possuiCnh || 'Não',
-    temCarro || 'Não',
-    sexo || null,
-    escolaridade || null,
-    experienciaProfissional || null,
-    trabalhosFeitos || null,
-    diplomasCertificados || null,
-  ]
-);
+    const result = await db.query(
+      `INSERT INTO cuidador
+      (
+        IdEndereco, Nome, Email, Senha, Telefone, Cpf, DataNascimento,
+        FotoUrl, Biografia, Fumante, TemFilhos, PossuiCNH, TemCarro,
+        UsosPlano, PlanoAtual, Sexo, Escolaridade, ExperienciaProfissional,
+        TrabalhosFeitos, DiplomasCertificados
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'Gratuito', ?, ?, ?, ?, ?)`,
+      [
+        idEndereco,
+        nome,
+        email,
+        senhaHash,
+        telefone,
+        cpf,
+        dataNascimento || null,
+        fotoUrl || null,
+        biografia || null,
+        fumante || 'Não',
+        temFilhos || 'Não',
+        possuiCnh || 'Não',
+        temCarro || 'Não',
+        sexo || null,
+        escolaridade || null,
+        experienciaProfissional || null,
+        trabalhosFeitos || null,
+        diplomasCertificados || null,
+      ]
+    );
 
     return res.status(201).json({
       success: true,
       message: 'Cuidador cadastrado com sucesso',
       data: {
         idCuidador: result.insertId,
+        PlanoAtual: 'Gratuito',
+        UsosPlano: 0,
+        LimitePlano: 0,
       },
     });
   } catch (error) {
@@ -139,7 +154,6 @@ router.post('/cadastro', async (req, res) => {
 
 /**
  * VAGAS ABERTAS
- * IMPORTANTE: não retorna WhatsappContato antes do cuidador aceitar a vaga.
  */
 router.get('/vagas-abertas', async (req, res) => {
   try {
@@ -169,9 +183,8 @@ router.get('/vagas-abertas', async (req, res) => {
         i.Sexo AS SexoIdoso,
         i.CuidadosMedicos,
         i.DescricaoExtra,
-
-      i.IdMobilidade AS Mobilidade,
-i.IdNivelAutonomia AS NivelAutonomia
+        i.IdMobilidade AS Mobilidade,
+        i.IdNivelAutonomia AS NivelAutonomia
 
       FROM vaga v
       INNER JOIN responsavel r ON v.IdResponsavel = r.IdResponsavel
@@ -196,7 +209,7 @@ i.IdNivelAutonomia AS NivelAutonomia
 });
 
 /**
- * ACEITAR VAGA
+ * VISUALIZAR VAGA
  */
 router.post('/aceitar-vaga', authenticateToken, async (req, res) => {
   const { idVaga } = req.body;
@@ -245,7 +258,7 @@ router.post('/aceitar-vaga', authenticateToken, async (req, res) => {
       await connection.rollback();
       return res.status(400).json({
         success: false,
-        message: 'Você já aceitou essa vaga',
+        message: 'Você já visualizou essa vaga',
       });
     }
 
@@ -255,7 +268,7 @@ router.post('/aceitar-vaga', authenticateToken, async (req, res) => {
         a.IdPlano,
         COALESCE(a.ContatosUsados, 0) AS ContatosUsados,
         p.Nome AS PlanoAtual,
-        COALESCE(p.LimiteContatos, 20) AS LimitePlano
+        COALESCE(p.LimiteContatos, 0) AS LimitePlano
        FROM assinaturacuidador a
        LEFT JOIN plano p ON p.IdPlano = a.IdPlano
        WHERE a.IdCuidador = ?
@@ -265,9 +278,9 @@ router.post('/aceitar-vaga', authenticateToken, async (req, res) => {
       [idCuidador]
     );
 
-    let planoAtual = 'Básico';
+    let planoAtual = 'Gratuito';
     let usosPlano = 0;
-    let limitePlano = 5;
+    let limitePlano = 0;
     let usaAssinatura = false;
     let idAssinatura = null;
 
@@ -276,12 +289,14 @@ router.post('/aceitar-vaga', authenticateToken, async (req, res) => {
       idAssinatura = assinaturaAtiva[0].IdAssinatura;
       planoAtual = normalizarPlano(assinaturaAtiva[0].PlanoAtual);
       usosPlano = Number(assinaturaAtiva[0].ContatosUsados) || 0;
-      limitePlano = Number(assinaturaAtiva[0].LimitePlano) || 20;
+      limitePlano =
+        Number(assinaturaAtiva[0].LimitePlano) || limitePorPlano(planoAtual);
     } else {
       const [cuidador] = await connection.execute(
         `SELECT
           IdCuidador,
-          COALESCE(UsosPlano, 0) AS UsosPlano
+          COALESCE(UsosPlano, 0) AS UsosPlano,
+          COALESCE(PlanoAtual, 'Gratuito') AS PlanoAtual
          FROM cuidador
          WHERE IdCuidador = ?
          LIMIT 1`,
@@ -296,9 +311,22 @@ router.post('/aceitar-vaga', authenticateToken, async (req, res) => {
         });
       }
 
-      planoAtual = 'Básico';
+      planoAtual = normalizarPlano(cuidador[0].PlanoAtual);
       usosPlano = Number(cuidador[0].UsosPlano) || 0;
-      limitePlano = 5;
+      limitePlano = limitePorPlano(planoAtual);
+    }
+
+    if (planoAtual === 'Gratuito' || limitePlano <= 0) {
+      await connection.rollback();
+      return res.status(403).json({
+        success: false,
+        message: 'Você está no Plano Gratuito. Escolha um plano para visualizar vagas.',
+        data: {
+          PlanoAtual: 'Gratuito',
+          UsosPlano: 0,
+          LimitePlano: 0,
+        },
+      });
     }
 
     if (usosPlano >= limitePlano) {
@@ -306,7 +334,7 @@ router.post('/aceitar-vaga', authenticateToken, async (req, res) => {
       return res.status(403).json({
         success: false,
         message:
-          planoAtual.toLowerCase() === 'premium'
+          planoAtual === 'Premium'
             ? 'Você atingiu o limite do seu plano atual.'
             : 'Você atingiu o limite do Plano Básico. Faça upgrade para Premium.',
         data: {
@@ -322,7 +350,6 @@ router.post('/aceitar-vaga', authenticateToken, async (req, res) => {
        VALUES (?, ?, NOW())`,
       [idVaga, idCuidador]
     );
-
 
     if (usaAssinatura && idAssinatura) {
       await connection.execute(
@@ -344,7 +371,7 @@ router.post('/aceitar-vaga', authenticateToken, async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Vaga aceita com sucesso',
+      message: 'Vaga visualizada com sucesso',
       data: {
         PlanoAtual: planoAtual,
         UsosPlano: usosPlano + 1,
@@ -358,7 +385,7 @@ router.post('/aceitar-vaga', authenticateToken, async (req, res) => {
       } catch (_) {}
     }
 
-    console.error('ERRO AO ACEITAR VAGA:', error);
+    console.error('ERRO AO VISUALIZAR VAGA:', error);
     return res.status(500).json({
       success: false,
       message: 'Erro interno do servidor',
@@ -370,9 +397,7 @@ router.post('/aceitar-vaga', authenticateToken, async (req, res) => {
 });
 
 /**
- * MINHAS VAGAS ACEITAS
- * Retorna somente as vagas aceitas pelo cuidador logado.
- * Aqui o WhatsApp do responsável é liberado.
+ * MINHAS VAGAS VISUALIZADAS
  */
 router.get('/minhas-vagas', authenticateToken, async (req, res) => {
   try {
@@ -431,11 +456,12 @@ router.get('/minhas-vagas', authenticateToken, async (req, res) => {
     console.error('ERRO MINHAS VAGAS:', error);
     return res.status(500).json({
       success: false,
-      message: 'Erro ao buscar vagas aceitas',
+      message: 'Erro ao buscar vagas visualizadas',
       error: error.message,
     });
   }
 });
+
 /**
  * STATUS DO PLANO DO CUIDADOR LOGADO
  */
@@ -460,24 +486,17 @@ router.get('/status-plano', authenticateToken, async (req, res) => {
 
     if (assinaturaAtiva && assinaturaAtiva.length > 0) {
       const row = assinaturaAtiva[0];
+      const planoAtual = normalizarPlano(row.PlanoAtual);
 
       return res.status(200).json({
         success: true,
         data: {
-          PlanoAtual: normalizarPlano(row.PlanoAtual),
+          PlanoAtual: planoAtual,
           UsosPlano: Number(row.UsosPlano) || 0,
-          LimitePlano: Number(row.LimitePlano) || 20,
+          LimitePlano: Number(row.LimitePlano) || limitePorPlano(planoAtual),
         },
       });
     }
-
-    const cuidador = await db.query(
-      `SELECT COALESCE(UsosPlano, 0) AS UsosPlano
-       FROM cuidador
-       WHERE IdCuidador = ?
-       LIMIT 1`,
-      [idCuidador]
-    );
 
     return res.status(200).json({
       success: true,
@@ -542,7 +561,8 @@ router.get('/:id/plano', async (req, res) => {
     const { id } = req.params;
 
     const cuidadorRows = await db.query(
-      `SELECT PlanoAtual, COALESCE(UsosPlano, 0) AS UsosPlano
+      `SELECT COALESCE(PlanoAtual, 'Gratuito') AS PlanoAtual,
+              COALESCE(UsosPlano, 0) AS UsosPlano
        FROM cuidador
        WHERE IdCuidador = ?
        LIMIT 1`,
@@ -573,39 +593,27 @@ router.get('/:id/plano', async (req, res) => {
 
     if (assinaturaAtiva && assinaturaAtiva.length > 0) {
       const row = assinaturaAtiva[0];
+      const planoAtual = normalizarPlano(row.PlanoAtual);
 
       return res.status(200).json({
         success: true,
         data: {
-          PlanoAtual: row.PlanoAtual || 'Premium',
+          PlanoAtual: planoAtual,
           UsosPlano: Number(row.UsosPlano) || 0,
-          LimitePlano: Number(row.LimitePlano) || 20,
+          LimitePlano: Number(row.LimitePlano) || limitePorPlano(planoAtual),
         },
       });
     }
 
     const cuidador = cuidadorRows[0];
-    const planoAtual = (cuidador.PlanoAtual || 'Gratuito').toString();
-
-    let limitePlano = 0;
-
-    if (
-      planoAtual.toLowerCase() === 'basico' ||
-      planoAtual.toLowerCase() === 'básico'
-    ) {
-      limitePlano = 5;
-    } else if (planoAtual.toLowerCase() === 'premium') {
-      limitePlano = 20;
-    } else {
-      limitePlano = 0;
-    }
+    const planoAtual = normalizarPlano(cuidador.PlanoAtual);
 
     return res.status(200).json({
       success: true,
       data: {
         PlanoAtual: planoAtual,
-        UsosPlano: Number(cuidador.UsosPlano) || 0,
-        LimitePlano: limitePlano,
+        UsosPlano: planoAtual === 'Gratuito' ? 0 : Number(cuidador.UsosPlano) || 0,
+        LimitePlano: limitePorPlano(planoAtual),
       },
     });
   } catch (error) {
@@ -646,6 +654,7 @@ router.get('/:id', async (req, res) => {
         c.TrabalhosFeitos AS trabalhosFeitos,
         c.DiplomasCertificados AS diplomasCertificados,
         COALESCE(c.UsosPlano, 0) AS usosPlano,
+        COALESCE(c.PlanoAtual, 'Gratuito') AS planoAtual,
         e.Cidade AS cidade,
         e.Bairro AS bairro,
         e.Rua AS rua,
@@ -694,20 +703,20 @@ router.put('/:id', authenticateToken, async (req, res) => {
       });
     }
 
-const {
-  nome,
-  telefone,
-  cpf,
-  dataNascimento,
-  sexo,
-  cidade,
-  biografia,
-  fotoUrl,
-  escolaridade,
-  experienciaProfissional,
-  trabalhosFeitos,
-  diplomasCertificados,
-} = req.body;
+    const {
+      nome,
+      telefone,
+      cpf,
+      dataNascimento,
+      sexo,
+      cidade,
+      biografia,
+      fotoUrl,
+      escolaridade,
+      experienciaProfissional,
+      trabalhosFeitos,
+      diplomasCertificados,
+    } = req.body;
 
     const cuidador = await db.query(
       'SELECT IdEndereco FROM cuidador WHERE IdCuidador = ? LIMIT 1',
@@ -721,23 +730,45 @@ const {
       });
     }
 
-await db.query(
-  `UPDATE cuidador
-   SET
-    Nome = ?,
-    Telefone = ?,
-    Cpf = ?,
-    DataNascimento = ?,
-    Sexo = ?,
-    Biografia = ?,
-    ${fotoUrl ? 'FotoUrl = ?,' : ''}
-    Escolaridade = ?,
-    ExperienciaProfissional = ?,
-    TrabalhosFeitos = ?,
-    DiplomasCertificados = ?
-   WHERE IdCuidador = ?`,
-  valores
-);
+    const campos = [
+      'Nome = ?',
+      'Telefone = ?',
+      'Cpf = ?',
+      'DataNascimento = ?',
+      'Sexo = ?',
+      'Biografia = ?',
+      'Escolaridade = ?',
+      'ExperienciaProfissional = ?',
+      'TrabalhosFeitos = ?',
+      'DiplomasCertificados = ?',
+    ];
+
+    const valores = [
+      nome || null,
+      telefone || null,
+      cpf || null,
+      dataNascimento || null,
+      sexo || null,
+      biografia || null,
+      escolaridade || null,
+      experienciaProfissional || null,
+      trabalhosFeitos || null,
+      diplomasCertificados || null,
+    ];
+
+    if (fotoUrl) {
+      campos.push('FotoUrl = ?');
+      valores.push(fotoUrl);
+    }
+
+    valores.push(id);
+
+    await db.query(
+      `UPDATE cuidador
+       SET ${campos.join(', ')}
+       WHERE IdCuidador = ?`,
+      valores
+    );
 
     if (cidade && cuidador[0].IdEndereco) {
       await db.query(
@@ -774,121 +805,6 @@ await db.query(
       message: 'Erro ao atualizar perfil',
       error: error.message,
     });
-  }
-});
-
-/**
- * BUSCAR DISPONIBILIDADE DO CUIDADOR
- */
-router.get('/:id/disponibilidade', async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const rows = await db.query(
-      `SELECT
-        IdDisponibilidade,
-        IdCuidador,
-        DiaSemana,
-        DataInicio,
-        DataFim,
-        Observacoes,
-        Recorrente
-      FROM disponibilidade
-      WHERE IdCuidador = ?
-      ORDER BY FIELD(
-        DiaSemana,
-        'Segunda',
-        'Terça',
-        'Quarta',
-        'Quinta',
-        'Sexta',
-        'Sábado',
-        'Domingo'
-      )`,
-      [id]
-    );
-
-    return res.status(200).json({
-      success: true,
-      data: rows,
-    });
-  } catch (error) {
-    console.error('ERRO GET DISPONIBILIDADE:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar disponibilidade',
-      error: error.message,
-    });
-  }
-});
-
-/**
- * SALVAR DISPONIBILIDADE DO CUIDADOR
- */
-router.post('/:id/disponibilidade', authenticateToken, async (req, res) => {
-  let connection;
-
-  try {
-    const { id } = req.params;
-    const { disponibilidade } = req.body;
-
-    if (Number(req.user.id) !== Number(id)) {
-      return res.status(403).json({
-        success: false,
-        message: 'Você não tem permissão para editar esta disponibilidade.',
-      });
-    }
-
-    if (!Array.isArray(disponibilidade)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Formato de disponibilidade inválido',
-      });
-    }
-
-    connection = await db.getConnection();
-    await connection.beginTransaction();
-
-    await connection.execute(
-      'DELETE FROM disponibilidade WHERE IdCuidador = ?',
-      [id]
-    );
-
-    for (const item of disponibilidade) {
-      const ativo = item.ativo === true;
-      const dia = item.dia;
-      const inicio = ativo ? item.inicio : null;
-      const fim = ativo ? item.fim : null;
-
-      await connection.execute(
-        `INSERT INTO disponibilidade
-        (IdCuidador, DiaSemana, DataInicio, DataFim, Observacoes, Recorrente)
-        VALUES (?, ?, ?, ?, ?, ?)`,
-        [id, dia, inicio, fim, null, 1]
-      );
-    }
-
-    await connection.commit();
-
-    return res.status(200).json({
-      success: true,
-      message: 'Disponibilidade salva com sucesso',
-    });
-  } catch (error) {
-    if (connection) {
-      try {
-        await connection.rollback();
-      } catch (_) {}
-    }
-
-    console.error('ERRO POST DISPONIBILIDADE:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Erro ao salvar disponibilidade',
-      error: error.message,
-    });
-  } finally {
-    if (connection) connection.release();
   }
 });
 
