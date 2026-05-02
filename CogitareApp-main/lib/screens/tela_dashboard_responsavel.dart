@@ -186,7 +186,7 @@ class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(26),
         gradient: const LinearGradient(
@@ -276,7 +276,7 @@ class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(18),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(10),
           child: Row(
             children: [
               Icon(icon, color: textColor, size: 24),
@@ -341,80 +341,79 @@ class _TelaDashboardResponsavelState extends State<TelaDashboardResponsavel> {
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          Opacity(
-            opacity: 0.15,
-            child: SizedBox.expand(
-              child: Image.asset(
-                'assets/images/leopardo.png',
-                fit: BoxFit.cover,
-              ),
-            ),
-          ),
-          _loading
-              ? const Center(
-                  child: CircularProgressIndicator(color: rosa),
-                )
-              : RefreshIndicator(
-                  onRefresh: _carregarDashboard,
-                  color: rosa,
-                  child: ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
+body: Stack(
+  children: [
+    Opacity(
+      opacity: 0.15,
+      child: SizedBox.expand(
+        child: Image.asset(
+          'assets/images/leopardo.png',
+          fit: BoxFit.cover,
+        ),
+      ),
+    ),
+    _loading
+        ? const Center(
+            child: CircularProgressIndicator(color: rosa),
+          )
+        : Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              children: [
+                _cardPrincipal(),
+                const SizedBox(height: 14),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Acesso rápido',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: roxo,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: GridView.count(
+                    crossAxisCount: 2,
+                    physics: const NeverScrollableScrollPhysics(),
+                    mainAxisSpacing: 8,
+                    crossAxisSpacing: 8,
+                    childAspectRatio: 1.75,
                     children: [
-                      _cardPrincipal(),
-                      const SizedBox(height: 22),
-                      const Text(
-                        'Acesso rápido',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: roxo,
-                        ),
+                      _actionBox(
+                        titulo: 'Criar vaga',
+                        icon: Icons.add_circle_outline,
+                        cor: rosa,
+                        onTap: _irParaCriarVaga,
                       ),
-                      const SizedBox(height: 12),
-                      GridView.count(
-                        crossAxisCount: 2,
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        mainAxisSpacing: 10,
-                        crossAxisSpacing: 10,
-                        childAspectRatio: 1.45,
-                        children: [
-                          _actionBox(
-                            titulo: 'Criar vaga',
-                            icon: Icons.add_circle_outline,
-                            cor: rosa,
-                            onTap: _irParaCriarVaga,
-                          ),
-                          _actionBox(
-                            titulo: 'Minhas vagas',
-                            icon: Icons.work_outline,
-                            cor: roxo,
-                            onTap: _abrirMinhasVagas,
-                          ),
-                          _actionBox(
-                            titulo: 'Meu perfil',
-                            icon: Icons.person_outline,
-                            cor: verde,
-                            textoEscuro: true,
-                            onTap: _abrirPerfil,
-                          ),
-                          _actionBox(
-                            titulo: 'Perfil do idoso',
-                            icon: Icons.elderly_outlined,
-                            cor: rosa,
-                            onTap: _abrirPerfilIdoso,
-                          ),
-                        ],
+                      _actionBox(
+                        titulo: 'Minhas vagas',
+                        icon: Icons.work_outline,
+                        cor: roxo,
+                        onTap: _abrirMinhasVagas,
                       ),
-                      const SizedBox(height: 30),
+                      _actionBox(
+                        titulo: 'Meu perfil',
+                        icon: Icons.person_outline,
+                        cor: verde,
+                        textoEscuro: true,
+                        onTap: _abrirPerfil,
+                      ),
+                      _actionBox(
+                        titulo: 'Perfil do idoso',
+                        icon: Icons.elderly_outlined,
+                        cor: rosa,
+                        onTap: _abrirPerfilIdoso,
+                      ),
                     ],
                   ),
                 ),
-        ],
-      ),
-    );
-  }
-}
+              ],
+            ),
+          ),
+  ],
+),
+);
+  }}

@@ -223,8 +223,7 @@ _limitePlano = _parseInt(planoData['LimitePlano']) ??
     );
     await _carregarDados();
   }
-
- @override
+@override
 Widget build(BuildContext context) {
   final nome = getNome();
   final foto = _fotoProvider();
@@ -291,68 +290,70 @@ Widget build(BuildContext context) {
             ? const Center(
                 child: CircularProgressIndicator(color: rosa),
               )
-            : RefreshIndicator(
-                onRefresh: _carregarDados,
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildHeader(nome),
-                      const SizedBox(height: 20),
-                      const Text(
+            : Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  children: [
+                    _buildHeader(nome),
+                    const SizedBox(height: 14),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
                         'Acesso rápido',
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 17,
                           fontWeight: FontWeight.bold,
                           color: roxo,
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      GridView.count(
-                        crossAxisCount: 2,
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        mainAxisSpacing: 10,
-                        crossAxisSpacing: 10,
-                        childAspectRatio: 1.45,
-                        children: [
-                          _buildActionBox(
-                            titulo: 'Vagas disponíveis',
-                            icon: Icons.work_outline,
-                            cor: roxo,
-                            onTap: _abrirVagas,
-                          ),
-                          _buildActionBox(
-                            titulo: 'Meu plano',
-                            icon: Icons.workspace_premium_outlined,
-                            cor: verde,
-                            textoEscuro: true,
-                            onTap: _abrirPlanos,
-                          ),
-                          _buildActionBox(
-                            titulo: 'Vagas visualizadas',
-                            icon: Icons.visibility_outlined,
-                            cor: rosa,
-                            onTap: _abrirVagasVisualizadas,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 22),
-                      const Text(
+                    ),
+                    const SizedBox(height: 10),
+                    GridView.count(
+                      crossAxisCount: 2,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      mainAxisSpacing: 8,
+                      crossAxisSpacing: 8,
+                      childAspectRatio: 1.75,
+                      children: [
+                        _buildActionBox(
+                          titulo: 'Vagas disponíveis',
+                          icon: Icons.work_outline,
+                          cor: roxo,
+                          onTap: _abrirVagas,
+                        ),
+                        _buildActionBox(
+                          titulo: 'Meu plano',
+                          icon: Icons.workspace_premium_outlined,
+                          cor: verde,
+                          textoEscuro: true,
+                          onTap: _abrirPlanos,
+                        ),
+                        _buildActionBox(
+                          titulo: 'Vagas visualizadas',
+                          icon: Icons.visibility_outlined,
+                          cor: rosa,
+                          onTap: _abrirVagasVisualizadas,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
                         'Meu plano',
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 17,
                           fontWeight: FontWeight.bold,
                           color: roxo,
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      _buildPlanoStatusCard(),
-                      const SizedBox(height: 24),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 10),
+                    Expanded(
+                      child: _buildPlanoStatusCard(),
+                    ),
+                  ],
                 ),
               ),
       ],
