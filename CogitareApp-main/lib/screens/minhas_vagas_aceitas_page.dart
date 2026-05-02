@@ -179,7 +179,7 @@ class _MinhasVagasAceitasPageState extends State<MinhasVagasAceitasPage> {
         padding: const EdgeInsets.all(24),
         children: [
           const SizedBox(height: 100),
-          Icon(
+          const Icon(
             Icons.check_circle_outline,
             size: 76,
             color: verde,

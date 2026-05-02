@@ -629,7 +629,7 @@ class _EditarPerfilResponsavelPageState
                     espaco(),
 
                     DropdownButtonFormField<String>(
-                      value: preferenciaContato,
+                      initialValue: preferenciaContato,
                       decoration: campo(
                         'Preferência de contato',
                         Icons.contact_phone_outlined,

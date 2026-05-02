@@ -272,7 +272,7 @@ class _TelaCadastroIdosoState extends State<TelaCadastroIdoso> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: DropdownButtonFormField<T>(
-        value: value,
+        initialValue: value,
         items: items,
         onChanged: onChanged,
         validator: validator,

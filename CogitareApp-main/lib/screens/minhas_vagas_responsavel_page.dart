@@ -829,7 +829,7 @@ child: ListTile(
               ),
               child: Row(
                 children: [
-                  Icon(Icons.people_outline, color: rosa, size: 20),
+                  const Icon(Icons.people_outline, color: rosa, size: 20),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(

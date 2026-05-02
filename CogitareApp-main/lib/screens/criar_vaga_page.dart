@@ -570,7 +570,7 @@ class _CriarVagaPageState extends State<CriarVagaPage> {
         border: Border.all(color: roxo.withOpacity(0.08)),
       ),
       child: DropdownButtonFormField<Idoso>(
-        value: _idosoSelecionado,
+        initialValue: _idosoSelecionado,
         decoration: const InputDecoration(
           labelText: 'Idoso',
           prefixIcon: Icon(Icons.elderly_outlined, color: roxo),
